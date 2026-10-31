@@ -1,7 +1,7 @@
 # LinkGuerilla
 
-> **Repository:** [rumca-js/yafr_next](https://github.com/rumca-js/linkguerilla)  
-> **Docker Hub:** [rozbujnik/yafr](https://hub.docker.com/r/rozbujnik/linkguerilla) *(Docker build coming soon)*
+> **Repository:** [rumca-js/linkguerilla](https://github.com/rumca-js/linkguerilla)  
+> **Docker Hub:** [rozbujnik/linkguerilla](https://hub.docker.com/r/rozbujnik/linkguerilla) *(Docker build coming soon)*
 
 **LinkGuerilla** is an agile, self-hosted link bunker and curation engine built to break free from Big Tech algorithms, walled gardens, and centralized feeds.
 
