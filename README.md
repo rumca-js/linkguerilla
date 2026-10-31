@@ -7,6 +7,8 @@
 
 Instead of relying on third-party platforms, LinkGuerilla puts you in total control of your data. Aggregate RSS feeds, ingest links directly from IMAP emails, build custom music playlists, log movie watchlists, tag content, and rank entries with weighted voting—all backed by a minimal, ultra-portable database tailored to your needs.
 
+Technology stack: HTML/css/javascript/bootstrapp/python/flask
+
 ---
 
 ## Highlights
