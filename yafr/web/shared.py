@@ -113,14 +113,14 @@ def get_shared_context() -> Dict[str, Any]:
     sources_outdated = 0
     sources_errors = 0
     jobs_errors = 0
-    instance_title = "YAFR"
+    instance_title = "LinkGuerilla"
 
     try:
         config_repo = ConfigRepository()
         active_theme = config_repo.get_display_style()
         display_type = config_repo.get_display_type()
         config = config_repo.get_config()
-        instance_title = (config.instance_title or "YAFR").strip() or "YAFR"
+        instance_title = (config.instance_title or "LinkGuerilla").strip() or "LinkGuerilla"
 
         source_repo = SourceRepository()
         sources_outdated = source_repo.count_outdated_sources()

@@ -19,6 +19,8 @@ class ConfigRepository(BaseRepository[ConfigurationEntry]):
     """
     Data access repository for application configuration entries.
     """
+    DEFAULT_TITLE="LinkGuerilla"
+    DEFAULT_DESCRIPTION="Link manager and aggregator"
 
     def __init__(self, session: Optional[Session] = None) -> None:
         super().__init__(session=session)
@@ -36,8 +38,8 @@ class ConfigRepository(BaseRepository[ConfigurationEntry]):
 
         if config is None:
             config = ConfigurationEntry(
-                instance_title="YAFR",
-                instance_description="Yet Another Feed Reader",
+                instance_title=DEFAULT_TITLE,
+                instance_description=DEFAULT_DESCRIPTION,
                 display_style="style-dark",
                 display_type="gallery",
                 show_icons=True,

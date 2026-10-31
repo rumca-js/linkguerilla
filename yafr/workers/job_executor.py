@@ -457,6 +457,7 @@ class JobExecutor:
         executed_count = 0
         thread_id = str(_threading.current_thread().ident)
 
+
         while True:
             if stop_event and stop_event.is_set():
                 break
@@ -471,6 +472,13 @@ class JobExecutor:
                 )
             except Exception as hb_err:
                 logger.debug("Failed to record worker heartbeat: %s", hb_err)
+
+
+            config_repo = ConfigRepository(self._get_session())
+            config = config_repo.get_config()
+            if not config.enable_background_jobs:
+                time.sleep(interval)
+                continue
 
             result = self.process_one()
 

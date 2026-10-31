@@ -8,9 +8,12 @@ from yafr.app import create_app
 from yafr.config import Config
 
 
+description = "LinkGuerilla - Link manager and aggregator"
+
+
 def parse_args():
     parser = argparse.ArgumentParser(
-        description="YAFR - Yet Another Feed Reader (Offline-First Link Search App)"
+        description=description
     )
     parser.add_argument(
         "--host",
@@ -52,7 +55,7 @@ def main():
     app = create_app(config_dict)
 
     print("=" * 60)
-    print("  YAFR - Yet Another Feed Reader")
+    print(f"  {description}")
     print(f"  Running on: http://{args.host}:{args.port}")
     print(f"  Debug mode: {'Enabled' if args.debug else 'Disabled'}")
     print(f"  SQLite DB:  {args.db}")
