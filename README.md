@@ -1,46 +1,31 @@
-# YAFR - Yet Another Feed Reader
+# LinkGuerilla
 
-A dead-simple, read-only RSS feed reader built for speed and portability.
+> **Repository:** [rumca-js/yafr_next](https://github.com/rumca-js/yafr_next)  
+> **Docker Hub:** [rozbujnik/yafr](https://hub.docker.com/r/rozbujnik/yafr) *(Docker build coming soon)*
 
-YAFR does exactly one thing: reads RSS feeds.
-No accounts, no sync logic, no opinions. Just feeds -> entries -> read.
+**LinkGuerilla** is an agile, self-hosted link bunker and curation engine built to break free from Big Tech algorithms, walled gardens, and centralized feeds.
 
-# Why "Yet Another"?
+Instead of relying on third-party platforms, LinkGuerilla puts you in total control of your data. Aggregate RSS feeds, ingest links directly from IMAP emails, build custom music playlists, log movie watchlists, tag content, and rank entries with weighted voting—all backed by a minimal, ultra-portable database tailored to your needs.
 
-Because it actually is - but it’s intentionally minimal.
+---
 
-YAFR focuses on:
- - Speed
- - Simplicity
- - Portability
+## Highlights
 
-No writing, starring, tagging, or social features. Just read.
+- **Multi-Source Ingestion** — Pull entries automatically via RSS, parse links from IMAP emails, or add items manually.
+- **Weighted Ratings & Votes** — Assign custom scores and weights to prioritize music, movies, articles, or resources.
+- **Tagging & Curation** — Tag entries for effortless categorization and custom playlist or list generation.
+- **Full-Text Search** — Instantly query and filter entries by link URL, title, description, or metadata.
+- **Instance Flexibility** — Spin up distinct, dedicated instances configured for specific topics (e.g., music curation, news archiving, film logs).
+- **SQLite Core** — Single-file database architecture makes backups, migrations, and offline archiving dead simple.
 
-Try it!
- - https://hub.docker.com/r/rozbujnik/yafr
+---
 
-You can use RSS links from https://rumca-js.github.io/feeds to initialize you RSS client!
+## Quick Start
 
-# Features
+### Local Development
 
- - SQLite database - Portable, easy to back up. Can be shared or copied between machines or tasks
- - Python + SQLAlchemy - Simple, explicit schema. Easy to inspect or extend
- - Flask server - Lightweight HTTP interface
- - No frontend framework required
- - Fast - Minimal processing. No unnecessary abstractions
- - Read-only - Feeds and entries only. No mutation beyond fetching and storing
+Run the application locally using the standard Makefile command:
 
-# Endpoints
-
-Allows to integrate your project with YAFR.
-
- - /entries - search view
- - /sources - sources list
-
- API
- - /api/entries - returns JSON about entries
- - /api/sources - returns JSON about sources
-
-# Host and Port
-
-Can be set up by YAFR\_HOST and YAFR\_PORT environment variables.
+```bash
+make run
+```
