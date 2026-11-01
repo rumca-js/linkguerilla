@@ -136,7 +136,17 @@ class TestSourceRoutes(unittest.TestCase):
         self.assertIn("Hacker News", html)
 
     def test_source_detail_screen(self):
-        """GET /sources/<id> renders SourceDetailScreen."""
+        """GET /sources/<id> renders SourceDetailScreen with entries linking to /entries/<id>."""
+        from linkarchivetools.model.definitions import LinkDataModel
+        entry = LinkDataModel(
+            link="https://news.ycombinator.com/item?id=123",
+            title="Sample HN Item",
+            source_id=self.s1.id,
+            page_rating_votes=42,
+        )
+        self.session.add(entry)
+        self.session.commit()
+
         response = self.client.get(f"/sources/{self.s1.id}")
         self.assertEqual(response.status_code, 200)
         html = response.get_data(as_text=True)
@@ -146,6 +156,8 @@ class TestSourceRoutes(unittest.TestCase):
         self.assertIn("Stored Entries", html)
         self.assertIn("Fetch Period", html)
         self.assertIn("1,800s", html)
+        self.assertIn(f"/entries/{entry.id}", html)
+        self.assertIn("Sample HN Item", html)
 
         # Also test source without custom fetch_period displays Default
         res_s2 = self.client.get(f"/sources/{self.s2.id}")

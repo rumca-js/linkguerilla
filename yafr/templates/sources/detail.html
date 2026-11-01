@@ -375,14 +375,19 @@
               {% for entry in entries %}
                 <tr>
                   <td>
-                    <div class="fw-semibold text-truncate" style="max-width: 420px;" title="{{ entry.title }}">
-                      {{ entry.title }}
-                    </div>
+                    <a href="{{ url_for('entries.entry_detail_view', id=entry.id) }}" class="fw-semibold text-truncate text-decoration-none text-body d-block" style="max-width: 420px;" title="{{ entry.title }}">
+                      {{ entry.title or entry.link }}
+                    </a>
                   </td>
                   <td>
-                    <a href="{{ entry.link }}" target="_blank" rel="noopener noreferrer" class="text-muted text-truncate d-inline-block" style="max-width: 300px;">
-                      {{ entry.link }} <i class="bi bi-box-arrow-up-right small ms-1"></i>
-                    </a>
+                    <div class="d-flex align-items-center">
+                      <a href="{{ url_for('entries.entry_detail_view', id=entry.id) }}" class="text-muted text-truncate d-inline-block text-decoration-none" style="max-width: 280px;" title="{{ entry.link }}">
+                        {{ entry.link }}
+                      </a>
+                      <a href="{{ entry.link }}" target="_blank" rel="noopener noreferrer" class="text-muted ms-1 small flex-shrink-0" title="Open external URL">
+                        <i class="bi bi-box-arrow-up-right"></i>
+                      </a>
+                    </div>
                   </td>
                   <td class="text-muted text-nowrap">
                     {% if entry.date_published %}
