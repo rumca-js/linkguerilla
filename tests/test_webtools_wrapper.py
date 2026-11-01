@@ -11,6 +11,7 @@ from webtoolkit import BaseUrl, RemoteUrl
 from webtoolkit.response import PageResponseObject
 from linkarchivetools.model.definitions import (
     AppLogging,
+    BackgroundJob,
     ConfigurationEntry,
     LinkDataModel,
     SourceOperationalData,
@@ -406,6 +407,20 @@ class TestSourceServiceWithWrapper(unittest.TestCase):
             links = {e.link for e in entries}
             self.assertEqual(
                 links,
+                {"https://parse.example.com/posts/101", "https://parse.example.com/posts/102"},
+            )
+
+            # Verify background link-update-data jobs were enqueued for each extracted link
+            jobs = (
+                self.session.execute(
+                    select(BackgroundJob).where(BackgroundJob.job == "link-update-data")
+                )
+                .scalars()
+                .all()
+            )
+            job_subjects = {j.subject for j in jobs}
+            self.assertEqual(
+                job_subjects,
                 {"https://parse.example.com/posts/101", "https://parse.example.com/posts/102"},
             )
 

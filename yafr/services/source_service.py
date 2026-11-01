@@ -27,11 +27,13 @@ from linkarchivetools.model.definitions import (
 from linkarchivetools.model.sources import Sources
 from yafr.db.block_repository import BlockEntryRepository
 from yafr.db.credentials_repository import CredentialsRepository
+from yafr.db.job_repository import JobRepository
 from yafr.db.logging_repository import LoggingRepository
 from yafr.db.rules_repository import RulesRepository
 from yafr.db.session import get_session, session_scope
 from yafr.db.source_repository import SourceRepository
 from yafr.services.entry_builder import EntryBuilder
+from yafr.services.job_service import JOB_LINK_UPDATE_DATA
 from yafr.services.webtools_service import WebToolsWrapper
 
 logger = logging.getLogger(__name__)
@@ -784,6 +786,7 @@ class ParseSourceExtractor:
             pattern = (
                 source.xpath.strip() if source.xpath and source.xpath.strip() else None
             )
+            job_repo = JobRepository(session=session)
             for link in links:
                 if pattern:
                     try:
@@ -797,9 +800,15 @@ class ParseSourceExtractor:
                             err,
                         )
                 builder = EntryBuilder(session=session)
-                if builder.can_build(url=link):
+                allowed, _ = builder.can_build(url=link)
+                if allowed:
                     raw_entries.append({"link": link})
-                    # TODO add background job to update link
+                    job_repo.enqueue_job(
+                        job=JOB_LINK_UPDATE_DATA,
+                        subject=link,
+                        priority=2,
+                        enabled=True,
+                    )
 
         except Exception as err:
             logger.warning("Error extracting links for source %s: %s", source.id, err)
