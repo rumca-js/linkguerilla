@@ -263,7 +263,7 @@ class LinkUpdateDataJobHandler(BaseJobHandler):
 
 class LinkDownloadSocialJobHandler(BaseJobHandler):
     """
-    Handler for JOB_LINK_DOWNLOAD_SOCIAL ('link-download-social').
+    Handler for JOB_LINK_DOWNLOAD_SOCIAL ('link-social-data').
 
     Downloads social metadata via WebToolsWrapper.get_social_properties() and upserts
     the result into the socialdata table (linked by entry_id). Fields mapped:
@@ -271,11 +271,7 @@ class LinkDownloadSocialJobHandler(BaseJobHandler):
     upvote_diff, upvote_view_ratio, stars, date_updated.
     """
 
-    job_types = (
-        JOB_LINK_DOWNLOAD_SOCIAL,
-        "JOB_LINK_DOWNLOAD_SOCIAL",
-        "link-download-social",
-    )
+    job_types = (JOB_LINK_DOWNLOAD_SOCIAL, "JOB_LINK_DOWNLOAD_SOCIAL")
 
     def execute(self, job: BackgroundJob, session: Session) -> Dict[str, Any]:
         """
