@@ -23,6 +23,7 @@ from linkarchivetools.model.definitions import (
 from yafr.db.config_repository import ConfigRepository
 from yafr.db.entry_repository import EntryRepository
 from yafr.db.history_repository import HistoryRepository
+from yafr.db.source_repository import SourceRepository
 from yafr.db.session import (
     close_session,
     get_engine,
@@ -45,6 +46,12 @@ DATABASE_TABLE_METADATA = [
         "label": "Sources",
         "description": "Configured RSS feeds, Email IMAP inboxes, and XPath parsers",
         "icon": "bi-rss",
+    },
+    {
+        "table_name": "sourceoperationaldata",
+        "label": "Source Operational Data",
+        "description": "Fetch timestamps, content hashes, and error counters for sources",
+        "icon": "bi-activity",
     },
     {
         "table_name": "entrycompactedtags",
@@ -304,6 +311,20 @@ class DatabaseService:
         sess = session or get_session()
         repo = EntryRepository(sess)
         return repo.clear_all_social_data()
+
+    @classmethod
+    def clear_sources(cls, session: Optional[Session] = None) -> Dict[str, int]:
+        """
+        Clears all source-related data: sourcedatamodel, sourceoperationaldata,
+        sourcecategories, and sourcesubcategories tables.
+        Entries are unlinked (source_id set to NULL) but not deleted.
+
+        :param session: Optional active database session
+        :return: Dict mapping table names to deleted row counts
+        """
+        sess = session or get_session()
+        repo = SourceRepository(sess)
+        return repo.clear_all_sources()
 
     @classmethod
     def replace_database_from_url(cls, remote_url: str) -> Dict[str, Any]:

@@ -154,6 +154,29 @@ def clear_social_data():
         return api_response(success=False, error=str(err), status_code=500)
 
 
+@api_database_bp.route("/clear-sources", methods=["POST"])
+def clear_sources():
+    """
+    Truncates all source-related tables: sourcedatamodel, sourceoperationaldata,
+    sourcecategories, and sourcesubcategories. Entries are unlinked but not deleted.
+    """
+    try:
+        session = get_session()
+        counts = DatabaseService.clear_sources(session=session)
+        total = sum(counts.values())
+        return jsonify(
+            {
+                "success": True,
+                "message": "All source data cleared.",
+                "deleted_count": total,
+                "deleted_counts": counts,
+            }
+        )
+    except Exception as err:
+        logger.error("Failed to clear sources: %s", err)
+        return api_response(success=False, error=str(err), status_code=500)
+
+
 @api_database_bp.route("/replace-from-url", methods=["POST"])
 def replace_from_url():
     """

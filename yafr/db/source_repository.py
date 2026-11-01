@@ -8,7 +8,7 @@ corresponding operational metrics (sourceoperationaldata).
 from datetime import datetime, timedelta, timezone
 import logging
 from typing import Any, Dict, List, Optional
-from sqlalchemy import delete, func, select
+from sqlalchemy import delete, func, select, text
 from sqlalchemy.orm import Session
 from linkarchivetools.model.definitions import (
     LinkDataModel,
@@ -324,3 +324,45 @@ class SourceRepository(BaseRepository[SourcesTable]):
             .where(SourceOperationalData.consecutive_errors > 0)
         )
         return self.session.execute(stmt).scalar() or 0
+
+    def clear_all_sources(self) -> Dict[str, int]:
+        """
+        Clears all source-related data: sourcedatamodel, sourceoperationaldata,
+        sourcecategories, and sourcesubcategories tables.
+        Also unlinks entries (sets source_id to NULL on linkdatamodel).
+
+        :return: Dict mapping table names to deleted row counts
+        """
+        counts: Dict[str, int] = {}
+
+        # Delete operational data first (depends on sourcedatamodel)
+        res = self.session.execute(delete(SourceOperationalData))
+        counts["sourceoperationaldata"] = res.rowcount or 0
+
+        # Unlink entries associated with any source
+        stmt = (
+            LinkDataModel.__table__.update()
+            .where(LinkDataModel.source_id != None)
+            .values(source_id=None)
+        )
+        self.session.execute(stmt)
+
+        # Delete all sources
+        res = self.session.execute(delete(SourcesTable))
+        counts["sourcedatamodel"] = res.rowcount or 0
+
+        # Delete sourcecategories and sourcesubcategories (no ORM model, use raw SQL)
+        try:
+            res = self.session.execute(text("DELETE FROM sourcesubcategories"))
+            counts["sourcesubcategories"] = res.rowcount or 0
+        except Exception:
+            counts["sourcesubcategories"] = 0
+
+        try:
+            res = self.session.execute(text("DELETE FROM sourcecategories"))
+            counts["sourcecategories"] = res.rowcount or 0
+        except Exception:
+            counts["sourcecategories"] = 0
+
+        self.session.commit()
+        return counts

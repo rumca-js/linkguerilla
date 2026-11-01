@@ -585,6 +585,24 @@ Following the project requirement to **"prefer having small server functions tha
   ```
 - **Offline Capable**: Yes.
 
+#### `POST /api/database/clear-sources`
+- **Purpose**: Truncates all source-related tables: `sourcedatamodel`, `sourceoperationaldata`, `sourcecategories`, and `sourcesubcategories`. Entries in `linkdatamodel` are unlinked (source_id set to NULL) but not deleted.
+- **Response**:
+  ```json
+  {
+    "success": true,
+    "message": "All source data cleared.",
+    "deleted_count": 47,
+    "deleted_counts": {
+      "sourcedatamodel": 5,
+      "sourceoperationaldata": 5,
+      "sourcecategories": 1,
+      "sourcesubcategories": 36
+    }
+  }
+  ```
+- **Offline Capable**: Yes.
+
 #### `POST /api/database/replace-from-url`
 - **Purpose**: Downloads a remote SQLite database file from a URL, validates integrity, and atomically swaps it with the current active database.
 - **Request Body**:

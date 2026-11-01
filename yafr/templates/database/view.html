@@ -302,6 +302,36 @@
               </div>
             </div>
 
+            <!-- Clear Sources -->
+            <div class="col-12 col-md-6 col-xl-3">
+              <div class="card border h-100 bg-body-tertiary">
+                <div class="card-body d-flex flex-column justify-content-between">
+                  <div>
+                    <div class="fw-semibold small d-flex align-items-center gap-2 mb-1">
+                      <i class="bi bi-rss text-primary"></i>Sources
+                    </div>
+                    <div class="text-muted small mb-3">
+                      Removes all sources, categories, subcategories, and operational data. Entries are unlinked but preserved.
+                    </div>
+                  </div>
+                  <div class="d-flex align-items-center justify-content-between pt-2 border-top">
+                    <span class="badge bg-secondary font-monospace" id="badge-count-sourcedatamodel">
+                      {{ "{:,}".format(db_info.tables.get('sourcedatamodel', 0)) }} rows
+                    </span>
+                    <button type="button"
+                            class="btn btn-outline-danger btn-sm rounded-pill px-3 clear-table-btn"
+                            data-action="sources"
+                            data-label="Sources"
+                            data-endpoint="/api/database/clear-sources"
+                            data-table="sourcedatamodel"
+                            data-extra-tables="sourceoperationaldata">
+                      <i class="bi bi-trash me-1"></i>Clear
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+
           </div>
         </div>
       </div>

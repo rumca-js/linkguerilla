@@ -7,6 +7,7 @@
 document.addEventListener("DOMContentLoaded", function () {
   var activeClearEndpoint = null;
   var activeClearTable = null;
+  var activeClearExtraTables = null;
 
   // 1. Refresh Database Statistics (Pull to refresh)
   $("#refresh-stats-btn").on("click", function () {
@@ -101,6 +102,7 @@ document.addEventListener("DOMContentLoaded", function () {
     var btn = $(this);
     activeClearEndpoint = btn.data("endpoint");
     activeClearTable = btn.data("table");
+    activeClearExtraTables = btn.data("extra-tables") || null;
     var label = btn.data("label") || activeClearTable;
 
     $("#confirm-clear-title").text("Clear " + label);
@@ -137,6 +139,16 @@ document.addEventListener("DOMContentLoaded", function () {
             $("#table-count-" + activeClearTable).text("0");
             $("#badge-count-" + activeClearTable).text("0 rows");
           }
+          if (activeClearExtraTables) {
+            var extras = activeClearExtraTables.split(",");
+            for (var i = 0; i < extras.length; i++) {
+              var t = extras[i].trim();
+              if (t) {
+                $("#table-count-" + t).text("0");
+                $("#badge-count-" + t).text("0 rows");
+              }
+            }
+          }
         } else {
           alert("Failed to clear data: " + (resp.error || "Unknown error"));
         }
@@ -150,6 +162,7 @@ document.addEventListener("DOMContentLoaded", function () {
           .html('<i class="bi bi-trash me-1"></i>Clear Data');
         activeClearEndpoint = null;
         activeClearTable = null;
+        activeClearExtraTables = null;
       },
     });
   });
