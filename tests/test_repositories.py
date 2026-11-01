@@ -85,7 +85,7 @@ class TestRepositories(unittest.TestCase):
         repo = ConfigRepository()
         config = repo.get_config()
         self.assertIsNotNone(config)
-        self.assertEqual(config.instance_title, "YAFR")
+        self.assertEqual(config.instance_title, repo.DEFAULT_TITLE)
         self.assertEqual(repo.get_display_style(), "style-dark")
         self.assertEqual(repo.get_display_type(), "gallery")
 

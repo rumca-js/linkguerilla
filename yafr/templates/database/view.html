@@ -180,7 +180,7 @@
             <i class="bi bi-trash3-fill"></i>Data Maintenance & Cache Cleanup
           </h6>
           <div class="text-muted small mt-1">
-            Safely truncate transient user tables to reclaim disk space. Entries, sources, and configuration will remain untouched.
+            Safely truncate user cache, sources, or link entries. Configuration and settings will remain untouched.
           </div>
         </div>
         <div class="card-body">
@@ -325,6 +325,36 @@
                             data-endpoint="/api/database/clear-sources"
                             data-table="sourcedatamodel"
                             data-extra-tables="sourceoperationaldata">
+                      <i class="bi bi-trash me-1"></i>Clear
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Clear Links / Entries -->
+            <div class="col-12 col-md-6 col-xl-3">
+              <div class="card border h-100 bg-body-tertiary">
+                <div class="card-body d-flex flex-column justify-content-between">
+                  <div>
+                    <div class="fw-semibold small d-flex align-items-center gap-2 mb-1">
+                      <i class="bi bi-link-45deg text-primary"></i>Links
+                    </div>
+                    <div class="text-muted small mb-3">
+                      Removes all link entries and cascades deletion to dependent tables (tags, social data, read later, visit history).
+                    </div>
+                  </div>
+                  <div class="d-flex align-items-center justify-content-between pt-2 border-top">
+                    <span class="badge bg-secondary font-monospace" id="badge-count-linkdatamodel">
+                      {{ "{:,}".format(db_info.tables.get('linkdatamodel', 0)) }} rows
+                    </span>
+                    <button type="button"
+                            class="btn btn-outline-danger btn-sm rounded-pill px-3 clear-table-btn"
+                            data-action="links"
+                            data-label="Links"
+                            data-endpoint="/api/database/clear-links"
+                            data-table="linkdatamodel"
+                            data-extra-tables="entrycompactedtags,compactedtags,usertags,socialdata,readlater,entryvisithistory,entrytransitionhistory">
                       <i class="bi bi-trash me-1"></i>Clear
                     </button>
                   </div>

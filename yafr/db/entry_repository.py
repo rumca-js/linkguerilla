@@ -8,7 +8,7 @@ social metrics, manual status codes, voting, and dependent cascade deletions.
 from datetime import datetime, timezone
 import logging
 from typing import Any, Dict, Iterable, List, Optional, Set
-from sqlalchemy import delete, func, select, update
+from sqlalchemy import delete, func, select, text, update
 from sqlalchemy.orm import Session
 from linkarchivetools.model.definitions import (
     CompactedTags,
@@ -18,6 +18,7 @@ from linkarchivetools.model.definitions import (
     LinkDataModel,
     ReadLater,
     SocialData,
+    SourceOperationalData,
     UserBookmarks,
     UserEntryTransitionHistory,
     UserEntryVisitHistory,
@@ -331,3 +332,68 @@ class EntryRepository(BaseRepository[LinkDataModel]):
         result = self.session.execute(stmt)
         self.session.commit()
         return result.rowcount or 0
+
+    def clear_all_entries(self) -> Dict[str, int]:
+        """
+        Clears all records from linkdatamodel and all tables that depend on it:
+        - entrycompactedtags
+        - compactedtags
+        - socialdata
+        - readlater
+        - entryvisithistory
+        - entrytransitionhistory
+        - usertags
+        - userbookmarks
+        - uservotes
+        - userentryvisithistory
+        - userentrytransitionhistory
+        - usercomments (if table exists)
+        - usercompactedtags (if table exists)
+        Also resets number_of_entries on sourceoperationaldata.
+
+        :return: Dict mapping table names to deleted row counts
+        """
+        counts: Dict[str, int] = {}
+
+        # 1. Dependent satellite tables
+        satellite_models = [
+            (EntryCompactedTags, "entrycompactedtags"),
+            (CompactedTags, "compactedtags"),
+            (SocialData, "socialdata"),
+            (ReadLater, "readlater"),
+            (EntryVisitHistory, "entryvisithistory"),
+            (EntryTransitionHistory, "entrytransitionhistory"),
+            (UserTags, "usertags"),
+            (UserBookmarks, "userbookmarks"),
+            (UserVotes, "uservotes"),
+            (UserEntryVisitHistory, "userentryvisithistory"),
+            (UserEntryTransitionHistory, "userentrytransitionhistory"),
+        ]
+
+        for model, name in satellite_models:
+            res = self.session.execute(delete(model))
+            counts[name] = res.rowcount or 0
+
+        # Optional raw tables without direct ORM definitions
+        for raw_table in ["usercomments", "usercompactedtags"]:
+            try:
+                res = self.session.execute(text(f"DELETE FROM {raw_table}"))
+                counts[raw_table] = res.rowcount or 0
+            except Exception:
+                counts[raw_table] = 0
+
+        # 2. Reset sourceoperationaldata.number_of_entries to 0
+        try:
+            self.session.execute(
+                update(SourceOperationalData).values(number_of_entries=0)
+            )
+        except Exception:
+            pass
+
+        # 3. Delete parent linkdatamodel entries
+        res = self.session.execute(delete(LinkDataModel))
+        counts["linkdatamodel"] = res.rowcount or 0
+
+        self.session.commit()
+        logger.info("Cleared all entries and dependent records: %s", counts)
+        return counts

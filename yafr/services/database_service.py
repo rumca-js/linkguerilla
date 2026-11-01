@@ -327,6 +327,19 @@ class DatabaseService:
         return repo.clear_all_sources()
 
     @classmethod
+    def clear_links(cls, session: Optional[Session] = None) -> Dict[str, int]:
+        """
+        Clears all records in linkdatamodel and all tables that depend on it
+        (tags, social data, read later, visit history, transition history).
+
+        :param session: Optional active database session
+        :return: Dict mapping table names to deleted row counts
+        """
+        sess = session or get_session()
+        repo = EntryRepository(sess)
+        return repo.clear_all_entries()
+
+    @classmethod
     def replace_database_from_url(cls, remote_url: str) -> Dict[str, Any]:
         """
         Downloads a remote SQLite database file from a URL, validates integrity,

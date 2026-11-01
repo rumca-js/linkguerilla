@@ -122,6 +122,29 @@ class TestDatabaseService(unittest.TestCase):
         info = DatabaseService.get_database_info(session=self.session)
         self.assertEqual(info["tables"]["socialdata"], 0)
 
+    def test_clear_sources(self):
+        """Verifies clearing sources and operational data."""
+        deleted_counts = DatabaseService.clear_sources(session=self.session)
+        self.assertIsInstance(deleted_counts, dict)
+        info = DatabaseService.get_database_info(session=self.session)
+        self.assertEqual(info["tables"]["sourcedatamodel"], 0)
+
+    def test_clear_links(self):
+        """Verifies clearing link entries and all dependent tables."""
+        info_before = DatabaseService.get_database_info(session=self.session)
+        self.assertGreaterEqual(info_before["tables"]["linkdatamodel"], 1)
+
+        deleted_counts = DatabaseService.clear_links(session=self.session)
+        self.assertIsInstance(deleted_counts, dict)
+        self.assertIn("linkdatamodel", deleted_counts)
+        self.assertGreaterEqual(deleted_counts["linkdatamodel"], 1)
+
+        info_after = DatabaseService.get_database_info(session=self.session)
+        self.assertEqual(info_after["tables"]["linkdatamodel"], 0)
+        self.assertEqual(info_after["tables"]["socialdata"], 0)
+        self.assertEqual(info_after["tables"]["readlater"], 0)
+        self.assertEqual(info_after["tables"]["entryvisithistory"], 0)
+
     def test_replace_database_validation(self):
         """Verifies URL scheme validation and error handling."""
         with self.assertRaises(ValueError):
@@ -170,6 +193,8 @@ class TestDatabaseWebRoutes(unittest.TestCase):
         self.assertIn("Replace Database", html)
         self.assertIn("linkdatamodel", html)
         self.assertIn("Clear Search History", html)
+        self.assertIn("/api/database/clear-sources", html)
+        self.assertIn("/api/database/clear-links", html)
 
     def test_api_database_stats(self):
         """GET /api/database/stats returns JSON metrics and table counts."""
@@ -218,6 +243,18 @@ class TestDatabaseWebRoutes(unittest.TestCase):
         res4 = self.client.post("/api/database/clear-social-data")
         self.assertEqual(res4.status_code, 200)
         self.assertTrue(res4.get_json()["success"])
+
+        # Clear sources
+        res5 = self.client.post("/api/database/clear-sources")
+        self.assertEqual(res5.status_code, 200)
+        self.assertTrue(res5.get_json()["success"])
+        self.assertIn("deleted_counts", res5.get_json())
+
+        # Clear links
+        res6 = self.client.post("/api/database/clear-links")
+        self.assertEqual(res6.status_code, 200)
+        self.assertTrue(res6.get_json()["success"])
+        self.assertIn("deleted_counts", res6.get_json())
 
     def test_api_replace_from_url_invalid(self):
         """POST /api/database/replace-from-url returns 400 for empty or invalid URL."""

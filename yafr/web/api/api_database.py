@@ -177,6 +177,29 @@ def clear_sources():
         return api_response(success=False, error=str(err), status_code=500)
 
 
+@api_database_bp.route("/clear-links", methods=["POST"])
+def clear_links():
+    """
+    Truncates linkdatamodel and all tables that depend on it
+    (tags, social data, read later, visit history, transition history).
+    """
+    try:
+        session = get_session()
+        counts = DatabaseService.clear_links(session=session)
+        total = sum(counts.values())
+        return jsonify(
+            {
+                "success": True,
+                "message": "All links and dependent data cleared.",
+                "deleted_count": total,
+                "deleted_counts": counts,
+            }
+        )
+    except Exception as err:
+        logger.error("Failed to clear links: %s", err)
+        return api_response(success=False, error=str(err), status_code=500)
+
+
 @api_database_bp.route("/replace-from-url", methods=["POST"])
 def replace_from_url():
     """

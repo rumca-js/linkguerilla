@@ -410,6 +410,8 @@ The screen displays, where available:
 - Provides an action to clear the user's visited entries.
 - Provides an action to clear the user's read later entries.
 - Provides an action to clear the social data.
+- Provides an action to clear the sources data.
+- Provides an action to clear the links data (and cascades to dependent records).
 - implement pull to refresh data about database
 - user should be able to replace database with database from URL. It shall download and replace the database file. Should user restart process then?
 

@@ -14,13 +14,17 @@ from yafr.db.base_repository import BaseRepository
 
 logger = logging.getLogger(__name__)
 
+DEFAULT_TITLE = "LinkGuerilla"
+DEFAULT_DESCRIPTION = "Link manager and aggregator"
+
 
 class ConfigRepository(BaseRepository[ConfigurationEntry]):
     """
     Data access repository for application configuration entries.
     """
-    DEFAULT_TITLE="LinkGuerilla"
-    DEFAULT_DESCRIPTION="Link manager and aggregator"
+
+    DEFAULT_TITLE = DEFAULT_TITLE
+    DEFAULT_DESCRIPTION = DEFAULT_DESCRIPTION
 
     def __init__(self, session: Optional[Session] = None) -> None:
         super().__init__(session=session)

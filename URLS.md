@@ -603,6 +603,26 @@ Following the project requirement to **"prefer having small server functions tha
   ```
 - **Offline Capable**: Yes.
 
+#### `POST /api/database/clear-links`
+- **Purpose**: Truncates `linkdatamodel` and all dependent tables (`entrycompactedtags`, `compactedtags`, `socialdata`, `readlater`, `entryvisithistory`, `entrytransitionhistory`, `usertags`, `userbookmarks`, `uservotes`, etc.). Resets source entry counters in `sourceoperationaldata`.
+- **Response**:
+  ```json
+  {
+    "success": true,
+    "message": "All links and dependent data cleared.",
+    "deleted_count": 128,
+    "deleted_counts": {
+      "linkdatamodel": 50,
+      "entrycompactedtags": 35,
+      "compactedtags": 12,
+      "socialdata": 20,
+      "readlater": 5,
+      "entryvisithistory": 6
+    }
+  }
+  ```
+- **Offline Capable**: Yes.
+
 #### `POST /api/database/replace-from-url`
 - **Purpose**: Downloads a remote SQLite database file from a URL, validates integrity, and atomically swaps it with the current active database.
 - **Request Body**:

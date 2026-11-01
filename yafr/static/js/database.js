@@ -139,6 +139,12 @@ document.addEventListener("DOMContentLoaded", function () {
             $("#table-count-" + activeClearTable).text("0");
             $("#badge-count-" + activeClearTable).text("0 rows");
           }
+          if (resp.deleted_counts) {
+            $.each(resp.deleted_counts, function (tbl) {
+              $("#table-count-" + tbl).text("0");
+              $("#badge-count-" + tbl).text("0 rows");
+            });
+          }
           if (activeClearExtraTables) {
             var extras = activeClearExtraTables.split(",");
             for (var i = 0; i < extras.length; i++) {
