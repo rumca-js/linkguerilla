@@ -397,6 +397,96 @@
                   </div>
                 </div>
 
+                <h6 class="fw-bold mb-3 text-secondary d-flex align-items-center gap-2">
+                  <i class="bi bi-cpu"></i>Background Services & Feature Toggles
+                </h6>
+                <div class="row g-3 mb-4">
+                  <div class="col-12 col-md-6">
+                    <div class="form-check form-switch card p-3 border shadow-sm">
+                      <input class="form-check-input ms-0 me-3" type="checkbox" role="switch" id="enable_background_jobs" name="enable_background_jobs" {% if config.enable_background_jobs %}checked{% endif %}>
+                      <label class="form-check-label fw-semibold" for="enable_background_jobs">
+                        Enable Background Jobs
+                        <div class="text-muted small fw-normal">Run asynchronous background worker loop for feeds, updates, and maintenance</div>
+                      </label>
+                    </div>
+                  </div>
+
+                  <div class="col-12 col-md-6">
+                    <div class="form-check form-switch card p-3 border shadow-sm">
+                      <input class="form-check-input ms-0 me-3" type="checkbox" role="switch" id="enable_crawling" name="enable_crawling" {% if config.enable_crawling %}checked{% endif %}>
+                      <label class="form-check-label fw-semibold" for="enable_crawling">
+                        Enable Crawling
+                        <div class="text-muted small fw-normal">Permit automatic crawling and discovery of new links from web pages and feeds</div>
+                      </label>
+                    </div>
+                  </div>
+
+                  <div class="col-12 col-md-6">
+                    <div class="form-check form-switch card p-3 border shadow-sm">
+                      <input class="form-check-input ms-0 me-3" type="checkbox" role="switch" id="enable_social_data" name="enable_social_data" {% if config.enable_social_data %}checked{% endif %}>
+                      <label class="form-check-label fw-semibold" for="enable_social_data">
+                        Enable Social Data
+                        <div class="text-muted small fw-normal">Fetch and record social engagement metrics (views, stars, votes, followers)</div>
+                      </label>
+                    </div>
+                  </div>
+
+                  <div class="col-12 col-md-6">
+                    <div class="form-check form-switch card p-3 border shadow-sm">
+                      <input class="form-check-input ms-0 me-3" type="checkbox" role="switch" id="enable_link_archiving" name="enable_link_archiving" {% if config.enable_link_archiving %}checked{% endif %}>
+                      <label class="form-check-label fw-semibold" for="enable_link_archiving">
+                        Enable Link Archiving
+                        <div class="text-muted small fw-normal">Automatically archive offline page snapshots and documents for links</div>
+                      </label>
+                    </div>
+                  </div>
+
+                  <div class="col-12 col-md-6">
+                    <div class="form-check form-switch card p-3 border shadow-sm">
+                      <input class="form-check-input ms-0 me-3" type="checkbox" role="switch" id="enable_source_archiving" name="enable_source_archiving" {% if config.enable_source_archiving %}checked{% endif %}>
+                      <label class="form-check-label fw-semibold" for="enable_source_archiving">
+                        Enable Source Archiving
+                        <div class="text-muted small fw-normal">Preserve raw feed XML/RSS payloads and historical source responses</div>
+                      </label>
+                    </div>
+                  </div>
+
+                  <div class="col-12 col-md-6">
+                    <div class="form-check form-switch card p-3 border shadow-sm">
+                      <input class="form-check-input ms-0 me-3" type="checkbox" role="switch" id="enable_keyword_support" name="enable_keyword_support" {% if config.enable_keyword_support %}checked{% endif %}>
+                      <label class="form-check-label fw-semibold" for="enable_keyword_support">
+                        Enable Keyword Support
+                        <div class="text-muted small fw-normal">Extract, index, and query searchable keywords from link titles and descriptions</div>
+                      </label>
+                    </div>
+                  </div>
+
+                  <div class="col-12 col-md-6">
+                    <div class="form-check form-switch card p-3 border shadow-sm">
+                      <input class="form-check-input ms-0 me-3" type="checkbox" role="switch" id="enable_domain_support" name="enable_domain_support" {% if config.enable_domain_support %}checked{% endif %}>
+                      <label class="form-check-label fw-semibold" for="enable_domain_support">
+                        Enable Domain Support
+                        <div class="text-muted small fw-normal">Aggregate statistics and browse links grouped by domain hosts</div>
+                      </label>
+                    </div>
+                  </div>
+
+                  <div class="col-12 col-md-6">
+                    <div class="form-check form-switch card p-3 border shadow-sm">
+                      <input class="form-check-input ms-0 me-3" type="checkbox" role="switch" id="enable_file_support" name="enable_file_support" {% if config.enable_file_support %}checked{% endif %}>
+                      <label class="form-check-label fw-semibold" for="enable_file_support">
+                        Enable File Support
+                        <div class="text-muted small fw-normal">Track and store associated downloadable media files and attachments</div>
+                      </label>
+                    </div>
+                  </div>
+                </div>
+
+                <hr class="my-4">
+
+                <h6 class="fw-bold mb-3 text-secondary d-flex align-items-center gap-2">
+                  <i class="bi bi-shield-check"></i>URL Validation & Acceptance Policies
+                </h6>
                 <div class="row g-3">
                   <div class="col-12 col-md-6">
                     <div class="form-check form-switch card p-3 border shadow-sm">
@@ -464,16 +554,6 @@
                       <label class="form-check-label fw-semibold" for="accept_same_hashes">
                         Accept Duplicate Hashes
                         <div class="text-muted small fw-normal">Allow duplicate entries sharing identical content hashes</div>
-                      </label>
-                    </div>
-                  </div>
-
-                  <div class="col-12 col-md-6">
-                    <div class="form-check form-switch card p-3 border shadow-sm">
-                      <input class="form-check-input ms-0 me-3" type="checkbox" role="switch" id="enable_social_data" name="enable_social_data" {% if config.enable_social_data %}checked{% endif %}>
-                      <label class="form-check-label fw-semibold" for="enable_social_data">
-                        Fetch Social Metrics
-                        <div class="text-muted small fw-normal">Attempt to fetch view counts, stars, and votes from sources</div>
                       </label>
                     </div>
                   </div>

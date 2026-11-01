@@ -666,6 +666,63 @@ Following the project requirement to **"prefer having small server functions tha
   ```
 - **Offline Capable**: Yes.
 
+#### `GET /api/config/features` (or `/api/config/enable`)
+- **Purpose**: Retrieves all `enable_*` feature flags (`enable_background_jobs`, `enable_social_data`, `enable_crawling`, etc.) and their current boolean states.
+- **Response**:
+  ```json
+  {
+    "success": true,
+    "features": {
+      "enable_background_jobs": true,
+      "enable_social_data": true,
+      "enable_crawling": false,
+      "enable_link_archiving": false,
+      "enable_source_archiving": false,
+      "enable_keyword_support": false,
+      "enable_domain_support": false,
+      "enable_file_support": false
+    }
+  }
+  ```
+- **Offline Capable**: Yes.
+
+#### `GET /api/config/enable/<feature>`
+- **Purpose**: Retrieves the boolean state of a specific feature flag. Feature name can be passed with or without `enable_` prefix (e.g. `background_jobs`, `enable_crawling`).
+- **Response**:
+  ```json
+  { "success": true, "feature": "enable_background_jobs", "enabled": true }
+  ```
+- **Offline Capable**: Yes.
+
+#### `POST /api/config/enable/<feature>`
+- **Purpose**: Enables, disables, or toggles an `enable_*` feature flag. If `enabled` boolean is omitted in request body, toggles the current state.
+- **Request Body** (optional):
+  ```json
+  { "enabled": true }
+  ```
+- **Response**:
+  ```json
+  {
+    "success": true,
+    "feature": "enable_background_jobs",
+    "enabled": true,
+    "message": "Feature 'enable_background_jobs' updated to True."
+  }
+  ```
+- **Offline Capable**: Yes.
+
+#### `POST /api/config/enable-background-jobs`
+- **Purpose**: Convenience endpoint to set or toggle `enable_background_jobs`.
+- **Offline Capable**: Yes.
+
+#### `POST /api/config/enable-social-data`
+- **Purpose**: Convenience endpoint to set or toggle `enable_social_data`.
+- **Offline Capable**: Yes.
+
+#### `POST /api/config/enable-crawling`
+- **Purpose**: Convenience endpoint to set or toggle `enable_crawling`.
+- **Offline Capable**: Yes.
+
 ---
 
 ### 2.7 SearchView API (`/api/search-views`)

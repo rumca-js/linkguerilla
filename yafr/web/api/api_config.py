@@ -163,6 +163,92 @@ def reset_config():
         return api_response(success=False, error=str(err), status_code=500)
 
 
+@api_config_bp.route("/features", methods=["GET"])
+@api_config_bp.route("/enable", methods=["GET"])
+def get_features():
+    """
+    Retrieves all enable_* feature flags and their current boolean values.
+    """
+    try:
+        session = get_session()
+        features = ConfigService.get_feature_flags(session=session)
+        return jsonify({"success": True, "features": features})
+    except Exception as err:
+        logger.error("Failed to fetch feature flags: %s", err)
+        return api_response(success=False, error=str(err), status_code=500)
+
+
+@api_config_bp.route("/enable/<feature_name>", methods=["GET", "POST"])
+def manage_feature(feature_name: str):
+    """
+    GET: Returns the boolean state of a feature flag.
+    POST: Updates or toggles a feature flag (accepts {"enabled": bool} or toggles if omitted).
+    """
+    try:
+        session = get_session()
+        if request.method == "GET":
+            canonical = feature_name.lower().replace("-", "_")
+            if not canonical.startswith("enable_"):
+                canonical = f"enable_{canonical}"
+            features = ConfigService.get_feature_flags(session=session)
+            if canonical not in features:
+                return api_response(
+                    success=False,
+                    error=f"Unknown feature flag '{feature_name}'.",
+                    status_code=404,
+                )
+            return jsonify(
+                {"success": True, "feature": canonical, "enabled": features[canonical]}
+            )
+
+        # POST: toggle or set state
+        payload = request.get_json(silent=True) or request.form.to_dict() or {}
+        enabled_val = payload.get("enabled")
+        if enabled_val is not None and isinstance(enabled_val, str):
+            enabled_val = enabled_val.lower() in ("true", "1", "yes", "on")
+
+        canonical, new_state = ConfigService.set_feature_flag(
+            feature_name, enabled=enabled_val, session=session
+        )
+        return jsonify(
+            {
+                "success": True,
+                "feature": canonical,
+                "enabled": new_state,
+                "message": f"Feature '{canonical}' updated to {new_state}.",
+            }
+        )
+    except ValueError as val_err:
+        return api_response(success=False, error=str(val_err), status_code=400)
+    except Exception as err:
+        logger.error("Failed to update feature '%s': %s", feature_name, err)
+        return api_response(success=False, error=str(err), status_code=500)
+
+
+@api_config_bp.route("/enable-background-jobs", methods=["POST"])
+def enable_background_jobs_endpoint():
+    """
+    Convenience endpoint to enable, disable, or toggle enable_background_jobs.
+    """
+    return manage_feature("enable_background_jobs")
+
+
+@api_config_bp.route("/enable-social-data", methods=["POST"])
+def enable_social_data_endpoint():
+    """
+    Convenience endpoint to enable, disable, or toggle enable_social_data.
+    """
+    return manage_feature("enable_social_data")
+
+
+@api_config_bp.route("/enable-crawling", methods=["POST"])
+def enable_crawling_endpoint():
+    """
+    Convenience endpoint to enable, disable, or toggle enable_crawling.
+    """
+    return manage_feature("enable_crawling")
+
+
 @api_config_bp.route("/webtools-status", methods=["GET"])
 def get_webtools_status():
     """

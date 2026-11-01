@@ -58,6 +58,9 @@ class ConfigRepository(BaseRepository[ConfigurationEntry]):
                 vote_min=-100,
                 vote_max=100,
                 initialized=True,
+                enable_background_jobs=True,
+                enable_social_data=True,
+                enable_crawling=False,
             )
             self.session.add(config)
             self.session.commit()
@@ -185,7 +188,14 @@ class ConfigRepository(BaseRepository[ConfigurationEntry]):
             "accept_onion_links": False,
             "accept_same_hashes": False,
             "sources_refresh_period": 3600,
+            "enable_background_jobs": True,
             "enable_social_data": True,
+            "enable_crawling": False,
+            "enable_keyword_support": False,
+            "enable_domain_support": False,
+            "enable_file_support": False,
+            "enable_link_archiving": False,
+            "enable_source_archiving": False,
             "debug_mode": False,
         }
         return self.update_config(**defaults)

@@ -39,7 +39,14 @@ BOOLEAN_CONFIG_FIELDS = [
     "accept_onion_links",
     "accept_same_hashes",
     "auto_store_thumbnails",
+    "enable_background_jobs",
     "enable_social_data",
+    "enable_crawling",
+    "enable_keyword_support",
+    "enable_domain_support",
+    "enable_file_support",
+    "enable_link_archiving",
+    "enable_source_archiving",
     "debug_mode",
 ]
 

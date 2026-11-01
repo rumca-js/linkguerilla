@@ -269,7 +269,7 @@ There are several list styles:
  - title (for safety we can display up to characters?)
  - date of publish
  - source.title
- - social data if it is defined for entry (views, followers_count, thumbs etc)
+ - social data if it is defined for entry (views, followers_count, thumbs etc), and if configuration.enable\_social\_data is true
  - tags if it is defined for entry, in format #tag. These should be clickable, should lead into EntryListView with this tag
  - bookmark icon if bookmarked
  - skull indicator if dead
@@ -339,6 +339,7 @@ The screen displays, where available:
  - Entry transition pane. The pane shows entries that the user previously visited from the current entry. Entry transitions are stored in UserEntryTransitionHistory.
  - back button returning to EntryListScreen should not refresh list, nor should scroll to the top, as it does not modify Entries, or results. It should if read later were changed and EntryList is with read later filter, or if EntryList is with sort by Visits
  - provide links leading to other places: web archive, schema validation, who is etc.
+ - social data (number of views, followers), but only if social data for entry exists, and configuration.enable_social_data is true
 
 ## EntryEditScreen
  - Allows adding a new entry or editing an existing entry.
