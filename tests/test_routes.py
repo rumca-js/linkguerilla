@@ -112,12 +112,23 @@ class TestEntryRoutes(unittest.TestCase):
         self.assertIn("standard-card", html)
 
     def test_display_search_engine_layout(self):
-        """GET /?q=Python&display=search-engine renders search-engine-list."""
+        """GET /?q=Python&display=search-engine renders search-engine-list with votes and social data."""
+        # Add social data to e1
+        from linkarchivetools.model.definitions import SocialData
+
+        self.session.add(SocialData(entry_id=self.e1.id, stars=42, view_count=1337))
+        self.session.commit()
+
         response = self.client.get("/?q=Python&display=search-engine")
         self.assertEqual(response.status_code, 200)
         html = response.get_data(as_text=True)
         self.assertIn("search-engine-list", html)
         self.assertIn("search-engine-item", html)
+        self.assertIn("btn-set-vote", html)
+        self.assertIn("Vote:", html)
+        self.assertIn("score-badge", html)
+        self.assertIn("42", html)  # stars count
+        self.assertIn("1,337", html)  # views count
 
     def test_display_content_centric_layout(self):
         """GET /?q=Python&display=content-centric renders Reddit-style layout."""

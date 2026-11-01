@@ -256,6 +256,10 @@
     </a>
   </h5>
 
+  {% if entry.description %}
+    <p class="search-engine-snippet text-secondary mb-1">{{ entry.description }}</p>
+  {% endif %}
+
   <div class="search-engine-footer text-secondary">
     {% if entry.date_published %}
       <span>{{ entry.date_published.strftime('%Y-%m-%d %H:%M') }}</span>
@@ -271,6 +275,52 @@
       </span>
       <span>&middot;</span>
     {% endif %}
+
+    {# Social Link Data: stars, views, thumbs, followers, rating #}
+    {% if social_obj %}
+      {% if social_obj.stars %}
+        <span class="badge bg-warning-subtle text-warning-emphasis border border-warning-subtle" title="Stars">
+          <i class="bi bi-star-fill text-warning me-1"></i>{{ social_obj.stars }}
+        </span>
+        <span>&middot;</span>
+      {% endif %}
+      {% if social_obj.view_count %}
+        <span title="Views">
+          <i class="bi bi-eye me-1"></i>{{ "{:,}".format(social_obj.view_count) }}
+        </span>
+        <span>&middot;</span>
+      {% endif %}
+      {% if social_obj.thumbs_up %}
+        <span title="Thumbs Up">
+          <i class="bi bi-hand-thumbs-up me-1 text-success"></i>{{ "{:,}".format(social_obj.thumbs_up) }}
+        </span>
+        <span>&middot;</span>
+      {% endif %}
+      {% if social_obj.thumbs_down %}
+        <span title="Thumbs Down">
+          <i class="bi bi-hand-thumbs-down me-1 text-danger"></i>{{ "{:,}".format(social_obj.thumbs_down) }}
+        </span>
+        <span>&middot;</span>
+      {% endif %}
+      {% if social_obj.followers_count %}
+        <span title="Followers">
+          <i class="bi bi-people me-1"></i>{{ "{:,}".format(social_obj.followers_count) }}
+        </span>
+        <span>&middot;</span>
+      {% endif %}
+      {% if social_obj.rating %}
+        <span title="Rating">
+          <i class="bi bi-award me-1 text-info"></i>{{ social_obj.rating }}
+        </span>
+        <span>&middot;</span>
+      {% endif %}
+    {% endif %}
+
+    {# Votes button and dynamic score badge #}
+    <button class="btn btn-sm btn-outline-secondary btn-set-vote py-0 px-2" data-id="{{ entry.id }}" data-current="{{ entry.page_rating_votes or 0 }}" title="Set vote (-100 to 100)">
+      <i class="bi bi-star me-1 text-warning"></i>Vote: <strong class="score-badge ms-1" data-id="{{ entry.id }}">{{ entry.page_rating_votes or 0 }}</strong>
+    </button>
+    <span>&middot;</span>
 
     {% for tag in entry_tags[:5] %}
       <a href="{{ url_for('entries.search_view', q='tag:' ~ tag) }}" class="badge bg-body-secondary text-secondary text-decoration-none">
