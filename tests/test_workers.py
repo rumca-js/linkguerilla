@@ -31,6 +31,7 @@ from yafr.db import (
     get_session,
     init_db,
 )
+from yafr.services.job_service import JOB_LINK_DOWNLOAD_SOCIAL
 from yafr.workers.job_executor import JobExecutor
 
 
@@ -267,7 +268,7 @@ class TestJobExecutor(unittest.TestCase):
         entry_id = entry.id
 
         job = self.job_repo.enqueue_job(
-            job="link-download-social",
+            job=JOB_LINK_DOWNLOAD_SOCIAL,
             subject=str(entry_id),
             priority=1,
             enabled=True,
