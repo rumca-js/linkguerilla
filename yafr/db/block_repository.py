@@ -54,7 +54,8 @@ def split_block_list_text(text: str) -> List[str]:
                     d = domain.strip().lower()
                     if (
                         d
-                        and d not in ("localhost", "localhost.localdomain", "broadcasthost")
+                        and d
+                        not in ("localhost", "localhost.localdomain", "broadcasthost")
                         and d not in seen
                     ):
                         if 1 <= len(d) <= 1000:
@@ -111,7 +112,11 @@ def fetch_and_split_block_list_url(url: str, timeout: int = 15) -> List[str]:
 
         content = WebToolsWrapper.fetch_text(url=url)
     except Exception as exc:
-        logger.debug("WebToolsWrapper.fetch_text failed for %s: %s; falling back to urllib", url, exc)
+        logger.debug(
+            "WebToolsWrapper.fetch_text failed for %s: %s; falling back to urllib",
+            url,
+            exc,
+        )
 
     if not content:
         import urllib.request
@@ -226,7 +231,9 @@ class BlockEntryListRepository(BaseRepository[BlockEntryList]):
         self.commit()
         return obj
 
-    def mark_processed(self, list_id: int, processed: bool = True) -> Optional[BlockEntryList]:
+    def mark_processed(
+        self, list_id: int, processed: bool = True
+    ) -> Optional[BlockEntryList]:
         """
         Marks a block entry list as processed (or unprocessed).
 
@@ -256,9 +263,7 @@ class BlockEntryListRepository(BaseRepository[BlockEntryList]):
         self.commit()
         return True
 
-    def delete_lists(
-        self, list_ids: Iterable[int], delete_entries: bool = True
-    ) -> int:
+    def delete_lists(self, list_ids: Iterable[int], delete_entries: bool = True) -> int:
         """
         Deletes multiple BlockEntryList records by ID and optionally deletes child BlockEntry items.
 
@@ -382,13 +387,9 @@ class BlockEntryRepository(BaseRepository[BlockEntry]):
 
         conditions = []
         if cleaned_lower:
-            conditions.append(
-                func.instr(cleaned_lower, func.lower(BlockEntry.url)) > 0
-            )
+            conditions.append(func.instr(cleaned_lower, func.lower(BlockEntry.url)) > 0)
         if raw_lower and raw_lower != cleaned_lower:
-            conditions.append(
-                func.instr(raw_lower, func.lower(BlockEntry.url)) > 0
-            )
+            conditions.append(func.instr(raw_lower, func.lower(BlockEntry.url)) > 0)
 
         if not conditions:
             return None
@@ -405,8 +406,12 @@ class BlockEntryRepository(BaseRepository[BlockEntry]):
         try:
             return self.session.execute(stmt).scalar_one_or_none()
         except Exception as err:
-            logger.debug("Database instr query failed (%s); falling back to iteration", err)
-            stmt_all = select(BlockEntry).where(func.length(func.trim(BlockEntry.url)) > 0)
+            logger.debug(
+                "Database instr query failed (%s); falling back to iteration", err
+            )
+            stmt_all = select(BlockEntry).where(
+                func.length(func.trim(BlockEntry.url)) > 0
+            )
             entries = self.session.execute(stmt_all).scalars().all()
             for entry in entries:
                 pattern = (entry.url or "").strip().lower()
@@ -619,15 +624,17 @@ class BlockRepository(BaseRepository[BlockEntryList]):
     ) -> Optional[BlockEntryList]:
         return self.list_repo.update_list(list_id=list_id, url=url, processed=processed)
 
-    def mark_processed(self, list_id: int, processed: bool = True) -> Optional[BlockEntryList]:
+    def mark_processed(
+        self, list_id: int, processed: bool = True
+    ) -> Optional[BlockEntryList]:
         return self.list_repo.mark_processed(list_id=list_id, processed=processed)
 
     def delete_list(self, list_id: int, delete_entries: bool = True) -> bool:
-        return self.list_repo.delete_list(list_id=list_id, delete_entries=delete_entries)
+        return self.list_repo.delete_list(
+            list_id=list_id, delete_entries=delete_entries
+        )
 
-    def delete_lists(
-        self, list_ids: Iterable[int], delete_entries: bool = True
-    ) -> int:
+    def delete_lists(self, list_ids: Iterable[int], delete_entries: bool = True) -> int:
         return self.list_repo.delete_lists(list_ids, delete_entries=delete_entries)
 
     def count_lists(self, processed: Optional[bool] = None) -> int:

@@ -51,16 +51,19 @@ def worker_status():
         return jsonify(result)
     except Exception as err:
         logger.error("Failed to retrieve worker status: %s", err)
-        return jsonify(
-            {
-                "is_active": False,
-                "status_label": "dead",
-                "last_written": None,
-                "age_seconds": None,
-                "age_minutes": None,
-                "thread_id": "",
-                "check_type": "worker",
-                "message": f"Error retrieving worker status: {err}",
-                "max_age_seconds": DEFAULT_WORKER_TIMEOUT_SECONDS,
-            }
-        ), 500
+        return (
+            jsonify(
+                {
+                    "is_active": False,
+                    "status_label": "dead",
+                    "last_written": None,
+                    "age_seconds": None,
+                    "age_minutes": None,
+                    "thread_id": "",
+                    "check_type": "worker",
+                    "message": f"Error retrieving worker status: {err}",
+                    "max_age_seconds": DEFAULT_WORKER_TIMEOUT_SECONDS,
+                }
+            ),
+            500,
+        )

@@ -138,7 +138,9 @@ class SearchViewRepository(BaseRepository[SearchView]):
 
         for key, value in kwargs.items():
             if hasattr(view, key):
-                if key in ("name", "filter_statement", "order_by") and isinstance(value, str):
+                if key in ("name", "filter_statement", "order_by") and isinstance(
+                    value, str
+                ):
                     setattr(view, key, value.strip())
                 elif key == "priority" and value is not None:
                     setattr(view, key, int(value))

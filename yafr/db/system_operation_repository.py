@@ -181,9 +181,7 @@ class SystemOperationRepository(BaseRepository[SystemOperation]):
                 f"limit: {max_age_seconds // 60} min). Worker is dead."
             )
         else:
-            message = (
-                f"Worker is active and ok (last heartbeat {round(age_seconds, 1)}s ago)."
-            )
+            message = f"Worker is active and ok (last heartbeat {round(age_seconds, 1)}s ago)."
 
         return {
             "is_active": is_active,

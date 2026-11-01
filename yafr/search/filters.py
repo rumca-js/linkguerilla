@@ -90,7 +90,10 @@ class FilterRegistry:
         :param session: Optional active database session
         :return: List of SearchFilter instances
         """
-        filters = [SearchFilter(f.id, f.name, f.is_default, f.hover_text) for f in SYSTEM_FILTERS]
+        filters = [
+            SearchFilter(f.id, f.name, f.is_default, f.hover_text)
+            for f in SYSTEM_FILTERS
+        ]
         try:
             db_session = session or get_session()
             stmt = select(SearchView).order_by(
@@ -105,11 +108,13 @@ class FilterRegistry:
                     f.is_default = False
             else:
                 for idx, f in enumerate(filters):
-                    f.is_default = (idx == 0)
+                    f.is_default = idx == 0
 
             for view in custom_views:
                 if not any(f.id == f"custom_{view.id}" for f in filters):
-                    is_this_default = bool(custom_default and view.id == custom_default.id)
+                    is_this_default = bool(
+                        custom_default and view.id == custom_default.id
+                    )
                     filters.append(
                         SearchFilter(
                             id=f"custom_{view.id}",
@@ -147,7 +152,9 @@ class FilterRegistry:
             db_session = session or get_session()
             return db_session.get(SearchView, view_id)
         except Exception as err:
-            logger.debug("Failed to retrieve SearchView for filter '%s': %s", filter_id, err)
+            logger.debug(
+                "Failed to retrieve SearchView for filter '%s': %s", filter_id, err
+            )
             return None
 
     @classmethod

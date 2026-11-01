@@ -109,7 +109,9 @@ class CredentialsRepository(BaseRepository[Credentials]):
         logger.info("Created credential '%s' (id=%s)", name, credential.id)
         return credential
 
-    def update_credential(self, credential_id: int, **kwargs: Any) -> Optional[Credentials]:
+    def update_credential(
+        self, credential_id: int, **kwargs: Any
+    ) -> Optional[Credentials]:
         """
         Updates fields on an existing credential record.
 

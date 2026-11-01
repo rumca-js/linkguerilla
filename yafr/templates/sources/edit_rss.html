@@ -83,6 +83,20 @@
           >
         </div>
 
+        <!-- URL Match Pattern (Python re.match) -->
+        <div class="mb-3">
+          <label for="xpath" class="form-label fw-semibold">URL Match Pattern (Python re.match)</label>
+          <input 
+            type="text" 
+            name="xpath" 
+            id="xpath" 
+            class="form-control font-monospace" 
+            placeholder="https://example\.com/posts/.*" 
+            value="{{ source.xpath if source and source.xpath else '' }}"
+          >
+          <div class="form-text">Optional Python regular expression (<code>re.match</code>) used to filter extracted entry links. Only matching links will be added.</div>
+        </div>
+
         <!-- Auto Tags -->
         <div class="mb-3">
           <label for="auto_tag" class="form-label fw-semibold">Auto-Assign Tags</label>

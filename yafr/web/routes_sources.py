@@ -241,6 +241,7 @@ def source_add_rss():
     if request.method == "POST":
         url = request.form.get("url", "").strip()
         title = request.form.get("title", "").strip() or url
+        xpath = request.form.get("xpath", "").strip() or None
         enabled = "enabled" in request.form
         auto_tag = request.form.get("auto_tag", "").strip()
         favicon = request.form.get("favicon", "").strip() or None
@@ -262,6 +263,7 @@ def source_add_rss():
             url=url,
             title=title,
             source_type="RSS",
+            xpath=xpath,
             enabled=enabled,
             auto_tag=auto_tag,
             favicon=favicon,
@@ -290,6 +292,7 @@ def source_edit_rss(id: int):
     if request.method == "POST":
         title = request.form.get("title", "").strip() or source.url
         url = request.form.get("url", "").strip() or source.url
+        xpath = request.form.get("xpath", "").strip() or None
         enabled = "enabled" in request.form
         auto_tag = request.form.get("auto_tag", "").strip()
         favicon = request.form.get("favicon", "").strip() or None
@@ -302,6 +305,7 @@ def source_edit_rss(id: int):
             id,
             title=title,
             url=url,
+            xpath=xpath,
             enabled=enabled,
             auto_tag=auto_tag,
             favicon=favicon,
@@ -476,7 +480,7 @@ def source_add_parse():
     if request.method == "POST":
         title = request.form.get("title", "").strip()
         url = request.form.get("url", "").strip()
-        xpath = request.form.get("xpath", "").strip()
+        xpath = request.form.get("xpath", "").strip() or None
         enabled = "enabled" in request.form
         auto_tag = request.form.get("auto_tag", "").strip()
         language = request.form.get("language", "").strip() or None
@@ -518,7 +522,7 @@ def source_edit_parse(id: int):
     if request.method == "POST":
         title = request.form.get("title", "").strip() or source.url
         url = request.form.get("url", "").strip() or source.url
-        xpath = request.form.get("xpath", "").strip()
+        xpath = request.form.get("xpath", "").strip() or None
         enabled = "enabled" in request.form
         auto_tag = request.form.get("auto_tag", "").strip()
         language = request.form.get("language", "").strip() or None

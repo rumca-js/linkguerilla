@@ -120,7 +120,9 @@ def get_shared_context() -> Dict[str, Any]:
         active_theme = config_repo.get_display_style()
         display_type = config_repo.get_display_type()
         config = config_repo.get_config()
-        instance_title = (config.instance_title or "LinkGuerilla").strip() or "LinkGuerilla"
+        instance_title = (
+            config.instance_title or "LinkGuerilla"
+        ).strip() or "LinkGuerilla"
 
         source_repo = SourceRepository()
         sources_outdated = source_repo.count_outdated_sources()

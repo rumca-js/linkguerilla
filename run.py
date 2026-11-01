@@ -12,9 +12,7 @@ description = "LinkGuerilla - Link manager and aggregator"
 
 
 def parse_args():
-    parser = argparse.ArgumentParser(
-        description=description
-    )
+    parser = argparse.ArgumentParser(description=description)
     parser.add_argument(
         "--host",
         type=str,

@@ -273,9 +273,7 @@ def get_entry_jobs(entry_id: int):
             "priority": j.priority,
             "errors": j.errors or 0,
             "enabled": bool(j.enabled),
-            "date_created": (
-                j.date_created.isoformat() if j.date_created else None
-            ),
+            "date_created": (j.date_created.isoformat() if j.date_created else None),
         }
         for j in raw.get("jobs", [])
     ]
@@ -286,9 +284,7 @@ def get_entry_jobs(entry_id: int):
             "subject": h.subject,
             "task": h.task,
             "args": h.args,
-            "date_created": (
-                h.date_created.isoformat() if h.date_created else None
-            ),
+            "date_created": (h.date_created.isoformat() if h.date_created else None),
         }
         for h in raw.get("history", [])
     ]

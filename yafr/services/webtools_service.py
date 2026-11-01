@@ -542,7 +542,9 @@ class WebToolsWrapper:
         if self.url_handler and hasattr(self.url_handler, "get_content_links"):
             try:
                 links = self.url_handler.get_content_links()
-                return links
+                if links is not None:
+                    return list(links)
+                return []
             except Exception as exc:
                 logger.debug("url_handler.get_content_links() failed: %s", exc)
         return []

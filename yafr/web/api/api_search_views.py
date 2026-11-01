@@ -13,7 +13,9 @@ from yafr.web.shared import api_response
 
 logger = logging.getLogger(__name__)
 
-api_search_views_bp = Blueprint("api_search_views", __name__, url_prefix="/api/search-views")
+api_search_views_bp = Blueprint(
+    "api_search_views", __name__, url_prefix="/api/search-views"
+)
 
 
 @api_search_views_bp.route("", methods=["GET"])
@@ -46,7 +48,9 @@ def get_search_view(view_id: int):
                 error=f"Search view with ID {view_id} not found.",
                 status_code=404,
             )
-        return jsonify({"success": True, "search_view": SearchViewService.to_dict(view)})
+        return jsonify(
+            {"success": True, "search_view": SearchViewService.to_dict(view)}
+        )
     except Exception as err:
         logger.error("Failed to get search view %d: %s", view_id, err)
         return api_response(success=False, error=str(err), status_code=500)
@@ -69,13 +73,16 @@ def create_search_view():
 
         session = get_session()
         view = SearchViewService.create_view(payload, session=session)
-        return jsonify(
-            {
-                "success": True,
-                "message": "Search view created successfully.",
-                "search_view": SearchViewService.to_dict(view),
-            }
-        ), 201
+        return (
+            jsonify(
+                {
+                    "success": True,
+                    "message": "Search view created successfully.",
+                    "search_view": SearchViewService.to_dict(view),
+                }
+            ),
+            201,
+        )
     except ValueError as val_err:
         return api_response(success=False, error=str(val_err), status_code=400)
     except Exception as err:

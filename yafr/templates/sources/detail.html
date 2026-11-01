@@ -331,16 +331,19 @@
     </div>
   {% endif %}
 
-  <!-- XPath Expression (For Parse sources) -->
-  {% if source.source_type == 'PARSE' and source.xpath %}
+  <!-- URL Match Pattern (Python re.match) -->
+  {% if source.xpath %}
     <div class="card mb-4 shadow-sm border">
       <div class="card-header bg-body py-3">
         <h5 class="mb-0 fs-6 fw-bold">
-          <i class="bi bi-code-square me-1 text-success"></i>XPath Parser Expression
+          <i class="bi bi-regex me-1 text-primary"></i>URL Match Pattern (Python re.match)
         </h5>
       </div>
       <div class="card-body">
         <code>{{ source.xpath }}</code>
+        <div class="text-muted small mt-1">
+          Python regular expression used to filter extracted entries via <code>re.match()</code>.
+        </div>
       </div>
     </div>
   {% endif %}

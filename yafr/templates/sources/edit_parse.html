@@ -35,7 +35,7 @@
     <div class="card-header bg-body py-3">
       <h4 class="mb-0 fs-5 fw-bold d-flex align-items-center gap-2">
         <i class="bi bi-code-slash text-success"></i>
-        <span>{% if is_new %}Configure HTML / XPath Parse Source{% else %}Edit Parse Source{% endif %}</span>
+        <span>{% if is_new %}Configure HTML Parse Source{% else %}Edit Parse Source{% endif %}</span>
       </h4>
     </div>
     <div class="card-body p-4">
@@ -69,18 +69,18 @@
           >
         </div>
 
-        <!-- XPath Expression -->
+        <!-- URL Match Pattern (Python re.match) -->
         <div class="mb-3">
-          <label for="xpath" class="form-label fw-semibold">XPath Parser Expression</label>
+          <label for="xpath" class="form-label fw-semibold">URL Match Pattern (Python re.match)</label>
           <input 
             type="text" 
             name="xpath" 
             id="xpath" 
             class="form-control font-monospace" 
-            placeholder="//tr[@class='athing']//span[@class='titleline']/a" 
+            placeholder="https://example\.com/posts/.*" 
             value="{{ source.xpath if source and source.xpath else '' }}"
           >
-          <div class="form-text">Custom XPath targeting anchor (<code>&lt;a&gt;</code>) elements to extract links and titles.</div>
+          <div class="form-text">Optional Python regular expression (<code>re.match</code>) used to filter extracted entry links. Only matching links will be added.</div>
         </div>
 
         <!-- Auto Tags -->

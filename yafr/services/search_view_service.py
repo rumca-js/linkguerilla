@@ -139,7 +139,9 @@ class SearchViewService:
                 update_payload["priority"] = 0
 
         if "filter_statement" in data:
-            update_payload["filter_statement"] = str(data["filter_statement"] or "").strip()
+            update_payload["filter_statement"] = str(
+                data["filter_statement"] or ""
+            ).strip()
 
         if "order_by" in data:
             update_payload["order_by"] = str(data["order_by"] or "").strip()

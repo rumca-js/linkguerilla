@@ -92,7 +92,11 @@ class LinkUpdateDataJobHandler(BaseJobHandler):
 
             if not response.is_valid():
                 # Response received but HTTP error — mark dead, record status, do not update metadata
-                status_code = response.get_status_code() if hasattr(response, "get_status_code") else None
+                status_code = (
+                    response.get_status_code()
+                    if hasattr(response, "get_status_code")
+                    else None
+                )
                 if status_code:
                     entry.status_code = status_code
                 if not entry.date_dead_since:
@@ -125,7 +129,9 @@ class LinkUpdateDataJobHandler(BaseJobHandler):
             if date_published:
                 if isinstance(date_published, str) and date_published.strip():
                     try:
-                        entry.date_published = datetime.fromisoformat(date_published.strip())
+                        entry.date_published = datetime.fromisoformat(
+                            date_published.strip()
+                        )
                     except Exception:
                         pass
                 elif isinstance(date_published, datetime):
@@ -203,7 +209,9 @@ class LinkUpdateDataJobHandler(BaseJobHandler):
                         "message": f"Entry #{entry.id} removed: {reason}",
                     }
             except Exception as rule_err:
-                logger.warning("Entry rule or block rule evaluation failed: %s", rule_err)
+                logger.warning(
+                    "Entry rule or block rule evaluation failed: %s", rule_err
+                )
 
             # Enqueue JOB_LINK_DOWNLOAD_SOCIAL
             try:
@@ -217,7 +225,9 @@ class LinkUpdateDataJobHandler(BaseJobHandler):
                     enabled=True,
                 )
             except Exception as job_err:
-                logger.debug("Failed to enqueue %s job: %s", JOB_LINK_DOWNLOAD_SOCIAL, job_err)
+                logger.debug(
+                    "Failed to enqueue %s job: %s", JOB_LINK_DOWNLOAD_SOCIAL, job_err
+                )
 
             entry.date_update_last = datetime.now(timezone.utc)
             session.commit()
@@ -261,7 +271,11 @@ class LinkDownloadSocialJobHandler(BaseJobHandler):
     upvote_diff, upvote_view_ratio, stars, date_updated.
     """
 
-    job_types = (JOB_LINK_DOWNLOAD_SOCIAL, "JOB_LINK_DOWNLOAD_SOCIAL")
+    job_types = (
+        JOB_LINK_DOWNLOAD_SOCIAL,
+        "JOB_LINK_DOWNLOAD_SOCIAL",
+        "link-download-social",
+    )
 
     def execute(self, job: BackgroundJob, session: Session) -> Dict[str, Any]:
         """

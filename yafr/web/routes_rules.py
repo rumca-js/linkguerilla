@@ -168,7 +168,10 @@ def block_list_process(id: int):
     repo = BlockRepository(session)
     try:
         count = repo.process_block_list(id)
-        flash(f"Block list #{id} processed successfully: {count} entries ingested.", "success")
+        flash(
+            f"Block list #{id} processed successfully: {count} entries ingested.",
+            "success",
+        )
     except Exception as exc:
         flash(f"Failed to process block list #{id}: {exc}", "danger")
     return redirect(url_for("rules.block_lists_view"))
@@ -247,7 +250,11 @@ def block_entry_delete(id: int):
     """
     Deletes a single BlockEntry by primary key ID and redirects back to Blocked URLs view.
     """
-    next_url = request.form.get("next") or request.referrer or url_for("rules.blocked_urls_view")
+    next_url = (
+        request.form.get("next")
+        or request.referrer
+        or url_for("rules.blocked_urls_view")
+    )
     session = get_session()
     block_repo = BlockEntryRepository(session)
     deleted = block_repo.delete_entry(id)
@@ -282,7 +289,9 @@ def rule_add():
             flash(f"Failed to create rule: {exc}", "danger")
         return redirect(url_for("rules.rules_list"))
 
-    return render_template("rules/edit.html", rule=None, action_url=url_for("rules.rule_add"))
+    return render_template(
+        "rules/edit.html", rule=None, action_url=url_for("rules.rule_add")
+    )
 
 
 @rules_bp.route("/rules/<int:id>/edit", methods=["GET", "POST"])

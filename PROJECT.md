@@ -344,6 +344,7 @@ The screen displays, where available:
 ## EntryEditScreen
  - Allows adding a new entry or editing an existing entry.
  - Provides input fields for entry metadata (URL, title, description, tags, author, etc.).
+ - Does not allow to check link directly. There should be a lock icon, that needs to be pressed to change it
 
 ## SourcesListScreen
  - small search box at top with results list displayed by default (no big search box)
@@ -385,6 +386,7 @@ The screen displays, where available:
 ## SourceEditScreen
  - Allows adding a new RSS source or editing an existing source.
  - Provides input fields for source title, URL, and enabled status via shared SourceFormPane component.
+ - Does not allow to check url directly. There should be a lock icon, that needs to be pressed to change it
 
 ## SourceEmailEditScreen
  - Allows adding a new Email source or editing an existing Email source.

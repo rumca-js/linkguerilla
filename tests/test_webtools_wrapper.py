@@ -308,6 +308,107 @@ class TestSourceServiceWithWrapper(unittest.TestCase):
             self.assertEqual(op_data.consecutive_errors, 0)
             self.assertIsNotNone(op_data.page_hash)
 
+    def test_fetch_rss_source_with_regex_match_filter(self):
+        """
+        When source.xpath regex match pattern is specified on RSS source,
+        only entries matching re.match(source.xpath, link) are ingested.
+        """
+        filtered_source = self.source_repo.add_source(
+            url="https://filtered.example.com/feed.xml",
+            title="Filtered RSS",
+            source_type="RSS",
+            xpath=r"https://filtered\.example\.com/allowed/.*",
+            enabled=True,
+        )
+        sample_rss = """<?xml version="1.0" encoding="UTF-8"?>
+        <rss version="2.0">
+          <channel>
+            <title>Filtered RSS</title>
+            <link>https://filtered.example.com</link>
+            <item>
+              <title>Allowed Entry</title>
+              <link>https://filtered.example.com/allowed/item-1</link>
+            </item>
+            <item>
+              <title>Ignored Entry</title>
+              <link>https://filtered.example.com/ignored/item-2</link>
+            </item>
+          </channel>
+        </rss>"""
+
+        mock_resp = PageResponseObject(
+            url=filtered_source.url,
+            status_code=200,
+            text=sample_rss,
+            binary=sample_rss.encode("utf-8"),
+        )
+
+        with patch.object(BaseUrl, "get_response", return_value=mock_resp):
+            res = SourceService.fetch_source(filtered_source.id, session=self.session)
+            self.assertTrue(res.get("success"))
+            self.assertEqual(res.get("entries_added"), 1)
+
+            entries = (
+                self.session.execute(
+                    select(LinkDataModel).where(
+                        LinkDataModel.source_id == filtered_source.id
+                    )
+                )
+                .scalars()
+                .all()
+            )
+            self.assertEqual(len(entries), 1)
+            self.assertEqual(entries[0].link, "https://filtered.example.com/allowed/item-1")
+
+    def test_fetch_parse_source_with_regex_match_filter(self):
+        """
+        When source.xpath regex match pattern is specified on PARSE source,
+        only links matching re.match(source.xpath, link) are ingested.
+        """
+        parse_source = self.source_repo.add_source(
+            url="https://parse.example.com/index.html",
+            title="Parse Source Test",
+            source_type="PARSE",
+            xpath=r"https://parse\.example\.com/posts/\d+",
+            enabled=True,
+        )
+
+        mock_resp = PageResponseObject(
+            url=parse_source.url,
+            status_code=200,
+            text="<html><body>mock</body></html>",
+            binary=b"<html><body>mock</body></html>",
+        )
+
+        discovered_links = [
+            "https://parse.example.com/posts/101",
+            "https://parse.example.com/posts/102",
+            "https://parse.example.com/about",
+            "https://other.com/external",
+        ]
+
+        with patch.object(BaseUrl, "get_response", return_value=mock_resp), \
+             patch.object(BaseUrl, "get_content_links", return_value=discovered_links):
+            res = SourceService.fetch_source(parse_source.id, session=self.session)
+            self.assertTrue(res.get("success"))
+            self.assertEqual(res.get("entries_added"), 2)
+
+            entries = (
+                self.session.execute(
+                    select(LinkDataModel).where(
+                        LinkDataModel.source_id == parse_source.id
+                    )
+                )
+                .scalars()
+                .all()
+            )
+            self.assertEqual(len(entries), 2)
+            links = {e.link for e in entries}
+            self.assertEqual(
+                links,
+                {"https://parse.example.com/posts/101", "https://parse.example.com/posts/102"},
+            )
+
     def test_fetch_source_unchanged_hash_skips_parsing(self):
         """
         When hash matches previous fetch, SourceService returns status='unchanged'.

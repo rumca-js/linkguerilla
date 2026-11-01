@@ -33,7 +33,9 @@ class CredentialsService:
         return repo.list_credentials()
 
     @staticmethod
-    def get_credential(credential_id: int, session: Optional[Session] = None) -> Optional[Credentials]:
+    def get_credential(
+        credential_id: int, session: Optional[Session] = None
+    ) -> Optional[Credentials]:
         """
         Retrieves a single credential by ID.
 
@@ -45,7 +47,9 @@ class CredentialsService:
         return repo.get_credential(credential_id)
 
     @staticmethod
-    def create_credential(data: Dict[str, Any], session: Optional[Session] = None) -> Credentials:
+    def create_credential(
+        data: Dict[str, Any], session: Optional[Session] = None
+    ) -> Credentials:
         """
         Validates and creates a new credential.
 
@@ -112,7 +116,9 @@ class CredentialsService:
         return repo.update_credential(credential_id, **update_fields)
 
     @staticmethod
-    def delete_credential(credential_id: int, session: Optional[Session] = None) -> bool:
+    def delete_credential(
+        credential_id: int, session: Optional[Session] = None
+    ) -> bool:
         """
         Deletes a credential by ID.
 

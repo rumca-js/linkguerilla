@@ -339,9 +339,7 @@ class JobExecutor:
 
         return enqueued_count
 
-    def enqueue_outdated_entry_jobs(
-        self, session: Optional[Session] = None
-    ) -> int:
+    def enqueue_outdated_entry_jobs(self, session: Optional[Session] = None) -> int:
         """
         Enqueues link-update-data jobs for the oldest entries based on date_update_last,
         limited by ConfigurationEntry.number_of_update_entries.
@@ -367,7 +365,9 @@ class JobExecutor:
                     BackgroundJob.job.in_(("link-update-data", "JOB_LINK_UPDATE_DATA")),
                     BackgroundJob.enabled == True,
                 )
-            ).scalars().all()
+            )
+            .scalars()
+            .all()
         )
 
         remaining_slots = max_entries - len(existing_subjects)
@@ -457,7 +457,6 @@ class JobExecutor:
         executed_count = 0
         thread_id = str(_threading.current_thread().ident)
 
-
         while True:
             if stop_event and stop_event.is_set():
                 break
@@ -472,7 +471,6 @@ class JobExecutor:
                 )
             except Exception as hb_err:
                 logger.debug("Failed to record worker heartbeat: %s", hb_err)
-
 
             config_repo = ConfigRepository(self._get_session())
             config = config_repo.get_config()

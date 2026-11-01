@@ -172,12 +172,13 @@ class TestSourceRoutes(unittest.TestCase):
         self.assertEqual(response.status_code, 404)
 
     def test_add_rss_source(self):
-        """GET and POST /sources/new/rss creates new RSS source."""
+        """GET and POST /sources/new/rss creates new RSS source with optional regex match pattern."""
         # Test GET
         res_get = self.client.get("/sources/new/rss")
         self.assertEqual(res_get.status_code, 200)
         self.assertIn("Add New RSS", res_get.get_data(as_text=True))
         self.assertIn("fetch_period", res_get.get_data(as_text=True))
+        self.assertIn("re.match", res_get.get_data(as_text=True))
 
         # Test POST
         res_post = self.client.post(
@@ -185,6 +186,7 @@ class TestSourceRoutes(unittest.TestCase):
             data={
                 "title": "Ars Technica",
                 "url": "https://feeds.arstechnica.com/arstechnica/index",
+                "xpath": r"https://arstechnica\.com/.*",
                 "enabled": "on",
                 "auto_tag": "tech, hardware",
                 "language": "en",
@@ -200,6 +202,7 @@ class TestSourceRoutes(unittest.TestCase):
         self.assertIn("badge-source-language", html)
         self.assertIn("badge-source-age", html)
         self.assertIn("Age 18+", html)
+        self.assertIn(r"https://arstechnica\.com/.*", html)
 
         # Verify in DB
         created = self.repo.get_by_url(
@@ -208,6 +211,7 @@ class TestSourceRoutes(unittest.TestCase):
         self.assertIsNotNone(created)
         self.assertEqual(created.title, "Ars Technica")
         self.assertEqual(created.source_type, "RSS")
+        self.assertEqual(created.xpath, r"https://arstechnica\.com/.*")
         self.assertEqual(created.fetch_period, 7200)
         self.assertEqual(created.language, "en")
         self.assertEqual(created.age, 18)
@@ -219,6 +223,7 @@ class TestSourceRoutes(unittest.TestCase):
             data={
                 "title": "Hacker News Frontpage",
                 "url": "https://news.ycombinator.com/rss",
+                "xpath": r"https://news\.ycombinator\.com/item\?id=\d+",
                 "enabled": "on",
                 "auto_tag": "tech, yc",
                 "language": "en",
@@ -230,6 +235,7 @@ class TestSourceRoutes(unittest.TestCase):
         self.assertEqual(res_post.status_code, 200)
         updated = self.repo.get_by_id(self.s1.id)
         self.assertEqual(updated.title, "Hacker News Frontpage")
+        self.assertEqual(updated.xpath, r"https://news\.ycombinator\.com/item\?id=\d+")
         self.assertEqual(updated.auto_tag, "tech, yc")
         self.assertEqual(updated.language, "en")
         self.assertEqual(updated.age, 16)
@@ -284,13 +290,17 @@ class TestSourceRoutes(unittest.TestCase):
         self.assertEqual(created.fetch_period, 900)
 
     def test_add_and_edit_parse_source(self):
-        """GET and POST /sources/new/parse creates custom xpath source."""
+        """GET and POST /sources/new/parse creates custom parse source with re.match pattern."""
+        res_get = self.client.get("/sources/new/parse")
+        self.assertEqual(res_get.status_code, 200)
+        self.assertIn("re.match", res_get.get_data(as_text=True))
+
         res_post = self.client.post(
             "/sources/new/parse",
             data={
                 "title": "Lobsters Scraping",
                 "url": "https://lobste.rs",
-                "xpath": "//span[@class='link']/a",
+                "xpath": r"https://lobste\.rs/s/.*",
                 "enabled": "on",
                 "fetch_period": "86400",
             },
@@ -301,7 +311,7 @@ class TestSourceRoutes(unittest.TestCase):
         created = self.repo.get_by_url("https://lobste.rs")
         self.assertIsNotNone(created)
         self.assertEqual(created.source_type, "PARSE")
-        self.assertEqual(created.xpath, "//span[@class='link']/a")
+        self.assertEqual(created.xpath, r"https://lobste\.rs/s/.*")
         self.assertEqual(created.fetch_period, 86400)
 
         # Edit parse source
@@ -310,7 +320,7 @@ class TestSourceRoutes(unittest.TestCase):
             data={
                 "title": "Lobsters Scraping Updated",
                 "url": "https://lobste.rs",
-                "xpath": "//span[@class='link']/a",
+                "xpath": r"https://lobste\.rs/s/\w+",
                 "enabled": "on",
                 "fetch_period": "43200",
             },
@@ -318,6 +328,7 @@ class TestSourceRoutes(unittest.TestCase):
         )
         self.assertEqual(res_edit.status_code, 200)
         self.session.refresh(created)
+        self.assertEqual(created.xpath, r"https://lobste\.rs/s/\w+")
         self.assertEqual(created.fetch_period, 43200)
 
 

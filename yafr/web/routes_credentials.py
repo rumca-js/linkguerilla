@@ -34,7 +34,9 @@ def credential_add():
     if request.method == "POST":
         session = get_session()
         try:
-            CredentialsService.create_credential(request.form.to_dict(), session=session)
+            CredentialsService.create_credential(
+                request.form.to_dict(), session=session
+            )
             flash("Credential created successfully.", "success")
         except ValueError as exc:
             flash(str(exc), "danger")
@@ -43,8 +45,11 @@ def credential_add():
             flash(f"Failed to create credential: {exc}", "danger")
         return redirect(url_for("credentials.credentials_list"))
 
-    return render_template("credentials/edit.html", credential=None,
-                           action_url=url_for("credentials.credential_add"))
+    return render_template(
+        "credentials/edit.html",
+        credential=None,
+        action_url=url_for("credentials.credential_add"),
+    )
 
 
 @credentials_bp.route("/credentials/<int:credential_id>/edit", methods=["GET", "POST"])

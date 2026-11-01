@@ -269,7 +269,9 @@ class SourceService:
                     level=LoggingRepository.WARNING,
                 )
             except Exception as log_err:
-                logger.warning("Failed to record source removal in applogging: %s", log_err)
+                logger.warning(
+                    "Failed to record source removal in applogging: %s", log_err
+                )
 
             # Remove source and unlink its entries
             source_repo = SourceRepository(session=session)
@@ -393,6 +395,18 @@ class SourceService:
             link = (item.get("link") or "").strip()
             if not link:
                 continue
+
+            if source and source.xpath and source.xpath.strip():
+                try:
+                    if not re.match(source.xpath.strip(), link):
+                        continue
+                except re.error as err:
+                    logger.warning(
+                        "Invalid re.match pattern '%s' for source #%s: %s",
+                        source.xpath,
+                        source.id,
+                        err,
+                    )
 
             entry_age = item.get("age")
             if entry_age is None and source is not None:
@@ -620,6 +634,23 @@ class RssSourceExtractor:
         # Parse RSS / Feed entries
         try:
             raw_entries = web_client.get_entries() or []
+            if source.xpath and source.xpath.strip():
+                pattern = source.xpath.strip()
+                filtered = []
+                for entry in raw_entries:
+                    link = (entry.get("link") or "").strip()
+                    try:
+                        if re.match(pattern, link):
+                            filtered.append(entry)
+                    except re.error as err:
+                        logger.warning(
+                            "Invalid re.match pattern '%s' for source %s: %s",
+                            pattern,
+                            source.id,
+                            err,
+                        )
+                        filtered.append(entry)
+                raw_entries = filtered
         except Exception as err:
             logger.warning("Error parsing RSS feed for source %s: %s", source.id, err)
             return FetchExtractionResult(error=f"Feed parsing error: {err}")
@@ -695,6 +726,7 @@ class EmailSourceExtractor:
             is_unchanged=False,
         )
 
+
 class ParseSourceExtractor:
     """
     Extractor strategy for email sources using EmailReader.
@@ -749,15 +781,29 @@ class ParseSourceExtractor:
         try:
             links = web_client.get_content_links()
             raw_entries = []
+            pattern = (
+                source.xpath.strip() if source.xpath and source.xpath.strip() else None
+            )
             for link in links:
+                if pattern:
+                    try:
+                        if not re.match(pattern, link):
+                            continue
+                    except re.error as err:
+                        logger.warning(
+                            "Invalid re.match pattern '%s' for source %s: %s",
+                            pattern,
+                            source.id,
+                            err,
+                        )
                 builder = EntryBuilder(session=session)
                 if builder.can_build(url=link):
                     raw_entries.append({"link": link})
                     # TODO add background job to update link
 
         except Exception as err:
-            logger.warning("Error parsing RSS feed for source %s: %s", source.id, err)
-            return FetchExtractionResult(error=f"Feed parsing error: {err}")
+            logger.warning("Error extracting links for source %s: %s", source.id, err)
+            return FetchExtractionResult(error=f"Link extraction error: {err}")
 
         return FetchExtractionResult(
             raw_entries=raw_entries,

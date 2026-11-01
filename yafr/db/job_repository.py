@@ -288,9 +288,7 @@ class JobRepository(BaseRepository[BackgroundJob]):
 
         return self.session.execute(stmt).scalar() or 0
 
-    def get_jobs_for_subjects(
-        self, subjects: List[str]
-    ) -> List[BackgroundJob]:
+    def get_jobs_for_subjects(self, subjects: List[str]) -> List[BackgroundJob]:
         """
         Retrieves active background jobs matching any of the given subjects.
 
