@@ -71,7 +71,7 @@
         </span>
 
         <!-- Background Worker Liveness Badge -->
-        <span id="worker-badge" class="badge bg-secondary-subtle text-secondary border border-secondary-subtle px-2 py-1 rounded-pill" title="Background worker status">
+        <span id="worker-badge" class="badge {% if not enable_background_jobs %}d-none {% endif %}bg-secondary-subtle text-secondary border border-secondary-subtle px-2 py-1 rounded-pill" title="Background worker status">
           <i class="bi bi-cpu me-1"></i>Worker
         </span>
 

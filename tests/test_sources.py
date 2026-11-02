@@ -158,6 +158,8 @@ class TestSourceRoutes(unittest.TestCase):
         self.assertIn("1,800s", html)
         self.assertIn(f"/entries/{entry.id}", html)
         self.assertIn("Sample HN Item", html)
+        self.assertIn("Search in Entries", html)
+        self.assertIn("link%3Dhttps", html)
 
         # Also test source without custom fetch_period displays Default
         res_s2 = self.client.get(f"/sources/{self.s2.id}")

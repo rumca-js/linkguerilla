@@ -848,14 +848,58 @@ Following the project requirement to **"prefer having small server functions tha
 
 ### 2.8 System Status API (`/api/status`)
 
+#### `GET /api/status`
+- **Purpose**: System status endpoint returning JSON information about what works or does not work as a set of boolean flags (`flags`), which the client translates into UI badges and operational indicators.
+- **Response**:
+  ```json
+  {
+    "success": true,
+    "flags": {
+      "worker_active": true,
+      "worker_dead": false,
+      "background_jobs_enabled": true,
+      "webtools_configured": true,
+      "webtools_online": true,
+      "database_ok": true,
+      "sources_ok": true,
+      "jobs_ok": true
+    },
+    "worker": {
+      "is_active": true,
+      "status": true,
+      "status_label": "active",
+      "enable_background_jobs": true,
+      "last_written": "2026-10-18T18:05:00+00:00",
+      "age_seconds": 42.1,
+      "age_minutes": 0.7,
+      "thread_id": "140234567890",
+      "check_type": "worker",
+      "message": "Worker is active and ok (last heartbeat 42.1s ago).",
+      "max_age_seconds": 600
+    },
+    "badges": {
+      "sources_outdated": 0,
+      "sources_errors": 0,
+      "jobs_errors": 0
+    }
+  }
+  ```
+- **Offline Capable**: Yes.
+
 #### `GET /api/status/worker`
-- **Purpose**: Reports background worker liveness by reading the `systemoperation` table. The table holds exactly **one row**; the worker upserts it on every loop cycle with `status=True` and the current UTC timestamp. If the row is missing, `status=False`, or the timestamp is older than **10 minutes**, the worker is considered dead.
+- **Purpose**: Reports background worker liveness by reading the `systemoperation` table and checking `enable_background_jobs` on `configurationentry`. Returns operational flags (`worker_active`, `worker_dead`, `background_jobs_enabled`) along with heartbeat details. The table holds exactly **one row**; the worker upserts it on every loop cycle with `status=True` and the current UTC timestamp. If the row is missing, `status=False`, or the timestamp is older than **10 minutes**, the worker is considered dead (`worker_dead=True`) if background jobs are enabled (`background_jobs_enabled=True`). If `background_jobs_enabled` is false, `worker_dead=False`, status is `disabled`, and the "Worker Dead" indication is suppressed in the UI.
 - **Response (active)**:
   ```json
   {
     "is_active": true,
     "status": true,
     "status_label": "active",
+    "enable_background_jobs": true,
+    "flags": {
+      "worker_active": true,
+      "worker_dead": false,
+      "background_jobs_enabled": true
+    },
     "last_written": "2026-10-18T18:05:00+00:00",
     "age_seconds": 42.1,
     "age_minutes": 0.7,
@@ -871,12 +915,39 @@ Following the project requirement to **"prefer having small server functions tha
     "is_active": false,
     "status": false,
     "status_label": "dead",
+    "enable_background_jobs": true,
+    "flags": {
+      "worker_active": false,
+      "worker_dead": true,
+      "background_jobs_enabled": true
+    },
     "last_written": "2026-10-18T17:50:00+00:00",
     "age_seconds": 930.5,
     "age_minutes": 15.5,
     "thread_id": "140234567890",
     "check_type": "worker",
     "message": "Worker heartbeat is older than 10 minutes (15.5 min ago, limit: 10 min). Worker is dead.",
+    "max_age_seconds": 600
+  }
+  ```
+- **Response (disabled - background jobs disabled in configurationentry)**:
+  ```json
+  {
+    "is_active": false,
+    "status": false,
+    "status_label": "disabled",
+    "enable_background_jobs": false,
+    "flags": {
+      "worker_active": false,
+      "worker_dead": false,
+      "background_jobs_enabled": false
+    },
+    "last_written": null,
+    "age_seconds": null,
+    "age_minutes": null,
+    "thread_id": "",
+    "check_type": "worker",
+    "message": "Background jobs are disabled in configuration.",
     "max_age_seconds": 600
   }
   ```

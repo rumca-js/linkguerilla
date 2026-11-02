@@ -354,7 +354,7 @@
       <h5 class="mb-0 fs-6 fw-bold">
         <i class="bi bi-link-45deg me-1 text-primary"></i>Extracted Entries ({{ total_entries_count }})
       </h5>
-      <a href="{{ url_for('entries.search_view', q='url=' + source.url) }}" class="btn btn-outline-secondary btn-sm rounded-pill">
+      <a href="{{ url_for('entries.search_view', q='link=' + source.url) }}" class="btn btn-outline-secondary btn-sm rounded-pill">
         Search in Entries
       </a>
     </div>

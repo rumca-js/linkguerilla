@@ -133,34 +133,68 @@ class SystemOperationRepository(BaseRepository[SystemOperation]):
         record = self.get_latest_operation(check_type=check_type)
         now = datetime.now(timezone.utc)
 
+        enable_background_jobs = True
+        try:
+            from yafr.db.config_repository import ConfigRepository
+
+            config_repo = ConfigRepository(self.session)
+            cfg = config_repo.get_config()
+            enable_background_jobs = bool(cfg.enable_background_jobs)
+        except Exception as cfg_err:
+            logger.debug(
+                "Could not determine enable_background_jobs from config: %s", cfg_err
+            )
+
         if not record:
+            worker_dead = bool(enable_background_jobs)
             return {
                 "is_active": False,
                 "status": False,
-                "status_label": "dead",
+                "status_label": "disabled" if not enable_background_jobs else "dead",
+                "enable_background_jobs": enable_background_jobs,
+                "flags": {
+                    "worker_active": False,
+                    "worker_dead": worker_dead,
+                    "background_jobs_enabled": enable_background_jobs,
+                },
                 "date_created": None,
                 "last_written": None,
                 "age_seconds": None,
                 "age_minutes": None,
                 "thread_id": "",
                 "check_type": check_type or "",
-                "message": "No worker heartbeat record found in systemoperation table. Worker is dead.",
+                "message": (
+                    "Background jobs are disabled in configuration."
+                    if not enable_background_jobs
+                    else "No worker heartbeat record found in systemoperation table. Worker is dead."
+                ),
                 "max_age_seconds": max_age_seconds,
             }
 
         normalized_date = _normalize_datetime(record.date_created)
         if normalized_date is None:
+            worker_dead = bool(enable_background_jobs)
             return {
                 "is_active": False,
                 "status": bool(record.status),
-                "status_label": "dead",
+                "status_label": "disabled" if not enable_background_jobs else "dead",
+                "enable_background_jobs": enable_background_jobs,
+                "flags": {
+                    "worker_active": False,
+                    "worker_dead": worker_dead,
+                    "background_jobs_enabled": enable_background_jobs,
+                },
                 "date_created": None,
                 "last_written": None,
                 "age_seconds": None,
                 "age_minutes": None,
                 "thread_id": record.thread_id or "",
                 "check_type": record.check_type or "",
-                "message": "Worker record has invalid or missing timestamp. Worker is dead.",
+                "message": (
+                    "Background jobs are disabled in configuration."
+                    if not enable_background_jobs
+                    else "Worker record has invalid or missing timestamp. Worker is dead."
+                ),
                 "max_age_seconds": max_age_seconds,
             }
 
@@ -171,22 +205,33 @@ class SystemOperationRepository(BaseRepository[SystemOperation]):
         is_ok_status = bool(record.status)
         is_active = is_ok_status and not is_timed_out
 
-        status_label = "active" if is_active else "dead"
-
-        if not is_ok_status:
+        if is_active:
+            status_label = "active"
+            message = f"Worker is active and ok (last heartbeat {round(age_seconds, 1)}s ago)."
+        elif not enable_background_jobs:
+            status_label = "disabled"
+            message = "Background jobs are disabled in configuration."
+        elif not is_ok_status:
+            status_label = "dead"
             message = "Worker status flag is set to not ok. Worker is dead."
-        elif is_timed_out:
+        else:
+            status_label = "dead"
             message = (
                 f"Worker heartbeat is older than 10 minutes ({age_minutes} min ago, "
                 f"limit: {max_age_seconds // 60} min). Worker is dead."
             )
-        else:
-            message = f"Worker is active and ok (last heartbeat {round(age_seconds, 1)}s ago)."
 
+        worker_dead = not is_active and enable_background_jobs
         return {
             "is_active": is_active,
             "status": is_ok_status,
             "status_label": status_label,
+            "enable_background_jobs": enable_background_jobs,
+            "flags": {
+                "worker_active": is_active,
+                "worker_dead": worker_dead,
+                "background_jobs_enabled": enable_background_jobs,
+            },
             "date_created": normalized_date.isoformat(),
             "last_written": normalized_date.isoformat(),
             "age_seconds": round(age_seconds, 1),

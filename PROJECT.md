@@ -213,7 +213,19 @@ It should be possible to download a new database .db file from the internet, or 
  - ImportView - provides ability to import data from files: JSON into linkdatamodel, or into sourcedatamodel, OMPL into sourcedatamodel
  - provide ability to add/edit search views
 
-It should be indicated if there are problems with Sources, or Jobs, if there are errors by some badges or indicators.
+# Status and Badges
+ - The status API endpoint (`/api/status`) returns JSON describing operational health and what works or does not work as a set of boolean flags (`flags`).
+ - The client translates these flags into UI badges and indicators:
+   - `flags.worker_active`: worker loop is currently running and reporting recent heartbeats.
+   - `flags.worker_dead`: worker heartbeat is missing, stale, or marked failed while background jobs are enabled. Translates into the "Worker Dead" badge.
+   - `flags.background_jobs_enabled`: whether `configurationentry.enable_background_jobs` is true. When false, `worker_dead` is false and the "Worker Dead" indication is suppressed.
+   - `flags.webtools_configured`: whether a remote WebTools server URL is configured.
+   - `flags.webtools_online`: whether the remote WebTools server is reachable.
+   - `flags.database_ok`: whether the database connection is operational.
+   - `flags.sources_ok`: whether sources have no error states (`sources_errors == 0`).
+   - `flags.jobs_ok`: whether jobs have no failure states (`jobs_errors == 0`).
+ - Badges and indicators highlight problems with Sources or Jobs when errors occur.
+ - there might be additional /api/status enddpoints,routes that provide additional data if required
 
 # ConfigurationView
  - DISPLAY_STYLE_LIGHT = "style-light"

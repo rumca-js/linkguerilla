@@ -113,18 +113,30 @@ document.addEventListener("DOMContentLoaded", function () {
         return res.json();
       })
       .then(function (data) {
-        if (data.is_active) {
+        var flags = data.flags || {};
+        var isWorkerActive = flags.worker_active !== undefined ? flags.worker_active : data.is_active;
+        var isWorkerDead = flags.worker_dead !== undefined ? flags.worker_dead : (!data.is_active && data.enable_background_jobs !== false);
+
+        if (isWorkerActive) {
+          workerBadge.classList.remove("d-none");
           workerBadge.className = "badge bg-success-subtle text-success border border-success-subtle px-2 py-1 rounded-pill";
-          var ago = data.age_seconds !== null ? " (" + data.age_seconds + "s ago)" : "";
+          var ago = data.age_seconds !== null && data.age_seconds !== undefined ? " (" + data.age_seconds + "s ago)" : "";
           workerBadge.innerHTML = '<i class="bi bi-cpu me-1"></i>Worker';
           workerBadge.title = "Background worker is active" + ago + ". Thread: " + (data.thread_id || "?");
-        } else {
+        } else if (isWorkerDead) {
+          workerBadge.classList.remove("d-none");
           workerBadge.className = "badge bg-danger-subtle text-danger border border-danger-subtle px-2 py-1 rounded-pill";
           workerBadge.innerHTML = '<i class="bi bi-cpu me-1"></i>Worker Dead';
           workerBadge.title = data.message || "Background worker is dead or not running.";
+        } else {
+          // Suppress "Worker Dead" indication when worker is not active and worker_dead is false (e.g. background jobs disabled)
+          workerBadge.classList.add("d-none");
         }
       })
       .catch(function () {
+        if (workerBadge.classList.contains("d-none")) {
+          return;
+        }
         workerBadge.className = "badge bg-warning-subtle text-warning border border-warning-subtle px-2 py-1 rounded-pill";
         workerBadge.innerHTML = '<i class="bi bi-cpu me-1"></i>Worker ?';
         workerBadge.title = "Could not contact worker status endpoint.";

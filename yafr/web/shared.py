@@ -114,12 +114,14 @@ def get_shared_context() -> Dict[str, Any]:
     sources_errors = 0
     jobs_errors = 0
     instance_title = "LinkGuerilla"
+    enable_background_jobs = True
 
     try:
         config_repo = ConfigRepository()
         active_theme = config_repo.get_display_style()
         display_type = config_repo.get_display_type()
         config = config_repo.get_config()
+        enable_background_jobs = bool(config.enable_background_jobs)
         instance_title = (
             config.instance_title or "LinkGuerilla"
         ).strip() or "LinkGuerilla"
@@ -139,6 +141,7 @@ def get_shared_context() -> Dict[str, Any]:
         "entry_filters": ENTRY_FILTERS,
         "active_theme": active_theme,
         "display_type": display_type,
+        "enable_background_jobs": enable_background_jobs,
         "badges": {
             "sources_outdated": sources_outdated,
             "sources_errors": sources_errors,
