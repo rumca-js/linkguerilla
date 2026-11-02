@@ -184,6 +184,7 @@ class ConfigRepository(BaseRepository[ConfigurationEntry]):
             "prefer_non_www_links": False,
             "accept_dead_links": False,
             "accept_domain_links": True,
+            "accept_non_domain_links": False,
             "accept_ip_links": True,
             "accept_onion_links": False,
             "accept_same_hashes": False,

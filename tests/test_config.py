@@ -104,7 +104,7 @@ class TestConfigurationWebAndApi(unittest.TestCase):
         close_session()
 
     def test_configuration_view_renders_enable_fields(self):
-        """GET /configuration renders switches for enable_background_jobs, enable_crawling, enable_social_data."""
+        """GET /configuration renders switches for enable_background_jobs, enable_crawling, enable_social_data, and accept_* links."""
         res = self.client.get("/configuration")
         self.assertEqual(res.status_code, 200)
         html = res.get_data(as_text=True)
@@ -115,16 +115,21 @@ class TestConfigurationWebAndApi(unittest.TestCase):
         self.assertIn("Enable Background Jobs", html)
         self.assertIn("Enable Crawling", html)
         self.assertIn("Enable Social Data", html)
+        self.assertIn("accept_domain_links", html)
+        self.assertIn("accept_non_domain_links", html)
+        self.assertIn("Accept Domain Links", html)
+        self.assertIn("Accept Non-Domain Links", html)
 
     def test_post_configuration_updates_enable_fields(self):
-        """POST /configuration persists updated enable_* checkbox states."""
-        # Uncheck enable_background_jobs, check enable_crawling
+        """POST /configuration persists updated enable_* and accept_* checkbox states."""
+        # Uncheck enable_background_jobs, check enable_crawling and accept_non_domain_links
         res = self.client.post(
             "/configuration",
             data={
                 "instance_title": "Custom YAFR",
                 "enable_crawling": "on",
                 "enable_social_data": "on",
+                "accept_non_domain_links": "on",
                 # enable_background_jobs omitted -> should become False
             },
             follow_redirects=True,
@@ -135,6 +140,7 @@ class TestConfigurationWebAndApi(unittest.TestCase):
         self.assertFalse(config.enable_background_jobs)
         self.assertTrue(config.enable_crawling)
         self.assertTrue(config.enable_social_data)
+        self.assertTrue(config.accept_non_domain_links)
 
     def test_api_get_features(self):
         """GET /api/config/features returns full dictionary of feature flags."""

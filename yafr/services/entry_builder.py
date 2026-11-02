@@ -278,16 +278,9 @@ class EntryBuilder:
         loc = webtoolkit.UrlLocation(cleaned_url)
 
         # 1. Basic Web URL validation
-        is_onion = (
-            loc.is_onion()
-            or cleaned_url.lower().endswith(".onion")
-            or ".onion/" in cleaned_url.lower()
-        )
-        is_web = (
-            loc.is_web_link()
-            or cleaned_url.startswith("http://")
-            or cleaned_url.startswith("https://")
-        )
+        is_onion = loc.is_onion()
+        is_web = loc.is_web_link()
+
         if not is_web and not is_onion:
             if not self._get_config_bool("accept_unknown_links", default=False):
                 reason = (
@@ -314,27 +307,20 @@ class EntryBuilder:
                 self.last_rejection_reason = reason
                 return False, reason
 
-            # Domain link check (standard web domain URLs)
-            has_domain = (
-                (bool(loc.get_domain_only()) or loc.is_domain())
-                and not loc.is_ip()
-                and not is_onion
-            )
-            if has_domain and not self._get_config_bool(
+            if loc.is_domain() and not self._get_config_bool(
                 "accept_domain_links", default=True
             ):
                 reason = "Domain links are not accepted by current configuration."
                 self.last_rejection_reason = reason
                 return False, reason
 
-            # Non-domain link check
-            if not has_domain and not loc.is_ip() and not is_onion:
-                if not self._get_config_bool("accept_non_domain_links", default=False):
-                    reason = (
-                        "Non-domain links are not accepted by current configuration."
-                    )
-                    self.last_rejection_reason = reason
-                    return False, reason
+            if not loc.is_domain() and not self._get_config_bool(
+                "accept_non_domain_links", default=True
+            ):
+                reason = "Non domain links are not accepted by current configuration."
+                self.last_rejection_reason = reason
+                return False, reason
+
 
             # Dead link check
             if status_code >= 400 and not self._get_config_bool(

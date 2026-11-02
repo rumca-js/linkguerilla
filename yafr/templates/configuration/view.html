@@ -520,6 +520,16 @@
 
                   <div class="col-12 col-md-6">
                     <div class="form-check form-switch card p-3 border shadow-sm">
+                      <input class="form-check-input ms-0 me-3" type="checkbox" role="switch" id="accept_non_domain_links" name="accept_non_domain_links" {% if config.accept_non_domain_links %}checked{% endif %}>
+                      <label class="form-check-label fw-semibold" for="accept_non_domain_links">
+                        Accept Non-Domain Links
+                        <div class="text-muted small fw-normal">Accept non-domain URLs (e.g., localhost, internal hostnames)</div>
+                      </label>
+                    </div>
+                  </div>
+
+                  <div class="col-12 col-md-6">
+                    <div class="form-check form-switch card p-3 border shadow-sm">
                       <input class="form-check-input ms-0 me-3" type="checkbox" role="switch" id="accept_ip_links" name="accept_ip_links" {% if config.accept_ip_links %}checked{% endif %}>
                       <label class="form-check-label fw-semibold" for="accept_ip_links">
                         Accept IP Links
