@@ -147,9 +147,19 @@ class TestEntryBuilder(unittest.TestCase):
         self.session.commit()
 
         builder = EntryBuilder(session=self.session, config=self.config)
-        allowed, reason = builder.can_build("https://example.com/test")
+        allowed, reason = builder.can_build("https://example.com")
         self.assertFalse(allowed)
         self.assertIn("Domain links", reason)
+
+    def test_can_build_policy_non_domain_links(self):
+        """Rejects domain links when accept_domain_links is disabled."""
+        self.config.accept_non_domain_links = False
+        self.session.commit()
+
+        builder = EntryBuilder(session=self.session, config=self.config)
+        allowed, reason = builder.can_build("https://example.com/test")
+        self.assertFalse(allowed)
+        self.assertIn("Non domain links", reason)
 
     def test_rules_matching_block_rule(self):
         """Evaluates EntryRules with block=True to reject matching candidate links."""
