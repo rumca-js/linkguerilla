@@ -1,28 +1,9 @@
 """
-RESTful JSON API endpoints for System Status and Worker Liveness.
-
-Provides lightweight JSON endpoints for checking the background worker
-heartbeat status via the systemoperation SQLite table.
-"""
-
-import logging
-from flask import Blueprint, jsonify
-from yafr.db import get_session
-from yafr.db.system_operation_repository import (
-    DEFAULT_WORKER_TIMEOUT_SECONDS,
-    SystemOperationRepository,
-)
-
-logger = logging.getLogger(__name__)
-
-api_status_bp = Blueprint("api_status", __name__, url_prefix="/api/status")
-
-
-"""
-RESTful JSON API endpoints for System Status and Worker Liveness.
+RESTful JSON API endpoints for System Status, Indications, and Badges.
 
 Provides lightweight JSON endpoints for checking overall application status,
-operational health flags, and background worker heartbeat via systemoperation.
+UI indications (visibility and health), quantitative badges, and background
+worker heartbeat via the systemoperation table.
 """
 
 import logging
@@ -49,11 +30,10 @@ api_status_bp = Blueprint("api_status", __name__, url_prefix="/api/status")
 @api_status_bp.route("/", methods=["GET"])
 def system_status():
     """
-    Returns full system status and operational health flags.
+    Returns full system status, component indications, and badges.
 
-    Provides a comprehensive dictionary of boolean flags representing what works
-    or does not work across system components, which can be translated directly
-    into UI badges and status indicators.
+    Provides component-level indications (with visibility and health status)
+    and quantitative badge counters across system components.
     """
     session = get_session()
     database_ok = False
@@ -67,7 +47,6 @@ def system_status():
     worker_info = op_repo.check_worker_status(
         max_age_seconds=DEFAULT_WORKER_TIMEOUT_SECONDS
     )
-    worker_flags = worker_info.get("flags", {})
 
     webtools_configured = False
     webtools_online = False
@@ -94,15 +73,31 @@ def system_status():
     except Exception as job_err:
         logger.debug("Job errors count failed: %s", job_err)
 
-    flags = {
-        "worker_active": bool(worker_flags.get("worker_active")),
-        "worker_dead": bool(worker_flags.get("worker_dead")),
-        "background_jobs_enabled": bool(worker_flags.get("background_jobs_enabled")),
-        "webtools_configured": webtools_configured,
-        "webtools_online": webtools_online,
-        "database_ok": database_ok,
-        "sources_ok": sources_errors == 0,
-        "jobs_ok": jobs_errors == 0,
+    worker_visible = bool(worker_info.get("visible", False))
+    worker_indication = {"visible": worker_visible}
+    if worker_visible:
+        worker_indication["active"] = bool(worker_info.get("is_active", False))
+        worker_indication["message"] = worker_info.get("message", "")
+    else:
+        worker_indication["message"] = worker_info.get(
+            "message", "Background jobs are disabled in configuration."
+        )
+
+    indications = {
+        "worker": worker_indication,
+        "webtools": {
+            "visible": webtools_configured,
+            "ok": webtools_online,
+        },
+        "database": {
+            "ok": database_ok,
+        },
+        "sources": {
+            "ok": sources_errors == 0,
+        },
+        "jobs": {
+            "ok": jobs_errors == 0,
+        },
     }
 
     badges = {
@@ -114,9 +109,9 @@ def system_status():
     return jsonify(
         {
             "success": True,
-            "flags": flags,
-            "worker": worker_info,
+            "indications": indications,
             "badges": badges,
+            "worker": worker_info,
         }
     )
 
@@ -127,18 +122,13 @@ def worker_status():
     Returns background worker liveness status based on the systemoperation table
     and background job configuration from configurationentry.
 
-    A worker is considered active if:
-    - A row exists in systemoperation with status=True (ok).
-    - Its date_created timestamp is within the last 10 minutes.
+    A worker is considered visible if background jobs are enabled in configuration.
+    If visible:
+      - active if heartbeat is ok and within max_age_seconds (10 minutes)
+      - dead if heartbeat is missing, stale, or marked not ok
 
-    If the row is missing, status=False, or older than 10 minutes:
-    - If enable_background_jobs is True, worker is 'dead'.
-    - If enable_background_jobs is False, worker is 'disabled'.
-
-    Response includes operational flags:
-        flags.worker_active: bool
-        flags.worker_dead: bool
-        flags.background_jobs_enabled: bool
+    If not visible:
+      - visible is False and status_label is 'disabled'.
     """
     try:
         session = get_session()
@@ -159,14 +149,9 @@ def worker_status():
         return (
             jsonify(
                 {
+                    "visible": enable_bg,
                     "is_active": False,
                     "status_label": "disabled" if not enable_bg else "dead",
-                    "enable_background_jobs": enable_bg,
-                    "flags": {
-                        "worker_active": False,
-                        "worker_dead": bool(enable_bg),
-                        "background_jobs_enabled": enable_bg,
-                    },
                     "last_written": None,
                     "age_seconds": None,
                     "age_minutes": None,

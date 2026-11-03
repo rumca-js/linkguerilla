@@ -125,10 +125,12 @@ class SystemOperationRepository(BaseRepository[SystemOperation]):
         3. Its 'date_created' is within max_age_seconds (default 600s = 10 minutes).
 
         If older than 10 minutes, status is False, or row is missing, it is 'dead'.
+        If background jobs are disabled in configuration, visible is False and
+        the status label is 'disabled'.
 
         :param max_age_seconds: Maximum allowed age in seconds before considered dead (default: 600)
         :param check_type: Optional filter by check_type
-        :return: Dict describing worker liveness state
+        :return: Dict describing worker liveness state and visibility
         """
         record = self.get_latest_operation(check_type=check_type)
         now = datetime.now(timezone.utc)
@@ -146,17 +148,11 @@ class SystemOperationRepository(BaseRepository[SystemOperation]):
             )
 
         if not record:
-            worker_dead = bool(enable_background_jobs)
             return {
+                "visible": enable_background_jobs,
                 "is_active": False,
                 "status": False,
                 "status_label": "disabled" if not enable_background_jobs else "dead",
-                "enable_background_jobs": enable_background_jobs,
-                "flags": {
-                    "worker_active": False,
-                    "worker_dead": worker_dead,
-                    "background_jobs_enabled": enable_background_jobs,
-                },
                 "date_created": None,
                 "last_written": None,
                 "age_seconds": None,
@@ -173,17 +169,11 @@ class SystemOperationRepository(BaseRepository[SystemOperation]):
 
         normalized_date = _normalize_datetime(record.date_created)
         if normalized_date is None:
-            worker_dead = bool(enable_background_jobs)
             return {
+                "visible": enable_background_jobs,
                 "is_active": False,
                 "status": bool(record.status),
                 "status_label": "disabled" if not enable_background_jobs else "dead",
-                "enable_background_jobs": enable_background_jobs,
-                "flags": {
-                    "worker_active": False,
-                    "worker_dead": worker_dead,
-                    "background_jobs_enabled": enable_background_jobs,
-                },
                 "date_created": None,
                 "last_written": None,
                 "age_seconds": None,
@@ -205,12 +195,12 @@ class SystemOperationRepository(BaseRepository[SystemOperation]):
         is_ok_status = bool(record.status)
         is_active = is_ok_status and not is_timed_out
 
-        if is_active:
-            status_label = "active"
-            message = f"Worker is active and ok (last heartbeat {round(age_seconds, 1)}s ago)."
-        elif not enable_background_jobs:
+        if not enable_background_jobs:
             status_label = "disabled"
             message = "Background jobs are disabled in configuration."
+        elif is_active:
+            status_label = "active"
+            message = f"Worker is active and ok (last heartbeat {round(age_seconds, 1)}s ago)."
         elif not is_ok_status:
             status_label = "dead"
             message = "Worker status flag is set to not ok. Worker is dead."
@@ -221,17 +211,11 @@ class SystemOperationRepository(BaseRepository[SystemOperation]):
                 f"limit: {max_age_seconds // 60} min). Worker is dead."
             )
 
-        worker_dead = not is_active and enable_background_jobs
         return {
+            "visible": enable_background_jobs,
             "is_active": is_active,
             "status": is_ok_status,
             "status_label": status_label,
-            "enable_background_jobs": enable_background_jobs,
-            "flags": {
-                "worker_active": is_active,
-                "worker_dead": worker_dead,
-                "background_jobs_enabled": enable_background_jobs,
-            },
             "date_created": normalized_date.isoformat(),
             "last_written": normalized_date.isoformat(),
             "age_seconds": round(age_seconds, 1),

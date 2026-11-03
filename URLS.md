@@ -849,26 +849,36 @@ Following the project requirement to **"prefer having small server functions tha
 ### 2.8 System Status API (`/api/status`)
 
 #### `GET /api/status`
-- **Purpose**: System status endpoint returning JSON information about what works or does not work as a set of boolean flags (`flags`), which the client translates into UI badges and operational indicators.
+- **Purpose**: System status endpoint returning JSON component indications (`indications`, including UI visibility booleans and health) and quantitative badge counts (`badges`).
 - **Response**:
   ```json
   {
     "success": true,
-    "flags": {
-      "worker_active": true,
-      "worker_dead": false,
-      "background_jobs_enabled": true,
-      "webtools_configured": true,
-      "webtools_online": true,
-      "database_ok": true,
-      "sources_ok": true,
-      "jobs_ok": true
+    "indications": {
+      "worker": {
+        "visible": true,
+        "active": true,
+        "message": "Worker is active and ok (last heartbeat 42.1s ago)."
+      },
+      "webtools": {
+        "visible": true,
+        "ok": true
+      },
+      "database": {
+        "ok": true
+      },
+      "sources": {
+        "ok": true
+      },
+      "jobs": {
+        "ok": true
+      }
     },
     "worker": {
+      "visible": true,
       "is_active": true,
       "status": true,
       "status_label": "active",
-      "enable_background_jobs": true,
       "last_written": "2026-10-18T18:05:00+00:00",
       "age_seconds": 42.1,
       "age_minutes": 0.7,
@@ -887,19 +897,14 @@ Following the project requirement to **"prefer having small server functions tha
 - **Offline Capable**: Yes.
 
 #### `GET /api/status/worker`
-- **Purpose**: Reports background worker liveness by reading the `systemoperation` table and checking `enable_background_jobs` on `configurationentry`. Returns operational flags (`worker_active`, `worker_dead`, `background_jobs_enabled`) along with heartbeat details. The table holds exactly **one row**; the worker upserts it on every loop cycle with `status=True` and the current UTC timestamp. If the row is missing, `status=False`, or the timestamp is older than **10 minutes**, the worker is considered dead (`worker_dead=True`) if background jobs are enabled (`background_jobs_enabled=True`). If `background_jobs_enabled` is false, `worker_dead=False`, status is `disabled`, and the "Worker Dead" indication is suppressed in the UI.
+- **Purpose**: Reports background worker liveness by reading the `systemoperation` table and checking `enable_background_jobs` on `configurationentry`. Returns visibility (`visible`), status label, and heartbeat details. If background jobs are disabled in configuration, `visible` is `false`, and worker health/dead flags are omitted. If `visible` is `true`, `is_active` indicates whether the worker is alive or dead.
 - **Response (active)**:
   ```json
   {
+    "visible": true,
     "is_active": true,
     "status": true,
     "status_label": "active",
-    "enable_background_jobs": true,
-    "flags": {
-      "worker_active": true,
-      "worker_dead": false,
-      "background_jobs_enabled": true
-    },
     "last_written": "2026-10-18T18:05:00+00:00",
     "age_seconds": 42.1,
     "age_minutes": 0.7,
@@ -912,15 +917,10 @@ Following the project requirement to **"prefer having small server functions tha
 - **Response (dead)**:
   ```json
   {
+    "visible": true,
     "is_active": false,
     "status": false,
     "status_label": "dead",
-    "enable_background_jobs": true,
-    "flags": {
-      "worker_active": false,
-      "worker_dead": true,
-      "background_jobs_enabled": true
-    },
     "last_written": "2026-10-18T17:50:00+00:00",
     "age_seconds": 930.5,
     "age_minutes": 15.5,
@@ -933,15 +933,10 @@ Following the project requirement to **"prefer having small server functions tha
 - **Response (disabled - background jobs disabled in configurationentry)**:
   ```json
   {
+    "visible": false,
     "is_active": false,
     "status": false,
     "status_label": "disabled",
-    "enable_background_jobs": false,
-    "flags": {
-      "worker_active": false,
-      "worker_dead": false,
-      "background_jobs_enabled": false
-    },
     "last_written": null,
     "age_seconds": null,
     "age_minutes": null,

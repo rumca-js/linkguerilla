@@ -19,7 +19,7 @@ from yafr.web.shared import get_shared_context
 
 class TestApiStatus(unittest.TestCase):
     """
-    Test suite for /api/status, /api/status/worker and status flags.
+    Test suite for /api/status, /api/status/worker, indications, and badges.
     """
 
     def setUp(self):
@@ -39,56 +39,47 @@ class TestApiStatus(unittest.TestCase):
         close_session()
 
     def test_worker_status_active(self):
-        """When worker heartbeat is fresh, status is active and worker_dead is False."""
+        """When worker heartbeat is fresh, status is active and visible is True."""
         self.op_repo.record_heartbeat(status=True, thread_id="t-123", check_type="worker")
 
         res = self.client.get("/api/status/worker")
         self.assertEqual(res.status_code, 200)
         data = res.get_json()
+        self.assertTrue(data["visible"])
         self.assertTrue(data["is_active"])
         self.assertEqual(data["status_label"], "active")
-        self.assertTrue(data["enable_background_jobs"])
         self.assertEqual(data["thread_id"], "t-123")
-        self.assertIn("flags", data)
-        self.assertTrue(data["flags"]["worker_active"])
-        self.assertFalse(data["flags"]["worker_dead"])
-        self.assertTrue(data["flags"]["background_jobs_enabled"])
+        self.assertNotIn("flags", data)
 
     def test_worker_status_dead_when_enabled(self):
-        """When worker has no heartbeat and enable_background_jobs is True, worker_dead is True."""
+        """When worker has no heartbeat and enable_background_jobs is True, visible is True and is_active is False."""
         self.config_repo.update_config(enable_background_jobs=True)
 
         res = self.client.get("/api/status/worker")
         self.assertEqual(res.status_code, 200)
         data = res.get_json()
+        self.assertTrue(data["visible"])
         self.assertFalse(data["is_active"])
         self.assertEqual(data["status_label"], "dead")
-        self.assertTrue(data["enable_background_jobs"])
         self.assertIn("Worker is dead", data["message"])
-        self.assertIn("flags", data)
-        self.assertFalse(data["flags"]["worker_active"])
-        self.assertTrue(data["flags"]["worker_dead"])
-        self.assertTrue(data["flags"]["background_jobs_enabled"])
+        self.assertNotIn("flags", data)
 
     def test_worker_status_disabled_when_enable_background_jobs_false(self):
-        """When enable_background_jobs is False and worker has no heartbeat, worker_dead is False."""
+        """When enable_background_jobs is False, visible is False and status is disabled."""
         self.config_repo.update_config(enable_background_jobs=False)
 
         res = self.client.get("/api/status/worker")
         self.assertEqual(res.status_code, 200)
         data = res.get_json()
+        self.assertFalse(data["visible"])
         self.assertFalse(data["is_active"])
         self.assertEqual(data["status_label"], "disabled")
-        self.assertFalse(data["enable_background_jobs"])
         self.assertNotIn("Worker is dead", data["message"])
         self.assertIn("Background jobs are disabled", data["message"])
-        self.assertIn("flags", data)
-        self.assertFalse(data["flags"]["worker_active"])
-        self.assertFalse(data["flags"]["worker_dead"])
-        self.assertFalse(data["flags"]["background_jobs_enabled"])
+        self.assertNotIn("flags", data)
 
     def test_worker_status_timed_out_disabled(self):
-        """When worker heartbeat is older than timeout and enable_background_jobs is False, status is disabled."""
+        """When worker heartbeat is older than timeout and enable_background_jobs is False, visible is False."""
         self.config_repo.update_config(enable_background_jobs=False)
         rec = self.op_repo.record_heartbeat(status=True, thread_id="t-old", check_type="worker")
         # Artificially set date_created to 20 minutes ago
@@ -96,38 +87,50 @@ class TestApiStatus(unittest.TestCase):
         self.op_repo.commit()
 
         status_data = self.op_repo.check_worker_status(max_age_seconds=DEFAULT_WORKER_TIMEOUT_SECONDS)
+        self.assertFalse(status_data["visible"])
         self.assertFalse(status_data["is_active"])
         self.assertEqual(status_data["status_label"], "disabled")
-        self.assertFalse(status_data["enable_background_jobs"])
         self.assertNotIn("Worker is dead", status_data["message"])
-        self.assertFalse(status_data["flags"]["worker_active"])
-        self.assertFalse(status_data["flags"]["worker_dead"])
+        self.assertNotIn("flags", status_data)
 
-    def test_system_status_endpoint_flags(self):
-        """GET /api/status returns full set of flags translated into badges."""
+    def test_system_status_endpoint_indications(self):
+        """GET /api/status returns indications (with visibility/health) and quantitative badges."""
         self.config_repo.update_config(enable_background_jobs=False)
         res = self.client.get("/api/status")
         self.assertEqual(res.status_code, 200)
         data = res.get_json()
         self.assertTrue(data["success"])
-        self.assertIn("flags", data)
-        flags = data["flags"]
-        self.assertIn("worker_active", flags)
-        self.assertIn("worker_dead", flags)
-        self.assertIn("background_jobs_enabled", flags)
-        self.assertIn("database_ok", flags)
-        self.assertIn("sources_ok", flags)
-        self.assertIn("jobs_ok", flags)
-        self.assertIn("webtools_configured", flags)
-        self.assertIn("webtools_online", flags)
-        self.assertTrue(flags["database_ok"])
-        self.assertFalse(flags["background_jobs_enabled"])
-        self.assertFalse(flags["worker_dead"])
+        self.assertNotIn("flags", data)
+        self.assertIn("indications", data)
+
+        indications = data["indications"]
+        self.assertIn("worker", indications)
+        self.assertFalse(indications["worker"]["visible"])
+        self.assertNotIn("active", indications["worker"])
+
+        self.assertIn("database", indications)
+        self.assertTrue(indications["database"]["ok"])
+
+        self.assertIn("sources", indications)
+        self.assertIn("jobs", indications)
+        self.assertIn("webtools", indications)
 
         self.assertIn("badges", data)
         self.assertIn("sources_outdated", data["badges"])
         self.assertIn("sources_errors", data["badges"])
         self.assertIn("jobs_errors", data["badges"])
+
+    def test_system_status_endpoint_indications_when_worker_enabled(self):
+        """GET /api/status provides worker active indication when background jobs are enabled."""
+        self.config_repo.update_config(enable_background_jobs=True)
+        self.op_repo.record_heartbeat(status=True, thread_id="t-live", check_type="worker")
+
+        res = self.client.get("/api/status")
+        self.assertEqual(res.status_code, 200)
+        data = res.get_json()
+        indications = data["indications"]
+        self.assertTrue(indications["worker"]["visible"])
+        self.assertTrue(indications["worker"]["active"])
 
     def test_shared_context_includes_enable_background_jobs(self):
         """Shared context should provide enable_background_jobs boolean."""
