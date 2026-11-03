@@ -117,17 +117,35 @@ class JobExecutor:
             if success:
                 # 3. On success: archive to history and remove from queue
                 job_repo.complete_job(job_id)
+                is_error = result.get("status") == "error" or bool(result.get("error"))
                 try:
-                    log_repo.log(
-                        info_text=f"Job #{job_id} [{job_type}] completed successfully.",
-                        detail_text=f"Subject: {job_subject} | Result: {result.get('message', 'OK')}",
-                        level=20,  # INFO
-                    )
+                    if is_error:
+                        log_repo.log(
+                            info_text=f"Job #{job_id} [{job_type}] completed with error: {result.get('error') or result.get('message')}",
+                            detail_text=f"Subject: {job_subject} | Result: {result.get('message', 'Error')}",
+                            level=40,  # ERROR
+                        )
+                    else:
+                        log_repo.log(
+                            info_text=f"Job #{job_id} [{job_type}] completed successfully.",
+                            detail_text=f"Subject: {job_subject} | Result: {result.get('message', 'OK')}",
+                            level=20,  # INFO
+                        )
                 except Exception:
                     pass
-                logger.info(
-                    "Job #%d [%s] completed and archived to history.", job_id, job_type
-                )
+                if is_error:
+                    logger.warning(
+                        "Job #%d [%s] completed with error and archived to history: %s",
+                        job_id,
+                        job_type,
+                        result.get("error"),
+                    )
+                else:
+                    logger.info(
+                        "Job #%d [%s] completed and archived to history.",
+                        job_id,
+                        job_type,
+                    )
             else:
                 # 4. On task failure: record error and increment retry count
                 err_msg = result.get("error", "Unknown job error")

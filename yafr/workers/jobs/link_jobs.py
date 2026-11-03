@@ -79,34 +79,76 @@ class LinkUpdateDataJobHandler(BaseJobHandler):
             web_client = WebToolsWrapper(url=entry.link, session=session, timeout_s=15)
 
             response = web_client.get_response()
-            if response is None:
-                if not entry.date_dead_since:
-                    entry.date_dead_since = datetime.now(timezone.utc)
-                entry.date_update_last = datetime.now(timezone.utc)
-                session.commit()
-                return {
-                    "success": False,
-                    "status": "error",
-                    "error": f"Failed to fetch content from {entry.link}",
-                }
+            if response is None or not response.is_valid():
+                # Response is not valid (failed fetch or HTTP error) — mark dead, log error, consume job
+                status_code = None
+                if response is not None and hasattr(response, "get_status_code"):
+                    try:
+                        sc = response.get_status_code()
+                        if isinstance(sc, int):
+                            status_code = sc
+                        elif isinstance(sc, str) and sc.isdigit():
+                            status_code = int(sc)
+                    except Exception:
+                        status_code = None
+                if status_code is None and hasattr(web_client, "get_status_code"):
+                    try:
+                        sc = web_client.get_status_code()
+                        if isinstance(sc, int):
+                            status_code = sc
+                        elif isinstance(sc, str) and sc.isdigit():
+                            status_code = int(sc)
+                    except Exception:
+                        status_code = None
 
-            if not response.is_valid():
-                # Response received but HTTP error — mark dead, record status, do not update metadata
-                status_code = (
-                    response.get_status_code()
-                    if hasattr(response, "get_status_code")
-                    else None
-                )
-                if status_code:
+                if status_code is not None:
                     entry.status_code = status_code
                 if not entry.date_dead_since:
                     entry.date_dead_since = datetime.now(timezone.utc)
                 entry.date_update_last = datetime.now(timezone.utc)
                 session.commit()
+
+                err_msg = (
+                    f"HTTP error {status_code} fetching {entry.link}"
+                    if status_code
+                    else f"Failed to fetch content from {entry.link}"
+                )
+                logger.error(
+                    "Invalid response for entry #%s (%s): %s",
+                    entry.id,
+                    entry.link,
+                    err_msg,
+                )
+
+                try:
+                    from yafr.db.logging_repository import LoggingRepository
+
+                    log_repo = LoggingRepository(session)
+                    log_repo.log(
+                        info_text=err_msg,
+                        detail_text=f"Entry #{entry.id} marked as dead. Job #{getattr(job, 'id', '?')} consumed.",
+                        level=LoggingRepository.ERROR,
+                    )
+                except Exception as log_err:
+                    logger.debug(
+                        "Failed to record error log in applogging: %s", log_err
+                    )
+
+                # Consume job from queue if it has a valid database ID
+                if job and getattr(job, "id", None) and job.id > 0:
+                    try:
+                        from yafr.db.job_repository import JobRepository
+
+                        job_repo = JobRepository(session=session)
+                        job_repo.complete_job(job.id)
+                    except Exception as c_err:
+                        logger.debug("Failed to complete job #%s: %s", job.id, c_err)
+
                 return {
-                    "success": False,
+                    "success": True,
                     "status": "error",
-                    "error": f"HTTP error {status_code} fetching {entry.link}",
+                    "error": err_msg,
+                    "message": err_msg,
                 }
 
             # Response is valid — clear dead marker and update metadata
