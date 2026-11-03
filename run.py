@@ -5,10 +5,10 @@ YAFR - Application Entrypoint & CLI Runner.
 import argparse
 import sys
 from yafr.app import create_app
-from yafr.config import Config
+from yafr.config import Config, set_console_title
 
 
-description = "LinkGuerilla - Link manager and aggregator"
+description = Config.APP_CONSOLE_TITLE
 
 
 def parse_args():
@@ -42,6 +42,7 @@ def parse_args():
 
 def main():
     args = parse_args()
+    set_console_title(Config.APP_CONSOLE_TITLE)
 
     # Override config with CLI arguments if specified
     config_dict = {
@@ -62,7 +63,7 @@ def main():
     try:
         app.run(host=args.host, port=args.port, debug=args.debug)
     except KeyboardInterrupt:
-        print("\nShutting down YAFR server. Goodbye!")
+        print(f"\nShutting down {Config.INSTANCE_TITLE} server. Goodbye!")
         sys.exit(0)
 
 

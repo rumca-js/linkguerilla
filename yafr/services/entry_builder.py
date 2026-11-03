@@ -321,7 +321,6 @@ class EntryBuilder:
                 self.last_rejection_reason = reason
                 return False, reason
 
-
             # Dead link check
             if status_code >= 400 and not self._get_config_bool(
                 "accept_dead_links", default=False

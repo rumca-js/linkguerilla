@@ -209,5 +209,57 @@ class TestConfigurationWebAndApi(unittest.TestCase):
         self.assertTrue(res3.get_json()["enabled"])
 
 
+class TestInstanceConfigAndConsoleTitles(unittest.TestCase):
+    """
+    Test suite for centralized instance title, description, and console titles.
+    """
+
+    def test_default_config_constants(self):
+        """Verifies default values and aliases in yafr.config."""
+        import yafr.config as config_mod
+        from yafr.config import Config
+
+        self.assertEqual(Config.INSTANCE_TITLE, "LinkGuerilla")
+        self.assertEqual(Config.INSTANCE_DESCRIPTION, "Link manager and aggregator")
+        self.assertEqual(Config.APP_NAME, "LinkGuerilla")
+        self.assertEqual(Config.APP_DESCRIPTION, "Link manager and aggregator")
+        self.assertEqual(
+            Config.APP_CONSOLE_TITLE,
+            "LinkGuerilla - Link manager and aggregator",
+        )
+        self.assertEqual(
+            Config.WORKER_CONSOLE_TITLE,
+            "LinkGuerilla - Background Task Processor",
+        )
+
+        # Module-level exported constants
+        self.assertEqual(config_mod.INSTANCE_TITLE, Config.INSTANCE_TITLE)
+        self.assertEqual(config_mod.INSTANCE_DESCRIPTION, Config.INSTANCE_DESCRIPTION)
+        self.assertEqual(config_mod.APP_NAME, Config.APP_NAME)
+        self.assertEqual(config_mod.APP_DESCRIPTION, Config.APP_DESCRIPTION)
+        self.assertEqual(config_mod.APP_CONSOLE_TITLE, Config.APP_CONSOLE_TITLE)
+        self.assertEqual(config_mod.WORKER_CONSOLE_TITLE, Config.WORKER_CONSOLE_TITLE)
+
+    def test_set_console_title_runs_safely(self):
+        """Verifies set_console_title executes cleanly without raising exceptions."""
+        from yafr.config import set_console_title
+
+        # Should execute safely in both TTY and non-TTY test environments
+        set_console_title("Test Title")
+        set_console_title("")
+
+    def test_shared_context_defaults(self):
+        """Verifies get_shared_context provides app_name and app_tagline from Config."""
+        from yafr.app import create_app
+        from yafr.config import Config
+        from yafr.web.shared import get_shared_context
+
+        app = create_app({"TESTING": True, "DATABASE_PATH": ":memory:"})
+        with app.app_context():
+            context = get_shared_context()
+            self.assertEqual(context["app_name"], Config.INSTANCE_TITLE)
+            self.assertEqual(context["app_tagline"], Config.INSTANCE_DESCRIPTION)
+
+
 if __name__ == "__main__":
     unittest.main()

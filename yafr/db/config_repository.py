@@ -10,12 +10,13 @@ from typing import Optional, Tuple
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 from linkarchivetools.model.definitions import ConfigurationEntry
+from yafr.config import Config
 from yafr.db.base_repository import BaseRepository
 
 logger = logging.getLogger(__name__)
 
-DEFAULT_TITLE = "LinkGuerilla"
-DEFAULT_DESCRIPTION = "Link manager and aggregator"
+DEFAULT_TITLE = Config.INSTANCE_TITLE
+DEFAULT_DESCRIPTION = Config.INSTANCE_DESCRIPTION
 
 
 class ConfigRepository(BaseRepository[ConfigurationEntry]):
@@ -160,8 +161,8 @@ class ConfigRepository(BaseRepository[ConfigurationEntry]):
         :return: Reset ConfigurationEntry instance
         """
         defaults = {
-            "instance_title": "YAFR",
-            "instance_description": "Yet Another Feed Reader",
+            "instance_title": DEFAULT_TITLE,
+            "instance_description": DEFAULT_DESCRIPTION,
             "display_style": "style-dark",
             "display_type": "gallery",
             "show_icons": True,

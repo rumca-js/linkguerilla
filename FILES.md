@@ -183,9 +183,9 @@ yafr_next/
   - **Key Functions**: `create_app(config_object=None)`.
 
 - `yafr/config.py`
-  - **Purpose**: Application runtime configuration.
-  - **Responsibilities**: Defines default SQLite path, default themes, pagination limits, and environment variable overrides.
-  - **Key Classes**: `AppConfig`.
+  - **Purpose**: Application runtime configuration and identity settings.
+  - **Responsibilities**: Defines instance title, description, console/worker terminal window titles, default SQLite path, default themes, pagination limits, and `set_console_title` terminal helper.
+  - **Key Classes / Functions**: `Config`, `set_console_title`.
 
 ---
 

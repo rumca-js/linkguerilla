@@ -582,13 +582,13 @@
                 <div class="row g-3">
                   <div class="col-12 col-md-6">
                     <label for="instance_title" class="form-label fw-semibold">Instance Name</label>
-                    <input type="text" class="form-control shadow-sm" id="instance_title" name="instance_title" value="{{ config.instance_title or 'YAFR' }}" required>
+                    <input type="text" class="form-control shadow-sm" id="instance_title" name="instance_title" value="{{ config.instance_title or app_name }}" required>
                     <div class="form-text">Display name shown in the navbar brand.</div>
                   </div>
 
                   <div class="col-12 col-md-6">
                     <label for="instance_description" class="form-label fw-semibold">Instance Description</label>
-                    <input type="text" class="form-control shadow-sm" id="instance_description" name="instance_description" value="{{ config.instance_description or 'Yet Another Feed Reader' }}">
+                    <input type="text" class="form-control shadow-sm" id="instance_description" name="instance_description" value="{{ config.instance_description or app_tagline }}">
                     <div class="form-text">Short summary or subtitle of this reader deployment.</div>
                   </div>
 

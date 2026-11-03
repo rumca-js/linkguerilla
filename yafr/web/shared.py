@@ -5,6 +5,7 @@ Shared helpers, constants, and utilities for YAFR web views.
 import logging
 from typing import Any, Dict, Optional
 from flask import jsonify, Response
+from yafr.config import Config
 from yafr.db import ConfigRepository, JobRepository, SourceRepository
 
 logger = logging.getLogger(__name__)
@@ -113,7 +114,8 @@ def get_shared_context() -> Dict[str, Any]:
     sources_outdated = 0
     sources_errors = 0
     jobs_errors = 0
-    instance_title = "LinkGuerilla"
+    instance_title = Config.INSTANCE_TITLE
+    instance_description = Config.INSTANCE_DESCRIPTION
     enable_background_jobs = True
 
     try:
@@ -123,8 +125,11 @@ def get_shared_context() -> Dict[str, Any]:
         config = config_repo.get_config()
         enable_background_jobs = bool(config.enable_background_jobs)
         instance_title = (
-            config.instance_title or "LinkGuerilla"
-        ).strip() or "LinkGuerilla"
+            config.instance_title or Config.INSTANCE_TITLE
+        ).strip() or Config.INSTANCE_TITLE
+        instance_description = (
+            config.instance_description or Config.INSTANCE_DESCRIPTION
+        ).strip() or Config.INSTANCE_DESCRIPTION
 
         source_repo = SourceRepository()
         sources_outdated = source_repo.count_outdated_sources()
@@ -137,7 +142,7 @@ def get_shared_context() -> Dict[str, Any]:
 
     return {
         "app_name": instance_title,
-        "app_tagline": "Yet Another Feed Reader",
+        "app_tagline": instance_description,
         "entry_filters": ENTRY_FILTERS,
         "active_theme": active_theme,
         "display_type": display_type,

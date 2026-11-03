@@ -1,11 +1,13 @@
 import argparse
 import subprocess
 import sys
+from yafr.config import Config, set_console_title
 
 
 def main():
+    set_console_title(f"{Config.INSTANCE_TITLE} - Supervisor")
     parser = argparse.ArgumentParser(
-        description="Run process_jobs.py and run.py concurrently."
+        description=f"Run process_jobs.py and run.py concurrently for {Config.INSTANCE_TITLE}."
     )
     parser.add_argument(
         "--host", type=str, default="0.0.0.0", help="Host address for run.py"

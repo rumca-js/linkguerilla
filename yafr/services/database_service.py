@@ -20,6 +20,7 @@ from linkarchivetools.model.definitions import (
     ConfigurationEntry,
     SourceOperationalData,
 )
+from yafr.config import Config
 from yafr.db.config_repository import ConfigRepository
 from yafr.db.entry_repository import EntryRepository
 from yafr.db.history_repository import HistoryRepository
@@ -237,9 +238,9 @@ class DatabaseService:
             )
 
         return {
-            "database_name": config.instance_title or "YAFR Database",
+            "database_name": config.instance_title or Config.INSTANCE_TITLE,
             "database_description": config.instance_description
-            or "Yet Another Feed Reader",
+            or Config.INSTANCE_DESCRIPTION,
             "database_type": (
                 "SQLite 3 (:memory:)" if is_memory else "SQLite 3 (WAL mode)"
             ),

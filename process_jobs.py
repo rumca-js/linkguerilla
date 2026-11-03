@@ -19,15 +19,13 @@ import sys
 import threading
 from typing import Dict, Any
 
-from yafr.config import Config
+from yafr.config import Config, set_console_title
 from yafr.db.session import close_session, init_db
 from yafr.workers.job_executor import JobExecutor
 
 
 def parse_args():
-    parser = argparse.ArgumentParser(
-        description="YAFR - Background Task Processor (Sequential Job Worker)"
-    )
+    parser = argparse.ArgumentParser(description=Config.WORKER_CONSOLE_TITLE)
     parser.add_argument(
         "--db",
         type=str,
@@ -95,8 +93,10 @@ def main():
     signal.signal(signal.SIGINT, signal_handler)
     signal.signal(signal.SIGTERM, signal_handler)
 
+    set_console_title(Config.WORKER_CONSOLE_TITLE)
+
     print("=" * 64)
-    print("  YAFR - Background Job Processor")
+    print(f"  {Config.WORKER_CONSOLE_TITLE}")
     print(f"  Database:      {args.db}")
     print(f"  Poll Interval: {args.interval}s")
     print(
