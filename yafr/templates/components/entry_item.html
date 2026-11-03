@@ -1,3 +1,4 @@
+{% set show_icons = (config.show_icons if (config is defined and config and config.show_icons is not none) else (show_icons if show_icons is defined else true)) %}
 {% set is_visited = entry.id in visited_ids %}
 {% set is_read_later = entry.id in read_later_ids %}
 {% set is_dead = (entry.manual_status_code == 400 or entry.status_code >= 400) %}
@@ -20,6 +21,7 @@
 {# ======================================================================== #}
 {% if display_type == 'gallery' %}
 <div class="gallery-card border shadow-sm entry-card-clickable {{ class_str }}" id="entry-card-{{ entry.id }}" data-entry-id="{{ entry.id }}" data-detail-url="{{ url_for('entries.entry_detail_view', id=entry.id) }}" title="{{entry.title}}">
+  {% if show_icons %}
   <div class="gallery-thumb-wrap">
     {% if entry.thumbnail %}
       <img src="{{ entry.thumbnail }}" alt="{{ entry.title or 'Thumbnail' }}" class="gallery-thumb" loading="lazy">
@@ -67,6 +69,28 @@
       </div>
     {% endif %}
   </div>
+  {% else %}
+  <div class="d-flex justify-content-between align-items-center p-2 pb-0">
+    <div>
+      {% if is_dead %}
+        <span class="badge bg-danger shadow-sm" title="Dead link">
+          <i class="bi bi-skull me-1"></i>Dead
+        </span>
+      {% endif %}
+      {% if entry.age and entry.age > 0 %}
+        <span class="badge bg-warning text-dark shadow-sm" title="Age restricted content">
+          <i class="bi bi-exclamation-octagon me-1"></i>{{ entry.age }}+
+        </span>
+      {% endif %}
+      {% if entry.language %}
+        <span class="badge bg-secondary-subtle text-secondary small">{{ entry.language }}</span>
+      {% endif %}
+    </div>
+    <button class="btn btn-sm btn-outline-warning border-0 btn-bookmark p-1" data-id="{{ entry.id }}" title="Toggle bookmark">
+      <i class="bi bi-bookmark{{ '-fill' if is_bookmarked else '' }}"></i>
+    </button>
+  </div>
+  {% endif %}
 
   <div class="gallery-content d-flex flex-column justify-content-between flex-grow-1">
     <div>
@@ -82,7 +106,7 @@
       <div class="gallery-meta mb-2">
         {% if source_obj %}
           <div class="d-flex align-items-center gap-1 mb-1">
-            {% if source_obj.favicon %}
+            {% if show_icons and source_obj.favicon %}
               <img src="{{ source_obj.favicon }}" alt="" width="14" height="14" class="rounded-circle">
             {% endif %}
             <span class="text-truncate">{{ source_obj.title }}</span>
@@ -128,19 +152,21 @@
 {% elif display_type == 'standard' %}
 <div class="card standard-card border shadow-sm p-3 entry-card-clickable {{ class_str }}" id="entry-card-{{ entry.id }}" data-entry-id="{{ entry.id }}" data-detail-url="{{ url_for('entries.entry_detail_view', id=entry.id) }}" title="{{entry.title}}">
   <div class="d-flex flex-column flex-sm-row gap-3">
-    {% if entry.thumbnail %}
-      <div class="standard-thumb-col flex-shrink-0">
-        <img src="{{ entry.thumbnail }}" alt="{{ entry.title or 'Thumbnail' }}" class="standard-thumb" loading="lazy">
-        {% if is_dead %}
-          <span class="badge bg-danger position-absolute top-0 start-0 m-1 shadow-sm">
-            <i class="bi bi-skull"></i>
-          </span>
-        {% endif %}
-      </div>
-    {% elif source_obj and source_obj.favicon %}
-      <div class="standard-thumb-col flex-shrink-0 d-flex align-items-center justify-content-center bg-body-tertiary">
-        <img src="{{ source_obj.favicon }}" alt="" width="48" height="48" class="rounded-circle">
-      </div>
+    {% if show_icons %}
+      {% if entry.thumbnail %}
+        <div class="standard-thumb-col flex-shrink-0">
+          <img src="{{ entry.thumbnail }}" alt="{{ entry.title or 'Thumbnail' }}" class="standard-thumb" loading="lazy">
+          {% if is_dead %}
+            <span class="badge bg-danger position-absolute top-0 start-0 m-1 shadow-sm">
+              <i class="bi bi-skull"></i>
+            </span>
+          {% endif %}
+        </div>
+      {% elif source_obj and source_obj.favicon %}
+        <div class="standard-thumb-col flex-shrink-0 d-flex align-items-center justify-content-center bg-body-tertiary">
+          <img src="{{ source_obj.favicon }}" alt="" width="48" height="48" class="rounded-circle">
+        </div>
+      {% endif %}
     {% endif %}
 
     <div class="standard-body flex-grow-1">
@@ -162,7 +188,7 @@
         <div class="d-flex flex-wrap align-items-center gap-2 text-secondary small mb-2">
           {% if source_obj %}
             <span class="fw-medium text-body-secondary d-flex align-items-center gap-1">
-              {% if source_obj.favicon %}<img src="{{ source_obj.favicon }}" alt="" width="14" height="14" class="rounded-circle">{% endif %}
+              {% if show_icons and source_obj.favicon %}<img src="{{ source_obj.favicon }}" alt="" width="14" height="14" class="rounded-circle">{% endif %}
               {{ source_obj.title }}
             </span>
             <span>&middot;</span>
@@ -234,10 +260,12 @@
 {% elif display_type == 'search-engine' %}
 <div class="search-engine-item entry-card-clickable {{ class_str }}" id="entry-card-{{ entry.id }}" data-entry-id="{{ entry.id }}" data-detail-url="{{ url_for('entries.entry_detail_view', id=entry.id) }}" title="{{entry.title}}">
   <div class="search-engine-breadcrumb">
-    {% if source_obj and source_obj.favicon %}
-      <img src="{{ source_obj.favicon }}" alt="" width="16" height="16" class="rounded-circle">
-    {% else %}
-      <i class="bi bi-globe"></i>
+    {% if show_icons %}
+      {% if source_obj and source_obj.favicon %}
+        <img src="{{ source_obj.favicon }}" alt="" width="16" height="16" class="rounded-circle">
+      {% else %}
+        <i class="bi bi-globe"></i>
+      {% endif %}
     {% endif %}
     <span>{{ source_obj.title if source_obj else (entry.author or 'Web') }}</span>
     <span>&rsaquo;</span>
@@ -357,7 +385,7 @@
   <div class="content-main">
     <div class="content-header">
       {% if source_obj %}
-        {% if source_obj.favicon %}
+        {% if show_icons and source_obj.favicon %}
           <img src="{{ source_obj.favicon }}" alt="" width="16" height="16" class="rounded-circle">
         {% endif %}
         <span class="fw-semibold text-body-emphasis">{{ source_obj.title }}</span>
@@ -394,7 +422,7 @@
       <div class="content-body">{{ entry.description }}</div>
     {% endif %}
 
-    {% if entry.thumbnail %}
+    {% if show_icons and entry.thumbnail %}
       <div class="content-thumb-preview">
         <img src="{{ entry.thumbnail }}" alt="{{ entry.title or 'Media preview' }}" loading="lazy">
       </div>
@@ -431,6 +459,7 @@
 {# ======================================================================== #}
 {% else %}
 <tr class="links-only-row entry-card-clickable {{ class_str }}" id="entry-card-{{ entry.id }}" data-entry-id="{{ entry.id }}" data-detail-url="{{ url_for('entries.entry_detail_view', id=entry.id) }}">
+  {% if show_icons %}
   <td>
     {% if is_dead %}
       <i class="bi bi-skull text-danger" title="Dead link"></i>
@@ -445,6 +474,7 @@
       <span class="badge bg-warning text-dark ms-1" title="Age {{ entry.age }}+ content">{{ entry.age }}+</span>
     {% endif %}
   </td>
+  {% endif %}
   <td>
     <div class="d-flex align-items-center">
       <a href="{{ url_for('entries.entry_detail_view', id=entry.id) }}" class="links-only-title text-body entry-link" data-id="{{ entry.id }}" title="{{ entry.title }}">
@@ -457,7 +487,7 @@
   </td>
   <td class="text-secondary text-truncate" style="max-width: 160px;">
     {% if source_obj %}
-      {% if source_obj.favicon %}<img src="{{ source_obj.favicon }}" alt="" width="14" height="14" class="rounded-circle me-1">{% endif %}
+      {% if show_icons and source_obj.favicon %}<img src="{{ source_obj.favicon }}" alt="" width="14" height="14" class="rounded-circle me-1">{% endif %}
       {{ source_obj.title }}
     {% else %}
       {{ entry.author or '-' }}

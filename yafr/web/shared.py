@@ -140,6 +140,10 @@ def get_shared_context() -> Dict[str, Any]:
     except Exception as err:
         logger.debug("Could not read shared context from DB (using defaults): %s", err)
 
+    show_icons = (
+        bool(config.show_icons) if config and config.show_icons is not None else True
+    )
+
     return {
         "app_name": instance_title,
         "app_tagline": instance_description,
@@ -147,6 +151,8 @@ def get_shared_context() -> Dict[str, Any]:
         "active_theme": active_theme,
         "display_type": display_type,
         "enable_background_jobs": enable_background_jobs,
+        "config": config,
+        "show_icons": show_icons,
         "badges": {
             "sources_outdated": sources_outdated,
             "sources_errors": sources_errors,

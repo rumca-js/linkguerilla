@@ -9,6 +9,7 @@
 {% endblock %}
 
 {% block content %}
+{% set show_icons = (config.show_icons if (config is defined and config and config.show_icons is not none) else (show_icons if show_icons is defined else true)) %}
 <div class="container-fluid px-4">
 
   <!-- Search Widget Component -->
@@ -84,28 +85,28 @@
 
           <!-- Polymorphic Results Container -->
           {% if display_type == 'gallery' %}
-            <div class="gallery-grid">
+            <div class="gallery-grid {{ 'show-icons' if show_icons else 'no-icons' }}" data-show-icons="{{ 'true' if show_icons else 'false' }}">
               {% for entry in entries %}
                 {% include "components/entry_item.html" %}
               {% endfor %}
             </div>
 
           {% elif display_type == 'standard' %}
-            <div class="standard-list">
+            <div class="standard-list {{ 'show-icons' if show_icons else 'no-icons' }}" data-show-icons="{{ 'true' if show_icons else 'false' }}">
               {% for entry in entries %}
                 {% include "components/entry_item.html" %}
               {% endfor %}
             </div>
 
           {% elif display_type == 'search-engine' %}
-            <div class="search-engine-list">
+            <div class="search-engine-list {{ 'show-icons' if show_icons else 'no-icons' }}" data-show-icons="{{ 'true' if show_icons else 'false' }}">
               {% for entry in entries %}
                 {% include "components/entry_item.html" %}
               {% endfor %}
             </div>
 
           {% elif display_type == 'content-centric' %}
-            <div class="content-centric-list">
+            <div class="content-centric-list {{ 'show-icons' if show_icons else 'no-icons' }}" data-show-icons="{{ 'true' if show_icons else 'false' }}">
               {% for entry in entries %}
                 {% include "components/entry_item.html" %}
               {% endfor %}
@@ -113,10 +114,12 @@
 
           {% elif display_type == 'links-only' %}
             <div class="table-responsive">
-              <table class="links-only-table">
+              <table class="links-only-table {{ 'show-icons' if show_icons else 'no-icons' }}" data-show-icons="{{ 'true' if show_icons else 'false' }}">
                 <thead>
                   <tr class="text-secondary small">
-                    <th style="width: 40px;"></th>
+                    {% if show_icons %}
+                      <th style="width: 40px;"></th>
+                    {% endif %}
                     <th>Title</th>
                     <th>Source / Author</th>
                     <th>Published</th>

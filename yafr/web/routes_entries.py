@@ -130,6 +130,12 @@ def search_view():
         tags_map=tags_map,
         sources_map=sources_map,
         social_map=social_map,
+        config=config,
+        show_icons=(
+            bool(config.show_icons)
+            if config and config.show_icons is not None
+            else True
+        ),
     )
 
 

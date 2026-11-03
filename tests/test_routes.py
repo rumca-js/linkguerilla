@@ -5,6 +5,7 @@ Integration tests for YAFR web routes and search views.
 import unittest
 from yafr.app import create_app
 from yafr.db import (
+    ConfigRepository,
     EntryRepository,
     HistoryRepository,
     close_session,
@@ -233,6 +234,77 @@ class TestEntryRoutes(unittest.TestCase):
         html = res_post.get_data(as_text=True)
         self.assertIn("Python Internals Updated", html)
         self.assertIn("#internals", html)
+
+    def test_show_icons_enabled_by_default(self):
+        """When show_icons is enabled, thumbnails, container class, and icon table headers render."""
+        response = self.client.get("/?q=Python&display=gallery")
+        self.assertEqual(response.status_code, 200)
+        html = response.get_data(as_text=True)
+        self.assertIn('data-show-icons="true"', html)
+        self.assertIn("gallery-grid show-icons", html)
+        self.assertIn("gallery-thumb-wrap", html)
+
+        res_table = self.client.get("/?q=Python&display=links-only")
+        self.assertEqual(res_table.status_code, 200)
+        html_table = res_table.get_data(as_text=True)
+        self.assertIn('<th style="width: 40px;"></th>', html_table)
+        self.assertIn('data-show-icons="true"', html_table)
+
+    def test_show_icons_disabled_via_configurationentry(self):
+        """When configurationentry.show_icons is False, thumbnails and icon table cells are suppressed."""
+        config_repo = ConfigRepository(self.session)
+        config_repo.update_config(show_icons=False)
+
+        # 1. Gallery
+        res_gallery = self.client.get("/?q=Python&display=gallery")
+        self.assertEqual(res_gallery.status_code, 200)
+        html_gallery = res_gallery.get_data(as_text=True)
+        self.assertIn('data-show-icons="false"', html_gallery)
+        self.assertIn("gallery-grid no-icons", html_gallery)
+        self.assertNotIn("gallery-thumb-wrap", html_gallery)
+
+        # 2. Standard
+        res_standard = self.client.get("/?q=Python&display=standard")
+        self.assertEqual(res_standard.status_code, 200)
+        html_standard = res_standard.get_data(as_text=True)
+        self.assertIn('data-show-icons="false"', html_standard)
+        self.assertIn("standard-list no-icons", html_standard)
+        self.assertNotIn("standard-thumb-col", html_standard)
+
+        # 3. Links-only
+        res_table = self.client.get("/?q=Python&display=links-only")
+        self.assertEqual(res_table.status_code, 200)
+        html_table = res_table.get_data(as_text=True)
+        self.assertIn('data-show-icons="false"', html_table)
+        self.assertNotIn('<th style="width: 40px;"></th>', html_table)
+
+    def test_list_template_directly_accepts_config_show_icons(self):
+        """Verifies render_template('entries/list.html') accepts config object directly."""
+        from flask import render_template
+
+        class MockConfig:
+            show_icons = False
+
+        with self.app.test_request_context("/?q=test"):
+            html = render_template(
+                "entries/list.html",
+                config=MockConfig(),
+                has_query=True,
+                query="test",
+                display_type="gallery",
+                entries=[self.e1],
+                total_results=1,
+                page=1,
+                total_pages=1,
+                visited_ids=set(),
+                read_later_ids=set(),
+                tags_map={},
+                sources_map={},
+                social_map={},
+            )
+            self.assertIn('data-show-icons="false"', html)
+            self.assertNotIn("gallery-thumb-wrap", html)
+
 
 
 if __name__ == "__main__":
