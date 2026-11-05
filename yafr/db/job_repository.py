@@ -40,20 +40,20 @@ class JobRepository(BaseRepository[BackgroundJob]):
         :param args: Optional arguments string
         :return: Matching BackgroundJob instance or None
         """
-        norm_task = task.strip() if isinstance(task, str) and task.strip() else None
-        norm_args = args.strip() if isinstance(args, str) and args.strip() else None
+        norm_task = task.strip() if isinstance(task, str) and task.strip() else ""
+        norm_args = args.strip() if isinstance(args, str) and args.strip() else ""
 
         stmt = select(BackgroundJob).where(
             BackgroundJob.job == job,
             BackgroundJob.subject == subject,
         )
 
-        if norm_task is not None:
+        if norm_task:
             stmt = stmt.where(BackgroundJob.task == norm_task)
         else:
             stmt = stmt.where((BackgroundJob.task == None) | (BackgroundJob.task == ""))
 
-        if norm_args is not None:
+        if norm_args:
             stmt = stmt.where(BackgroundJob.args == norm_args)
         else:
             stmt = stmt.where((BackgroundJob.args == None) | (BackgroundJob.args == ""))
@@ -83,8 +83,8 @@ class JobRepository(BaseRepository[BackgroundJob]):
         :param raise_on_duplicate: If True, raises ValueError if an identical job already exists
         :return: Created or existing BackgroundJob instance
         """
-        norm_task = task.strip() if isinstance(task, str) and task.strip() else None
-        norm_args = args.strip() if isinstance(args, str) and args.strip() else None
+        norm_task = task.strip() if isinstance(task, str) and task.strip() else ""
+        norm_args = args.strip() if isinstance(args, str) and args.strip() else ""
 
         existing = self.find_job(
             job=job,
@@ -116,6 +116,7 @@ class JobRepository(BaseRepository[BackgroundJob]):
             enabled=enabled,
             errors=0,
             date_created=datetime.now(timezone.utc),
+            user_id=1,
         )
         self.session.add(bg_job)
         self.session.commit()

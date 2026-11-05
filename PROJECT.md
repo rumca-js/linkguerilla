@@ -73,6 +73,8 @@ linkarchivetools business classes (controllers) vs tables. You may propose chang
  - BackgroundJob - backgroundjob
  - ConfigurationEntry - configurationentry
 
+Should be written in a such way, so it would be easily changed in code from SQlite table to Parquet, or other engines.
+
 # UI
  - validate input links.
  - link should not contain white spaces at start/end. Trim them on input

@@ -4,14 +4,11 @@
     <form method="GET" action="{{ url_for('sources.sources_list') }}" class="row g-2 align-items-center">
       <div class="col-12 col-md-5 col-lg-6">
         <div class="input-group rounded-pill overflow-hidden border">
-          <span class="input-group-text bg-body border-0 ps-3">
-            <i class="bi bi-search text-secondary"></i>
-          </span>
           <input 
             type="text" 
             name="q" 
             id="top-source-search-input"
-            class="form-control border-0 py-2" 
+            class="form-control border-0 py-2 ps-3" 
             placeholder="Search sources (e.g. title=news, url=youtube)..." 
             value="{{ query }}"
             autocomplete="off"
@@ -22,8 +19,8 @@
               <i class="bi bi-x-lg"></i>
             </a>
           {% endif %}
-          <button class="btn btn-primary px-3 fw-semibold" type="submit">
-            Search
+          <button class="btn btn-primary px-3" type="submit" title="Search" aria-label="Search">
+            <i class="bi bi-search"></i>
           </button>
         </div>
       </div>

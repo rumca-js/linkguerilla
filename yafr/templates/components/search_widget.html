@@ -11,14 +11,11 @@
     <form method="GET" action="{{ url_for('entries.search_view') }}" class="mb-3" id="main-search-form">
       <div class="position-relative">
         <div class="input-group input-group-lg shadow-sm rounded-pill overflow-hidden border">
-          <span class="input-group-text bg-body border-0 ps-4">
-            <i class="bi bi-search text-secondary"></i>
-          </span>
           <input 
             type="text" 
             name="q" 
             id="main-search-input"
-            class="form-control border-0 py-3 fs-5" 
+            class="form-control border-0 py-3 ps-4 fs-5" 
             placeholder="Search entries (e.g. title=news, tag:python, ==exact)..." 
             value="{{ query }}"
             autocomplete="off"
@@ -27,8 +24,8 @@
           <button type="button" class="btn btn-outline-secondary border-0 px-3 search-history-btn" title="Search history" data-target="#main-search-input">
             <i class="bi bi-clock-history"></i>
           </button>
-          <button class="btn btn-primary px-4 fw-semibold" type="submit">
-            Search
+          <button class="btn btn-primary px-4" type="submit" title="Search" aria-label="Search">
+            <i class="bi bi-search fs-5"></i>
           </button>
         </div>
         <!-- Search History Dropdown -->
@@ -77,14 +74,11 @@
       <div class="col-12 col-md-6 col-lg-7">
         <div class="position-relative">
           <div class="input-group rounded-pill overflow-hidden border">
-            <span class="input-group-text bg-body border-0 ps-3">
-              <i class="bi bi-search text-secondary"></i>
-            </span>
             <input 
               type="text" 
               name="q" 
               id="compact-search-input"
-              class="form-control border-0 py-2" 
+              class="form-control border-0 py-2 ps-3" 
               placeholder="Search entries..." 
               value="{{ query }}"
               autocomplete="off"
@@ -97,8 +91,8 @@
             <button type="button" class="btn btn-outline-secondary border-0 px-3 search-history-btn" title="Search history" data-target="#compact-search-input">
               <i class="bi bi-clock-history"></i>
             </button>
-            <button class="btn btn-primary px-4 fw-semibold" type="submit">
-              Search
+            <button class="btn btn-primary px-3" type="submit" title="Search" aria-label="Search">
+              <i class="bi bi-search"></i>
             </button>
           </div>
           <!-- Search History Dropdown -->

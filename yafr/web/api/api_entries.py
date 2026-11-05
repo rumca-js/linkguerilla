@@ -199,24 +199,28 @@ def update_data(entry_id: int):
     """
     Enqueues a link metadata refresh job for the entry.
     """
-    session = get_session()
-    entry_repo = EntryRepository(session)
-    entry = entry_repo.get_by_id(entry_id)
-    if not entry:
-        return api_response(success=False, error="Entry not found", status_code=404)
+    try:
+        session = get_session()
+        entry_repo = EntryRepository(session)
+        entry = entry_repo.get_by_id(entry_id)
+        if not entry:
+            return api_response(success=False, error="Entry not found", status_code=404)
 
-    from yafr.services.job_service import JobService
+        from yafr.services.job_service import JobService
 
-    job = JobService.create_job(
-        job="link-update-data",
-        subject=str(entry_id),
-        session=session,
-    )
-    return api_response(
-        success=True,
-        data={"entry_id": entry_id, "job_id": job.id},
-        message="Link update queued.",
-    )
+        job = JobService.create_job(
+            job="link-update-data",
+            subject=str(entry_id),
+            session=session,
+        )
+        return api_response(
+            success=True,
+            data={"entry_id": entry_id, "job_id": job.id},
+            message="Link update queued.",
+        )
+    except Exception as err:
+        logger.error("Failed to enqueue update-data for entry %d: %s", entry_id, err)
+        return api_response(success=False, error=str(err), status_code=500)
 
 
 @api_entries_bp.route("/<int:entry_id>/update-social", methods=["POST"])
@@ -225,24 +229,28 @@ def update_social_data(entry_id: int):
     """
     Enqueues a social data download job (JOB_LINK_DOWNLOAD_SOCIAL) for the entry.
     """
-    session = get_session()
-    entry_repo = EntryRepository(session)
-    entry = entry_repo.get_by_id(entry_id)
-    if not entry:
-        return api_response(success=False, error="Entry not found", status_code=404)
+    try:
+        session = get_session()
+        entry_repo = EntryRepository(session)
+        entry = entry_repo.get_by_id(entry_id)
+        if not entry:
+            return api_response(success=False, error="Entry not found", status_code=404)
 
-    from yafr.services.job_service import JOB_LINK_DOWNLOAD_SOCIAL, JobService
+        from yafr.services.job_service import JOB_LINK_DOWNLOAD_SOCIAL, JobService
 
-    job = JobService.create_job(
-        job=JOB_LINK_DOWNLOAD_SOCIAL,
-        subject=str(entry_id),
-        session=session,
-    )
-    return api_response(
-        success=True,
-        data={"entry_id": entry_id, "job_id": job.id},
-        message="Social data download queued.",
-    )
+        job = JobService.create_job(
+            job=JOB_LINK_DOWNLOAD_SOCIAL,
+            subject=str(entry_id),
+            session=session,
+        )
+        return api_response(
+            success=True,
+            data={"entry_id": entry_id, "job_id": job.id},
+            message="Social data download queued.",
+        )
+    except Exception as err:
+        logger.error("Failed to enqueue update-social for entry %d: %s", entry_id, err)
+        return api_response(success=False, error=str(err), status_code=500)
 
 
 @api_entries_bp.route("/<int:entry_id>/jobs", methods=["GET"])

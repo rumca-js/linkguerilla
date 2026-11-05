@@ -3,7 +3,7 @@ Flask application factory for YAFR.
 """
 
 import logging
-from flask import Flask, render_template
+from flask import Flask, jsonify, render_template, request
 from sqlalchemy.exc import SQLAlchemyError
 from yafr.config import Config
 from yafr.db import close_session, init_db
@@ -52,6 +52,8 @@ def create_app(config_object=None) -> Flask:
     def database_error(error):
         logger.error("Database error occurred: %s", error)
         close_session()
+        if request.path.startswith("/api/") or request.is_json:
+            return jsonify({"success": False, "error": f"Database failure: {error}"}), 500
         return (
             render_template(
                 "entries/list.html",
@@ -65,6 +67,8 @@ def create_app(config_object=None) -> Flask:
 
     @app.errorhandler(404)
     def not_found_error(error):
+        if request.path.startswith("/api/") or request.is_json:
+            return jsonify({"success": False, "error": "Not found (404)."}), 404
         return (
             render_template(
                 "entries/list.html",
@@ -78,6 +82,8 @@ def create_app(config_object=None) -> Flask:
 
     @app.errorhandler(500)
     def internal_error(error):
+        if request.path.startswith("/api/") or request.is_json:
+            return jsonify({"success": False, "error": f"Internal server error: {error}"}), 500
         return (
             render_template(
                 "entries/list.html",

@@ -351,10 +351,13 @@ class JobExecutor:
         bg_job = BackgroundJob(
             job="process-source",
             subject=str(src.id),
+            task="",
+            args="",
             priority=5,
             enabled=True,
             errors=0,
             date_created=datetime.now(timezone.utc),
+            user_id=1,
         )
         sess.add(bg_job)
         sess.commit()
