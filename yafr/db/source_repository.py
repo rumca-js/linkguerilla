@@ -264,11 +264,14 @@ class SourceRepository(BaseRepository[SourcesTable]):
         self.session.commit()
         return op_data
 
-    def get_outdated_sources(self, max_age_seconds: int = 3600) -> List[SourcesTable]:
+    def get_outdated_sources(
+        self, max_age_seconds: int = 3600, limit: Optional[int] = None
+    ) -> List[SourcesTable]:
         """
         Returns enabled sources that have not been refreshed within max_age_seconds.
 
         :param max_age_seconds: Maximum elapsed seconds since last fetch (default: 1 hour)
+        :param limit: Optional maximum number of sources to return
         :return: List of SourcesTable instances requiring refresh
         """
         cutoff = datetime.now(timezone.utc) - timedelta(seconds=max_age_seconds)
@@ -285,6 +288,8 @@ class SourceRepository(BaseRepository[SourcesTable]):
             )
             .order_by(SourceOperationalData.date_fetched.asc().nullsfirst())
         )
+        if limit is not None and limit > 0:
+            stmt = stmt.limit(limit)
         return list(self.session.execute(stmt).scalars().all())
 
     def count_outdated_sources(self, max_age_seconds: int = 3600) -> int:

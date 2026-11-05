@@ -244,18 +244,11 @@ stateDiagram-v2
     Idle --> CheckJobs: Poll interval (every 3s on SQLite table)
     CheckJobs --> ExecuteJob: Enabled job found in backgroundjob
     ExecuteJob --> LogHistory: Job completed or failed -> write to backgroundjobhistory
-    LogHistory --> Idle
+    LogHistory --> CheckJobs
 
-    CheckJobs --> CheckSources: No pending background jobs
-    CheckSources --> FetchSource: Source outdated (>1h) & enabled
-    FetchSource --> CompareHashes: Fetch RSS / IMAP
-    CompareHashes --> BuildEntries: Hash changed -> parse items
-    BuildEntries --> FilterEntries: EntryBuilder validates policy & entry rules
-    FilterEntries --> InsertEntries: Allowed items persisted + tags inherited
-    CompareHashes --> SkipEntries: Hash unchanged -> mark read
-    InsertEntries --> UpdateOperational: Update date_fetched, clear consecutive_errors
-    SkipEntries --> UpdateOperational
-    UpdateOperational --> Idle
+    CheckJobs --> EnqueueOutdated: No pending background jobs
+    EnqueueOutdated --> CheckJobs: Enqueue process-source & link-update-data jobs
+    EnqueueOutdated --> Idle: No outdated sources or entries
 ```
 
 #### Worker Operation Rules:
@@ -269,9 +262,10 @@ stateDiagram-v2
      - Updates entry (`linkdatamodel`) with title, description, date_published, author, album, language, thumbnail, HTTP `status_code`, and `date_dead_since`. Enqueues `JOB_LINK_DOWNLOAD_SOCIAL`.
    - Executes jobs sequentially based on priority.
    - Records errors in `backgroundjob.errors`. If consecutive failures exceed max retries (3), disables the job (`enabled = False`) and creates an entry in `applogging`.
-2. **SourceRefreshWorker & Outdated Jobs Handling**:
-   - Triggered when no explicit `BackgroundJob` tasks are pending.
-   - When the job queue is empty, outdated sources (> 1h since last fetch) are enqueued or automatically refreshed.
+2. **Outdated Jobs Handling (Sources & Entries)**:
+   - Triggered when no explicit `BackgroundJob` tasks are pending in the queue (or at worker startup).
+   - When the job queue is empty, outdated sources (> 1h since last fetch) are enqueued 1-by-1 as `process-source` background jobs into the `backgroundjob` table. Candidate entries needing update (based on oldest `date_update_last`, capped by `ConfigurationEntry.number_of_update_entries`) are enqueued as `link-update-data` jobs.
+   - The worker executes each job from `backgroundjob`, archiving completed tasks into `backgroundjobhistory`, and then enqueues the next outdated task 1-by-1, keeping the queue lean and preventing backlog clutter.
    - **Filter Rules**:
      - Disabled sources (`enabled = False`) are strictly skipped.
      - Sources fetched within the last hour (`datetime.now() - date_fetched < 1 hour`) are skipped unless explicitly triggered by user pull-to-refresh.

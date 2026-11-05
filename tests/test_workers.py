@@ -397,7 +397,7 @@ class TestJobExecutor(unittest.TestCase):
         self.assertIsNone(res3)
 
     def test_empty_queue_fallback_to_outdated_source(self):
-        """When queue is empty, auto-refreshes oldest outdated source."""
+        """When queue is empty, enqueues process-source jobs for outdated sources and processes the first."""
         source = self.source_repo.add_source(
             url="https://example.com/outdated.xml",
             title="Outdated Feed",
@@ -422,10 +422,70 @@ class TestJobExecutor(unittest.TestCase):
             result = executor.process_one(session=self.session)
 
             self.assertIsNotNone(result)
-            self.assertEqual(result["job_type"], "source-auto-refresh")
-            self.assertEqual(result["subject"], source.url)
+            self.assertEqual(result["job_type"], "process-source")
+            self.assertEqual(result["subject"], str(source.id))
             self.assertTrue(result["success"])
+            self.assertIsNotNone(result["job_id"])
             mock_fetch.assert_called_once_with(source.id, session=self.session)
+
+    def test_outdated_sources_all_enqueued_and_processed_sequentially(self):
+        """When multiple sources are outdated, jobs are created 1-by-1 and processed one after another."""
+        sources = []
+        for i in range(3):
+            src = self.source_repo.add_source(
+                url=f"https://example.com/feed_{i}.xml",
+                title=f"Feed {i}",
+                source_type="RSS",
+                enabled=True,
+            )
+            self.source_repo.update_operational_data(
+                src.id,
+                date_fetched=datetime.now(timezone.utc) - timedelta(hours=2),
+            )
+            sources.append(src)
+
+        executor = JobExecutor(session=self.session, auto_refresh_sources=True)
+
+        with patch(
+            "yafr.services.source_service.SourceService.fetch_source"
+        ) as mock_fetch:
+            def fake_fetch(source_id, session=None):
+                self.source_repo.update_operational_data(
+                    source_id, date_fetched=datetime.now(timezone.utc)
+                )
+                return {
+                    "success": True,
+                    "status": "completed",
+                    "message": "OK",
+                }
+
+            mock_fetch.side_effect = fake_fetch
+
+            # 1. First process_one: enqueues 1st outdated source and processes it
+            res1 = executor.process_one(session=self.session)
+            self.assertTrue(res1["success"])
+            self.assertEqual(res1["job_type"], "process-source")
+            self.assertEqual(res1["subject"], str(sources[0].id))
+            # Completed job is archived to history, queue remains lean
+            self.assertEqual(self.job_repo.count_jobs(), 0)
+
+            # 2. Second process_one: enqueues 2nd outdated source and processes it
+            res2 = executor.process_one(session=self.session)
+            self.assertTrue(res2["success"])
+            self.assertEqual(res2["subject"], str(sources[1].id))
+            self.assertEqual(self.job_repo.count_jobs(), 0)
+
+            # 3. Third process_one: enqueues 3rd outdated source and processes it
+            res3 = executor.process_one(session=self.session)
+            self.assertTrue(res3["success"])
+            self.assertEqual(res3["subject"], str(sources[2].id))
+            self.assertEqual(self.job_repo.count_jobs(), 0)
+
+            # 4. Fourth process_one: no more outdated sources, returns None
+            res4 = executor.process_one(session=self.session)
+            self.assertIsNone(res4)
+
+            self.assertEqual(mock_fetch.call_count, 3)
 
     def test_enqueue_outdated_entry_jobs_respects_number_of_update_entries(self):
         """enqueue_outdated_entry_jobs respects number_of_update_entries and uses date_update_last."""
@@ -463,7 +523,9 @@ class TestJobExecutor(unittest.TestCase):
                     BackgroundJob.job == "link-update-data",
                     BackgroundJob.enabled == True,
                 )
-            ).scalars().all()
+            )
+            .scalars()
+            .all()
         )
         self.assertIn(str(e1.id), enqueued_subjects)
         self.assertIn(str(e2.id), enqueued_subjects)
@@ -475,8 +537,10 @@ class TestJobExecutor(unittest.TestCase):
         self.assertEqual(enqueued_again, 0)
 
     def test_empty_queue_fallback_to_outdated_entry(self):
-        """When queue is empty and no outdated sources exist, auto-updates oldest entry and sets date_update_last."""
-        e = self.entry_repo.add_entry(link="https://example.com/old-entry", title="Old Entry")
+        """When queue is empty and no outdated sources exist, enqueues link-update-data and updates oldest entry."""
+        e = self.entry_repo.add_entry(
+            link="https://example.com/old-entry", title="Old Entry"
+        )
         e.date_update_last = None
         self.session.commit()
 
@@ -496,7 +560,7 @@ class TestJobExecutor(unittest.TestCase):
             result = executor.process_one(session=self.session)
 
         self.assertIsNotNone(result)
-        self.assertEqual(result["job_type"], "entry-auto-update")
+        self.assertEqual(result["job_type"], "link-update-data")
         self.assertEqual(result["subject"], str(e.id))
         self.assertTrue(result["success"])
 

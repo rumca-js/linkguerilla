@@ -75,7 +75,7 @@ class JobExecutor:
         Fetches and processes exactly one pending background job.
 
         If no pending jobs are in the queue and auto_refresh_sources is enabled,
-        refreshes the oldest outdated source.
+        enqueues jobs for outdated sources and entries, then processes the next pending job.
 
         :param session: Optional active database session
         :return: Dict describing task execution results, or None if no work was available
@@ -88,12 +88,13 @@ class JobExecutor:
         job = job_repo.get_next_pending_job()
 
         if job is None:
-            # Check what should be done next when job queue is empty
+            # Check what should be done next when job queue is empty:
+            # Enqueue jobs for all outdated sources and entries, then pick the next pending job.
             if self.auto_refresh_sources:
-                res = self._process_outdated_source(sess)
-                if res:
-                    return res
-                return self._process_outdated_entry(sess)
+                self.enqueue_outdated_jobs(sess)
+                job = job_repo.get_next_pending_job()
+
+        if job is None:
             return None
 
         job_id = job.id
@@ -318,44 +319,51 @@ class JobExecutor:
         self, session: Optional[Session] = None, max_age_seconds: int = 3600
     ) -> int:
         """
-        Enqueues outdated source refresh jobs into the backgroundjob queue.
+        Enqueues the next outdated source refresh job into the backgroundjob queue (1-by-1).
 
         :param session: Optional active database session
         :param max_age_seconds: Maximum age before a source is considered outdated (default: 3600s = 1 hour)
-        :return: Count of newly enqueued source refresh jobs
+        :return: Count of newly enqueued source refresh jobs (1 or 0)
         """
         sess = self._get_session(session)
         source_repo = SourceRepository(sess)
-        job_repo = JobRepository(sess)
 
-        outdated = source_repo.get_outdated_sources(max_age_seconds=max_age_seconds)
-        enqueued_count = 0
-
-        for src in outdated:
-            existing = sess.execute(
-                select(BackgroundJob.id).where(
+        # In 1-by-1 mode, if there is already an active/pending process-source job in queue, wait
+        existing = (
+            sess.execute(
+                select(BackgroundJob.subject).where(
                     BackgroundJob.job.in_(("process-source", "JOB_PROCESS_SOURCE")),
-                    BackgroundJob.subject == str(src.id),
-                    BackgroundJob.enabled == True,
                 )
-            ).scalar_one_or_none()
-
-            if not existing:
-                job_repo.enqueue_job(
-                    job="process-source",
-                    subject=str(src.id),
-                    priority=5,
-                    enabled=True,
-                )
-                enqueued_count += 1
-
-        if enqueued_count > 0:
-            sess.commit()
-            logger.info(
-                "Enqueued %d outdated source job(s) into queue.", enqueued_count
             )
+            .scalars()
+            .first()
+        )
+        if existing:
+            return 0
 
-        return enqueued_count
+        outdated = source_repo.get_outdated_sources(
+            max_age_seconds=max_age_seconds, limit=1
+        )
+        if not outdated:
+            return 0
+
+        src = outdated[0]
+        bg_job = BackgroundJob(
+            job="process-source",
+            subject=str(src.id),
+            priority=5,
+            enabled=True,
+            errors=0,
+            date_created=datetime.now(timezone.utc),
+        )
+        sess.add(bg_job)
+        sess.commit()
+        logger.info(
+            "Enqueued outdated source job for source #%d (%s) into queue.",
+            src.id,
+            src.title or src.url,
+        )
+        return 1
 
     def enqueue_outdated_entry_jobs(self, session: Optional[Session] = None) -> int:
         """
@@ -474,6 +482,13 @@ class JobExecutor:
 
         executed_count = 0
         thread_id = str(_threading.current_thread().ident)
+
+        # Enqueue outdated jobs at worker startup if auto_refresh_sources is enabled
+        if self.auto_refresh_sources:
+            try:
+                self.enqueue_outdated_jobs(self._get_session())
+            except Exception as err:
+                logger.debug("Failed checking outdated jobs before run_loop: %s", err)
 
         while True:
             if stop_event and stop_event.is_set():
