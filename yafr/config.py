@@ -3,6 +3,7 @@ Configuration settings for YAFR application.
 """
 
 import os
+import re
 import sys
 from pathlib import Path
 
@@ -10,8 +11,56 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 DEFAULT_DB_PATH = BASE_DIR / "data" / "table.db"
 
 
+def _load_version() -> str:
+    """
+    Retrieves application version.
+    Loads from pyproject.toml if present, falls back to package metadata,
+    and respects the YAFR_VERSION environment variable override.
+    """
+    env_ver = os.environ.get("YAFR_VERSION")
+    if env_ver:
+        return env_ver.strip()
+
+    pyproject_file = BASE_DIR / "pyproject.toml"
+    if pyproject_file.is_file():
+        try:
+            try:
+                import tomllib
+            except ImportError:
+                import tomli as tomllib  # type: ignore
+
+            with open(pyproject_file, "rb") as f:
+                data = tomllib.load(f)
+                ver = data.get("tool", {}).get("poetry", {}).get("version")
+                if ver:
+                    return str(ver).strip()
+        except Exception:
+            pass
+
+        try:
+            content = pyproject_file.read_text(encoding="utf-8")
+            match = re.search(r'(?m)^\s*version\s*=\s*["\']([^"\']+)["\']', content)
+            if match:
+                return match.group(1).strip()
+        except Exception:
+            pass
+
+    try:
+        from importlib.metadata import version
+
+        return version("yafr_next")
+    except Exception:
+        pass
+
+    return "0.1.3"
+
+
 class Config:
     """Base application configuration."""
+
+    # Version information
+    VERSION = _load_version()
+    APP_VERSION = VERSION
 
     # Instance identity & naming (can be customized via environment variables)
     INSTANCE_TITLE = os.environ.get("YAFR_INSTANCE_TITLE", "LinkGuerilla")
@@ -21,13 +70,17 @@ class Config:
     APP_NAME = INSTANCE_TITLE
     APP_DESCRIPTION = INSTANCE_DESCRIPTION
 
-    # Console display titles
+    # Console and footer display titles
     APP_CONSOLE_TITLE = os.environ.get(
         "YAFR_APP_CONSOLE_TITLE", f"{INSTANCE_TITLE} - {INSTANCE_DESCRIPTION}"
     )
     WORKER_CONSOLE_TITLE = os.environ.get(
         "YAFR_WORKER_CONSOLE_TITLE", f"{INSTANCE_TITLE} - Background Task Processor"
     )
+    FOOTER = os.environ.get(
+        "YAFR_FOOTER", f"{INSTANCE_TITLE} v{VERSION} - {INSTANCE_DESCRIPTION}"
+    )
+    APP_FOOTER = FOOTER
 
     SECRET_KEY = os.environ.get("YAFR_SECRET_KEY", "yafr-dev-secret-key-change-in-prod")
     DEBUG = os.environ.get("YAFR_DEBUG", "True").lower() in ("true", "1", "yes")
@@ -54,6 +107,12 @@ APP_NAME = Config.APP_NAME
 APP_DESCRIPTION = Config.APP_DESCRIPTION
 APP_CONSOLE_TITLE = Config.APP_CONSOLE_TITLE
 WORKER_CONSOLE_TITLE = Config.WORKER_CONSOLE_TITLE
+VERSION = Config.VERSION
+APP_VERSION = Config.APP_VERSION
+__version__ = Config.VERSION
+FOOTER = Config.FOOTER
+APP_FOOTER = Config.APP_FOOTER
+get_version = _load_version
 
 
 def set_console_title(title: str) -> None:
