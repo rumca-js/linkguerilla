@@ -147,6 +147,7 @@ def get_shared_context() -> Dict[str, Any]:
     return {
         "app_name": instance_title,
         "app_tagline": instance_description,
+        "app_version": Config.VERSION,
         "entry_filters": ENTRY_FILTERS,
         "active_theme": active_theme,
         "display_type": display_type,

@@ -28,6 +28,32 @@ class SearchQueryBuilder:
     Compiles search AST tokens into executable SQLAlchemy statements.
     """
 
+    # Mapping of user-facing aliases to SocialData model column names.
+    # Keys are normalized (lowercase, stripped) tokens from order: directives.
+    SOCIAL_ORDER_ALIASES = {
+        "thumbs_up": "thumbs_up",
+        "socialdata__thumbs_up": "thumbs_up",
+        "thumbs_down": "thumbs_down",
+        "socialdata__thumbs_down": "thumbs_down",
+        "view_count": "view_count",
+        "views": "view_count",
+        "socialdata__view_count": "view_count",
+        "socialdata__rating": "rating",
+        "upvote_ratio": "upvote_ratio",
+        "socialdata__upvote_ratio": "upvote_ratio",
+        "upvote_diff": "upvote_diff",
+        "socialdata__upvote_diff": "upvote_diff",
+        "upvote_view_ratio": "upvote_view_ratio",
+        "socialdata__upvote_view_ratio": "upvote_view_ratio",
+        "stars": "stars",
+        "socialdata__stars": "stars",
+        "followers_count": "followers_count",
+        "followers": "followers_count",
+        "socialdata__followers_count": "followers_count",
+        "date_updated": "date_updated",
+        "socialdata__date_updated": "date_updated",
+    }
+
     @classmethod
     def build_select(
         cls,
@@ -260,6 +286,19 @@ class SearchQueryBuilder:
         return stmt, order_applied
 
     @classmethod
+    def _resolve_social_column(cls, clean_token: str):
+        """
+        Resolves a cleaned order token to a SocialData column, or None if not a social field.
+
+        :param clean_token: Lowered, stripped order token
+        :return: SocialData mapped column attribute, or None
+        """
+        col_name = cls.SOCIAL_ORDER_ALIASES.get(clean_token)
+        if col_name is not None:
+            return getattr(SocialData, col_name)
+        return None
+
+    @classmethod
     def _apply_ordering(
         cls,
         stmt: Select,
@@ -329,38 +368,16 @@ class SearchQueryBuilder:
                     if is_explicit_desc
                     else LinkDataModel.link.asc()
                 )
-            elif clean in ("followers", "followers_count"):
+            elif (social_col := cls._resolve_social_column(clean)) is not None:
                 if not joined_social:
                     stmt = stmt.outerjoin(
                         SocialData, SocialData.entry_id == LinkDataModel.id
                     )
                     joined_social = True
                 order_clauses.append(
-                    SocialData.followers_count.asc().nullsfirst()
+                    social_col.asc().nullsfirst()
                     if is_asc
-                    else SocialData.followers_count.desc().nullslast()
-                )
-            elif clean in ("stars", "socialdata__thumbs_up", "thumbs_up"):
-                if not joined_social:
-                    stmt = stmt.outerjoin(
-                        SocialData, SocialData.entry_id == LinkDataModel.id
-                    )
-                    joined_social = True
-                order_clauses.append(
-                    SocialData.stars.asc().nullsfirst()
-                    if is_asc
-                    else SocialData.stars.desc().nullslast()
-                )
-            elif clean in ("socialdata__view_count", "views"):
-                if not joined_social:
-                    stmt = stmt.outerjoin(
-                        SocialData, SocialData.entry_id == LinkDataModel.id
-                    )
-                    joined_social = True
-                order_clauses.append(
-                    SocialData.views.asc().nullsfirst()
-                    if is_asc
-                    else SocialData.views.desc().nullslast()
+                    else social_col.desc().nullslast()
                 )
 
         if order_clauses:
