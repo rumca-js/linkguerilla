@@ -143,11 +143,18 @@ class SearchQueryBuilder:
             if not val:
                 continue
 
-            # Free-text search: matches title or description
+            # Free-text search: matches title, description, link, or associated tags by default
+            # DEFAULT search values
             if field_name is None:
+                clean_tag_val = val.lstrip("#").lower()
+                tag_subquery = select(EntryCompactedTags.entry_id).where(
+                    EntryCompactedTags.tag.ilike(f"%{clean_tag_val}%")
+                )
                 condition = or_(
                     LinkDataModel.title.ilike(f"%{val}%"),
                     LinkDataModel.description.ilike(f"%{val}%"),
+                    LinkDataModel.link.ilike(f"%{val}%"),
+                    LinkDataModel.id.in_(tag_subquery),
                 )
                 if clause.negated:
                     condition = ~condition

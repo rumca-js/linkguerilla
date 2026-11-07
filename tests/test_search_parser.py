@@ -152,7 +152,7 @@ class TestSearchQueryBuilder(unittest.TestCase):
         close_session()
 
     def test_search_free_text(self):
-        """Verifies free-text terms match title or description."""
+        """Verifies free-text terms match title, description, link, or tags by default."""
         pq = SearchParser.parse("Tutorial")
         entries, count = SearchQueryBuilder.execute_search(self.session, pq)
         self.assertEqual(count, 1)
@@ -163,6 +163,25 @@ class TestSearchQueryBuilder(unittest.TestCase):
         entries2, count2 = SearchQueryBuilder.execute_search(self.session, pq2)
         self.assertEqual(count2, 1)
         self.assertEqual(entries2[0].id, self.e2.id)
+
+        # Term in link URL
+        pq3 = SearchParser.parse("github.com")
+        entries3, count3 = SearchQueryBuilder.execute_search(self.session, pq3)
+        self.assertEqual(count3, 1)
+        self.assertEqual(entries3[0].id, self.e3.id)
+
+        # Term in tags by default
+        self.entry_repo.set_tags(self.e3.id, ["github-source", "devtools"])
+        pq4 = SearchParser.parse("devtools")
+        entries4, count4 = SearchQueryBuilder.execute_search(self.session, pq4)
+        self.assertEqual(count4, 1)
+        self.assertEqual(entries4[0].id, self.e3.id)
+
+        # Hash-prefixed term matching tag by default
+        pq5 = SearchParser.parse("#devtools")
+        entries5, count5 = SearchQueryBuilder.execute_search(self.session, pq5)
+        self.assertEqual(count5, 1)
+        self.assertEqual(entries5[0].id, self.e3.id)
 
     def test_search_exact_vs_like(self):
         """Verifies '=' (LIKE) vs '==' (exact match)."""

@@ -306,11 +306,16 @@ There are several list styles:
  - Search expressions are translated to the underlying database format.
     -- SQLite databases use SQLite search capabilities.
     -- JSON databases provide equivalent search behavior where possible.
+ - Free-text search matches entry title, description, link URL, and tags (EntryCompactedTags) by default.
  - Search can match the entry title.
  - Search can match the entry description.
+ - Search can match the entry link URL.
+ - Search can match entry tags.
  - Search can support expressions such as:
  - title LIKE '%something%'
  - description LIKE '%something%'
+ - link LIKE '%something%'
+ - tag LIKE '%something%'
  - Search implementation should use appropriate SQLite indexes where possible.
  - The search implementation should support large databases efficiently.
  - provide ability to support order (at least) by
