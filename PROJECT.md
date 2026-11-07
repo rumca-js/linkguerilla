@@ -303,6 +303,7 @@ There are several list styles:
  - Implement search input translation layer. Search should also support following operators:
     -- "=" acts like LIKE Sql operator. E.g. title=youtube shall find all entries with youtube in title
     -- "==" expects right argument to match. E.g. title==youtube shall find all entries with title exactly as youtube
+    -- ">", "<", ">=", "<=" comparison operators for numeric fields (e.g. page_rating_votes > 0, votes >= 10, visits < 5)
  - Search expressions are translated to the underlying database format.
     -- SQLite databases use SQLite search capabilities.
     -- JSON databases provide equivalent search behavior where possible.

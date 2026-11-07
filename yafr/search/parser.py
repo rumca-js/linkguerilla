@@ -10,7 +10,7 @@ from dataclasses import dataclass, field
 import logging
 import re
 import shlex
-from typing import List, Optional
+from typing import List, Optional, Tuple
 
 logger = logging.getLogger(__name__)
 
@@ -31,6 +31,25 @@ FIELD_ALIASES = {
     "bookmark": "bookmarked",
     "bookmarked": "bookmarked",
     "bookmarks": "bookmarked",
+    "votes": "page_rating_votes",
+    "page_rating_votes": "page_rating_votes",
+    "rating": "page_rating",
+    "page_rating": "page_rating",
+    "visits": "page_rating_visits",
+    "page_rating_visits": "page_rating_visits",
+    "age": "age",
+    "age_limit": "age",
+    "followers_count": "followers_count",
+    "followers": "followers_count",
+    "socialdata_followers": "followers_count",
+    "socialdata_followers_count": "followers_count",
+    "view_count": "view_count",
+    "views": "view_count",
+    "socialdata_views": "view_count",
+    "stars": "stars",
+    "socialdata_stars": "stars",
+    "thumbs_up": "thumbs_up",
+    "thumbs_down": "thumbs_down",
 }
 
 ORDER_DIRECTIVES = ("order:", "sort:")
@@ -78,6 +97,9 @@ class SearchParser:
     Lexer and parser that translates user search syntax into a structured AST.
     """
 
+    OPERATORS = (">=", "<=", "==", ">", "<", "=", ":")
+    COMPARISON_OPERATORS = (">=", "<=", "==", ">", "<")
+
     @classmethod
     def parse(cls, raw_query: Optional[str]) -> ParsedQuery:
         """
@@ -91,86 +113,149 @@ class SearchParser:
 
         cleaned = raw_query.strip()
         tokens = cls._tokenize(cleaned)
+        merged_tokens = cls._merge_operator_tokens(tokens)
 
         clauses: List[SearchClause] = []
         explicit_order: Optional[str] = None
 
-        for token in tokens:
+        for token in merged_tokens:
             if not token:
                 continue
 
-            # Check for ordering directives: order:votes, sort:published
-            lower_token = token.lower()
-            if any(lower_token.startswith(prefix) for prefix in ORDER_DIRECTIVES):
-                prefix_len = 6 if lower_token.startswith("order:") else 5
-                explicit_order = token[prefix_len:].strip().lower()
+            order = cls._extract_order_directive(token)
+            if order is not None:
+                explicit_order = order
                 continue
 
-            # Check for negation prefix: -term, !term, -field=val, !field=val
-            negated = False
-            if token.startswith("-") and len(token) > 1:
-                negated = True
-                token = token[1:]
-            elif token.startswith("!") and len(token) > 1:
-                negated = True
-                token = token[1:]
-
-            # Check for exact match operator '=='
-            if "==" in token:
-                parts = token.split("==", 1)
-                field_name = parts[0].strip().lower()
-                val = parts[1].strip()
-                canonical_field = FIELD_ALIASES.get(field_name, field_name)
-                clauses.append(
-                    SearchClause(
-                        field=canonical_field,
-                        operator="==",
-                        value=val,
-                        negated=negated,
-                    )
-                )
-                continue
-
-            # Check for substring match operator '=' or ':'
-            has_single_eq = "=" in token
-            has_colon = (
-                ":" in token
-                and not token.startswith("http://")
-                and not token.startswith("https://")
-            )
-
-            if has_single_eq or has_colon:
-                separator = "=" if has_single_eq else ":"
-                parts = token.split(separator, 1)
-                field_name = parts[0].strip().lower()
-                val = parts[1].strip()
-
-                if field_name in FIELD_ALIASES:
-                    canonical_field = FIELD_ALIASES[field_name]
-                    clauses.append(
-                        SearchClause(
-                            field=canonical_field,
-                            operator="=",
-                            value=val,
-                            negated=negated,
-                        )
-                    )
-                    continue
-
-            # Free-text token (matches title or description)
-            clauses.append(
-                SearchClause(
-                    field=None,
-                    operator="=",
-                    value=token,
-                    negated=negated,
-                )
-            )
+            clause = cls._parse_token(token)
+            if clause is not None:
+                clauses.append(clause)
 
         return ParsedQuery(
             raw_query=cleaned,
             clauses=clauses,
             order_by=explicit_order,
+        )
+
+    @classmethod
+    def _merge_operator_tokens(cls, tokens: List[str]) -> List[str]:
+        """
+        Merges comparison operator tokens that were split by whitespace
+        (e.g. ['page_rating_votes', '>', '0'] -> 'page_rating_votes>0').
+        """
+        merged: List[str] = []
+        i = 0
+        while i < len(tokens):
+            tok = tokens[i]
+            # Case 1: [field, op, val]
+            if i + 2 < len(tokens) and tokens[i + 1] in cls.OPERATORS:
+                merged.append(f"{tok}{tokens[i + 1]}{tokens[i + 2]}")
+                i += 3
+            # Case 2: [field, op+val]
+            elif i + 1 < len(tokens) and any(tokens[i + 1].startswith(op) for op in cls.OPERATORS):
+                merged.append(f"{tok}{tokens[i + 1]}")
+                i += 2
+            # Case 3: [field+op, val]
+            elif any(tok.endswith(op) for op in cls.OPERATORS) and i + 1 < len(tokens):
+                merged.append(f"{tok}{tokens[i + 1]}")
+                i += 2
+            else:
+                merged.append(tok)
+                i += 1
+        return merged
+
+    @classmethod
+    def _extract_order_directive(cls, token: str) -> Optional[str]:
+        """
+        Extracts an ordering directive (e.g. 'order:votes', 'sort:published'), or None.
+        """
+        lower = token.lower()
+        for prefix in ORDER_DIRECTIVES:
+            if lower.startswith(prefix):
+                return token[len(prefix):].strip().lower()
+        return None
+
+    @classmethod
+    def _strip_negation(cls, token: str) -> Tuple[bool, str]:
+        """
+        Checks for and strips leading '-' or '!' negation prefixes.
+        """
+        if (token.startswith("-") or token.startswith("!")) and len(token) > 1:
+            return True, token[1:]
+        return False, token
+
+    @classmethod
+    def _parse_comparison(cls, token: str, negated: bool) -> Optional[SearchClause]:
+        """
+        Attempts to parse comparison operators (>=, <=, ==, >, <).
+        """
+        for op in cls.COMPARISON_OPERATORS:
+            if op in token:
+                parts = token.split(op, 1)
+                cand_field = parts[0].strip().lower()
+                if cand_field and (cand_field in FIELD_ALIASES or "_" in cand_field):
+                    val = parts[1].strip()
+                    canonical_field = FIELD_ALIASES.get(cand_field, cand_field)
+                    return SearchClause(
+                        field=canonical_field,
+                        operator=op,
+                        value=val,
+                        negated=negated,
+                    )
+        return None
+
+    @classmethod
+    def _parse_equality(cls, token: str, negated: bool) -> Optional[SearchClause]:
+        """
+        Attempts to parse substring/exact match operators ('=' or ':').
+        """
+        has_single_eq = "=" in token
+        has_colon = (
+            ":" in token
+            and not token.startswith("http://")
+            and not token.startswith("https://")
+        )
+        if not (has_single_eq or has_colon):
+            return None
+
+        separator = "=" if has_single_eq else ":"
+        parts = token.split(separator, 1)
+        field_name = parts[0].strip().lower()
+        val = parts[1].strip()
+
+        if field_name in FIELD_ALIASES or "_" in field_name:
+            canonical_field = FIELD_ALIASES.get(field_name, field_name)
+            return SearchClause(
+                field=canonical_field,
+                operator="=",
+                value=val,
+                negated=negated,
+            )
+        return None
+
+    @classmethod
+    def _parse_token(cls, token: str) -> Optional[SearchClause]:
+        """
+        Parses a single token into a SearchClause.
+        """
+        negated, core_token = cls._strip_negation(token)
+
+        # 1. Try comparison operators (>=, <=, ==, >, <)
+        comp_clause = cls._parse_comparison(core_token, negated)
+        if comp_clause is not None:
+            return comp_clause
+
+        # 2. Try equality/LIKE operators (=, :)
+        eq_clause = cls._parse_equality(core_token, negated)
+        if eq_clause is not None:
+            return eq_clause
+
+        # 3. Fallback to free-text search token
+        return SearchClause(
+            field=None,
+            operator="=",
+            value=core_token,
+            negated=negated,
         )
 
     @classmethod

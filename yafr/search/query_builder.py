@@ -152,93 +152,182 @@ class SearchQueryBuilder:
         """
         Applies search token predicates to the query statement.
         """
+        joined_social = False
         for clause in clauses:
-            field_name = clause.field
-            val = clause.value.strip()
-            if not val:
-                continue
+            stmt, joined_social = cls._apply_single_clause(
+                stmt, clause, joined_social
+            )
+        return stmt
 
-            # Free-text search: matches title, description, link, or associated tags by default
-            # DEFAULT search values
-            if field_name is None:
-                clean_tag_val = val.lstrip("#").lower()
-                tag_subquery = select(EntryCompactedTags.entry_id).where(
-                    EntryCompactedTags.tag.ilike(f"%{clean_tag_val}%")
+    @classmethod
+    def _apply_single_clause(
+        cls, stmt: Select, clause: SearchClause, joined_social: bool
+    ) -> Tuple[Select, bool]:
+        """
+        Routes and applies a single SearchClause to the Select statement.
+        """
+        field_name = clause.field
+        val = clause.value.strip()
+        if not val:
+            return stmt, joined_social
+
+        # Free-text search: matches title, description, link, or associated tags by default
+        if field_name is None:
+            return (
+                cls._apply_free_text_clause(stmt, val, clause.negated),
+                joined_social,
+            )
+
+        # Tag search (subquery on EntryCompactedTags)
+        if field_name == "tag":
+            return (
+                cls._apply_tag_clause(stmt, val, clause.operator, clause.negated),
+                joined_social,
+            )
+
+        # Status search
+        if field_name == "status":
+            cond = cls._build_status_condition(val)
+            if cond is not None:
+                if clause.negated:
+                    cond = ~cond
+                stmt = stmt.where(cond)
+            return stmt, joined_social
+
+        # Bookmarked search
+        if field_name == "bookmarked":
+            cond = cls._build_bookmarked_condition(val)
+            if clause.negated:
+                cond = ~cond
+            return stmt.where(cond), joined_social
+
+        # Standard columns on LinkDataModel
+        if hasattr(LinkDataModel, field_name):
+            column = getattr(LinkDataModel, field_name)
+            cond = cls._build_comparison_condition(
+                column, clause.operator, val, fallback_ilike=True
+            )
+            if clause.negated:
+                cond = ~cond
+            return stmt.where(cond), joined_social
+
+        # SocialData columns
+        if (social_col := cls._resolve_social_column(field_name)) is not None:
+            if not joined_social:
+                stmt = stmt.outerjoin(
+                    SocialData, SocialData.entry_id == LinkDataModel.id
                 )
-                condition = or_(
-                    LinkDataModel.title.ilike(f"%{val}%"),
-                    LinkDataModel.description.ilike(f"%{val}%"),
-                    LinkDataModel.link.ilike(f"%{val}%"),
-                    LinkDataModel.id.in_(tag_subquery),
-                )
-                if clause.negated:
-                    condition = ~condition
-                stmt = stmt.where(condition)
-                continue
+                joined_social = True
 
-            # Tag search (subquery on EntryCompactedTags)
-            if field_name == "tag":
-                clean_tag = val.lstrip("#").lower()
-                if clause.operator == "==":
-                    tag_stmt = select(EntryCompactedTags.entry_id).where(
-                        EntryCompactedTags.tag == clean_tag
-                    )
-                else:
-                    tag_stmt = select(EntryCompactedTags.entry_id).where(
-                        EntryCompactedTags.tag.ilike(f"%{clean_tag}%")
-                    )
+            cond = cls._build_comparison_condition(
+                social_col, clause.operator, val, fallback_ilike=False
+            )
+            if clause.negated:
+                cond = ~cond
+            return stmt.where(cond), joined_social
 
-                if clause.negated:
-                    stmt = stmt.where(LinkDataModel.id.not_in(tag_stmt))
-                else:
-                    stmt = stmt.where(LinkDataModel.id.in_(tag_stmt))
-                continue
+        return stmt, joined_social
 
-            # Status search
-            if field_name == "status":
-                if val.lower() == "active":
-                    cond = LinkDataModel.manual_status_code == 200
-                elif val.lower() == "dead":
-                    cond = or_(
-                        LinkDataModel.manual_status_code == 400,
-                        LinkDataModel.status_code >= 400,
-                    )
-                else:
-                    try:
-                        code = int(val)
-                        cond = or_(
-                            LinkDataModel.manual_status_code == code,
-                            LinkDataModel.status_code == code,
-                        )
-                    except ValueError:
-                        continue
+    @classmethod
+    def _apply_free_text_clause(
+        cls, stmt: Select, val: str, negated: bool
+    ) -> Select:
+        """
+        Applies a free-text search clause matching title, description, link, or tag.
+        """
+        clean_tag_val = val.lstrip("#").lower()
+        tag_subquery = select(EntryCompactedTags.entry_id).where(
+            EntryCompactedTags.tag.ilike(f"%{clean_tag_val}%")
+        )
+        condition = or_(
+            LinkDataModel.title.ilike(f"%{val}%"),
+            LinkDataModel.description.ilike(f"%{val}%"),
+            LinkDataModel.link.ilike(f"%{val}%"),
+            LinkDataModel.id.in_(tag_subquery),
+        )
+        if negated:
+            condition = ~condition
+        return stmt.where(condition)
 
-                if clause.negated:
-                    cond = ~cond
-                stmt = stmt.where(cond)
-                continue
+    @classmethod
+    def _apply_tag_clause(
+        cls, stmt: Select, val: str, operator: str, negated: bool
+    ) -> Select:
+        """
+        Applies a tag search clause using EntryCompactedTags subquery.
+        """
+        clean_tag = val.lstrip("#").lower()
+        if operator == "==":
+            tag_stmt = select(EntryCompactedTags.entry_id).where(
+                EntryCompactedTags.tag == clean_tag
+            )
+        else:
+            tag_stmt = select(EntryCompactedTags.entry_id).where(
+                EntryCompactedTags.tag.ilike(f"%{clean_tag}%")
+            )
 
-            # Bookmarked search
-            if field_name == "bookmarked":
-                val_lower = val.lower()
-                is_true = val_lower in ("true", "1", "yes")
-                cond = LinkDataModel.bookmarked == is_true
-                if clause.negated:
-                    cond = ~cond
-                stmt = stmt.where(cond)
-                continue
+        if negated:
+            return stmt.where(LinkDataModel.id.not_in(tag_stmt))
+        return stmt.where(LinkDataModel.id.in_(tag_stmt))
 
-            # Standard string columns: title, description, link, author, language
-            if hasattr(LinkDataModel, field_name):
-                column = getattr(LinkDataModel, field_name)
-                if clause.operator == "==":
-                    cond = column == val
-                else:
-                    cond = column.ilike(f"%{val}%")
+    @classmethod
+    def _build_status_condition(cls, val: str):
+        """
+        Builds a condition for HTTP or manual status codes ('active', 'dead', or integer code).
+        """
+        val_lower = val.lower()
+        if val_lower == "active":
+            return LinkDataModel.manual_status_code == 200
+        if val_lower == "dead":
+            return or_(
+                LinkDataModel.manual_status_code == 400,
+                LinkDataModel.status_code >= 400,
+            )
+        try:
+            code = int(val)
+            return or_(
+                LinkDataModel.manual_status_code == code,
+                LinkDataModel.status_code == code,
+            )
+        except ValueError:
+            return None
 
-                if clause.negated:
-                    cond = ~cond
-                stmt = stmt.where(cond)
+    @classmethod
+    def _build_bookmarked_condition(cls, val: str):
+        """
+        Builds a boolean condition for the bookmarked flag.
+        """
+        is_true = val.lower() in ("true", "1", "yes")
+        return LinkDataModel.bookmarked == is_true
+
+    @classmethod
+    def _build_comparison_condition(
+        cls, column, operator: str, val: str, fallback_ilike: bool = True
+    ):
+        """
+        Builds a column comparison condition supporting relational operators (>, <, >=, <=, ==)
+        and substring/exact fallback.
+        """
+        if operator in (">", "<", ">=", "<="):
+            try:
+                num_val = float(val) if "." in val else int(val)
+            except ValueError:
+                num_val = val
+
+            if operator == ">":
+                return column > num_val
+            elif operator == "<":
+                return column < num_val
+            elif operator == ">=":
+                return column >= num_val
+            elif operator == "<=":
+                return column <= num_val
+        elif operator == "==":
+            return column == val
+        elif fallback_ilike:
+            return column.ilike(f"%{val}%")
+        else:
+            return column == val
 
         return stmt
 

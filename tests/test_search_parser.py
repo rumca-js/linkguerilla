@@ -100,6 +100,37 @@ class TestSearchParser(unittest.TestCase):
         self.assertEqual(len(query2.clauses), 1)
         self.assertEqual(query2.order_by, "published")
 
+    def test_comparison_operators(self):
+        """Verifies parsing of >, <, >=, <= comparison operators with and without spaces."""
+        q1 = SearchParser.parse("page_rating_votes>0")
+        self.assertEqual(len(q1.clauses), 1)
+        self.assertEqual(q1.clauses[0].field, "page_rating_votes")
+        self.assertEqual(q1.clauses[0].operator, ">")
+        self.assertEqual(q1.clauses[0].value, "0")
+
+        # Spaced comparison: page_rating_votes > 0
+        q2 = SearchParser.parse("page_rating_votes > 0")
+        self.assertEqual(len(q2.clauses), 1)
+        self.assertEqual(q2.clauses[0].field, "page_rating_votes")
+        self.assertEqual(q2.clauses[0].operator, ">")
+        self.assertEqual(q2.clauses[0].value, "0")
+
+        # Alias votes >= 10
+        q3 = SearchParser.parse("votes >= 10")
+        self.assertEqual(len(q3.clauses), 1)
+        self.assertEqual(q3.clauses[0].field, "page_rating_votes")
+        self.assertEqual(q3.clauses[0].operator, ">=")
+        self.assertEqual(q3.clauses[0].value, "10")
+
+        # Multi-clause with comparisons
+        q4 = SearchParser.parse("tag=news page_rating_votes > 0 bookmarked=True")
+        self.assertEqual(len(q4.clauses), 3)
+        self.assertEqual(q4.clauses[0].field, "tag")
+        self.assertEqual(q4.clauses[1].field, "page_rating_votes")
+        self.assertEqual(q4.clauses[1].operator, ">")
+        self.assertEqual(q4.clauses[1].value, "0")
+        self.assertEqual(q4.clauses[2].field, "bookmarked")
+
     def test_unclosed_quotes_resilience(self):
         """Verifies that an unclosed quote does not crash the parser."""
         query = SearchParser.parse('title="unclosed quote test')
@@ -288,6 +319,46 @@ class TestSearchQueryBuilder(unittest.TestCase):
         entries3, _ = SearchQueryBuilder.execute_search(self.session, pq3)
         self.assertEqual(entries3[0].id, self.e2.id)
         self.assertEqual(entries3[1].id, self.e1.id)
+
+    def test_filter_numeric_comparisons(self):
+        """Verifies filtering by numeric comparisons like page_rating_votes > 0."""
+        # e1 has 50 votes, e2 has 90 votes, e3 has 0 / None votes
+
+        # 1. page_rating_votes > 0 matches e1 (50) and e2 (90)
+        pq1 = SearchParser.parse("page_rating_votes > 0")
+        entries1, count1 = SearchQueryBuilder.execute_search(self.session, pq1)
+        self.assertEqual(count1, 2)
+        matched_ids1 = {e.id for e in entries1}
+        self.assertIn(self.e1.id, matched_ids1)
+        self.assertIn(self.e2.id, matched_ids1)
+        self.assertNotIn(self.e3.id, matched_ids1)
+
+        # 2. Compact alias votes>60 matches only e2 (90)
+        pq2 = SearchParser.parse("votes>60")
+        entries2, count2 = SearchQueryBuilder.execute_search(self.session, pq2)
+        self.assertEqual(count2, 1)
+        self.assertEqual(entries2[0].id, self.e2.id)
+
+        # 3. votes <= 50 matches e1 (50) and e3 (0), but not e2 (90)
+        pq3 = SearchParser.parse("votes <= 50")
+        entries3, count3 = SearchQueryBuilder.execute_search(self.session, pq3)
+        self.assertEqual(count3, 2)
+        matched_ids3 = {e.id for e in entries3}
+        self.assertIn(self.e1.id, matched_ids3)
+        self.assertIn(self.e3.id, matched_ids3)
+        self.assertNotIn(self.e2.id, matched_ids3)
+
+        # 4. votes >= 90 matches only e2 (90)
+        pq_ge = SearchParser.parse("votes >= 90")
+        entries_ge, count_ge = SearchQueryBuilder.execute_search(self.session, pq_ge)
+        self.assertEqual(count_ge, 1)
+        self.assertEqual(entries_ge[0].id, self.e2.id)
+
+        # 5. Multi-condition: tag=python page_rating_votes > 0 matches e1
+        pq4 = SearchParser.parse("tag=python page_rating_votes > 0")
+        entries4, count4 = SearchQueryBuilder.execute_search(self.session, pq4)
+        self.assertEqual(count4, 1)
+        self.assertEqual(entries4[0].id, self.e1.id)
 
 
 class TestFilterRegistry(unittest.TestCase):
