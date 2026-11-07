@@ -222,4 +222,174 @@ document.addEventListener("DOMContentLoaded", function () {
       },
     });
   });
+
+  // 5. Alter Column Default Feature
+  function loadTablesDropdown(selectedTable) {
+    var tableSelect = $("#alter-table-select");
+    tableSelect.html('<option value="" disabled selected>Loading tables...</option>');
+
+    $.ajax({
+      url: "/api/database/tables",
+      type: "GET",
+      dataType: "json",
+      success: function (resp) {
+        if (resp.success && resp.tables) {
+          tableSelect.empty();
+          tableSelect.append('<option value="" disabled selected>Select a table...</option>');
+          $.each(resp.tables, function (_, tbl) {
+            tableSelect.append(
+              $("<option></option>")
+                .attr("value", tbl.name)
+                .text(tbl.name + " (" + (tbl.row_count || 0).toLocaleString() + " rows)")
+            );
+          });
+          if (selectedTable) {
+            tableSelect.val(selectedTable).trigger("change");
+          }
+        }
+      },
+      error: function () {
+        tableSelect.html('<option value="" disabled selected>Failed to load tables</option>');
+      },
+    });
+  }
+
+  // Open modal from header or row button
+  $("#open-alter-column-btn").on("click", function () {
+    loadTablesDropdown();
+  });
+
+  $(document).on("click", ".btn-alter-table-col", function () {
+    var targetTable = $(this).data("table");
+    loadTablesDropdown(targetTable);
+    var modalEl = document.getElementById("alterColumnModal");
+    var modal = bootstrap.Modal.getInstance(modalEl) || new bootstrap.Modal(modalEl);
+    modal.show();
+  });
+
+  // Table selection changed -> load columns
+  $("#alter-table-select").on("change", function () {
+    var tableName = $(this).val();
+    var colSelect = $("#alter-column-select");
+    var helpText = $("#column-details-help");
+
+    helpText.text("");
+    colSelect.prop("disabled", true).html('<option value="" disabled selected>Loading columns...</option>');
+
+    $.ajax({
+      url: "/api/database/tables/" + encodeURIComponent(tableName) + "/columns",
+      type: "GET",
+      dataType: "json",
+      success: function (resp) {
+        if (resp.success && resp.columns) {
+          colSelect.empty();
+          colSelect.append('<option value="" disabled selected>Select a column...</option>');
+          $.each(resp.columns, function (_, col) {
+            var opt = $("<option></option>")
+              .attr("value", col.name)
+              .attr("data-type", col.type)
+              .attr("data-default", col.default !== null ? col.default : "")
+              .attr("data-nullable", col.nullable ? "1" : "0")
+              .text(col.name + " (" + col.type + ")");
+            colSelect.append(opt);
+          });
+          colSelect.prop("disabled", false);
+        }
+      },
+      error: function () {
+        colSelect.html('<option value="" disabled selected>Failed to load columns</option>');
+      },
+    });
+  });
+
+  // Column selection changed -> show current metadata & prefill default
+  $("#alter-column-select").on("change", function () {
+    var selectedOpt = $(this).find("option:selected");
+    var colType = selectedOpt.data("type") || "";
+    var currentDefault = selectedOpt.data("default");
+    var nullable = selectedOpt.data("nullable") === "1" ? "Nullable" : "NOT NULL";
+
+    var info = "Type: " + colType + " | " + nullable;
+    if (currentDefault !== "" && currentDefault !== undefined) {
+      info += " | Current default: " + currentDefault;
+      $("#alter-default-input").val(currentDefault);
+    } else {
+      info += " | Current default: (none / NULL)";
+      $("#alter-default-input").val("");
+    }
+    $("#column-details-help").text(info);
+  });
+
+  // Submit Alter Column Form
+  $("#alter-column-form").on("submit", function (e) {
+    e.preventDefault();
+    var submitBtn = $("#alter-column-submit-btn");
+    var alertBox = $("#alter-column-alert");
+    var tableName = $("#alter-table-select").val();
+    var columnName = $("#alter-column-select").val();
+    var defaultValue = $("#alter-default-input").val();
+    var backfill = $("#alter-backfill-check").is(":checked");
+
+    if (!tableName || !columnName) {
+      alertBox
+        .removeClass("d-none alert-success")
+        .addClass("alert-danger")
+        .text("Please select both a table and a column.");
+      return;
+    }
+
+    submitBtn.prop("disabled", true).html(
+      '<span class="spinner-border spinner-border-sm me-1" role="status"></span>Updating...'
+    );
+    alertBox.addClass("d-none");
+
+    $.ajax({
+      url: "/api/database/alter-column-default",
+      type: "POST",
+      contentType: "application/json",
+      data: JSON.stringify({
+        table: tableName,
+        column: columnName,
+        default_value: defaultValue,
+        backfill_existing: backfill,
+      }),
+      dataType: "json",
+      success: function (resp) {
+        if (resp.success) {
+          alertBox
+            .removeClass("d-none alert-danger")
+            .addClass("alert-success")
+            .html(
+              '<i class="bi bi-check-circle me-1"></i>' +
+              (resp.message || "Column updated successfully.") +
+              (resp.backfilled_count !== undefined
+                ? " (Backfilled rows: " + resp.backfilled_count + ")"
+                : "")
+            );
+          // Reload column info
+          $("#alter-table-select").trigger("change");
+        } else {
+          alertBox
+            .removeClass("d-none alert-success")
+            .addClass("alert-danger")
+            .text(resp.error || "Failed to alter column.");
+        }
+      },
+      error: function (xhr) {
+        var err = "Network error updating column default.";
+        if (xhr.responseJSON && xhr.responseJSON.error) {
+          err = xhr.responseJSON.error;
+        }
+        alertBox
+          .removeClass("d-none alert-success")
+          .addClass("alert-danger")
+          .text(err);
+      },
+      complete: function () {
+        submitBtn
+          .prop("disabled", false)
+          .html('<i class="bi bi-check-lg me-1"></i>Update Column');
+      },
+    });
+  });
 });

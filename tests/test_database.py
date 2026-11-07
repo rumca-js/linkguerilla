@@ -300,6 +300,71 @@ class TestDatabaseWebRoutes(unittest.TestCase):
         self.assertEqual(res.status_code, 200)
         self.assertTrue(res.get_json()["success"])
 
+    def test_api_tables_endpoint(self):
+        """GET /api/database/tables returns dynamically discovered tables."""
+        res = self.client.get("/api/database/tables")
+        self.assertEqual(res.status_code, 200)
+        data = res.get_json()
+        self.assertTrue(data["success"])
+        self.assertIsInstance(data["tables"], list)
+        table_names = [t["name"] for t in data["tables"]]
+        self.assertIn("linkdatamodel", table_names)
+        self.assertIn("sourcedatamodel", table_names)
+
+    def test_api_columns_endpoint(self):
+        """GET /api/database/tables/<table_name>/columns returns column details."""
+        res = self.client.get("/api/database/tables/linkdatamodel/columns")
+        self.assertEqual(res.status_code, 200)
+        data = res.get_json()
+        self.assertTrue(data["success"])
+        self.assertEqual(data["table"], "linkdatamodel")
+        self.assertIsInstance(data["columns"], list)
+        col_names = [c["name"] for c in data["columns"]]
+        self.assertIn("id", col_names)
+        self.assertIn("link", col_names)
+        self.assertIn("title", col_names)
+        self.assertIn("page_rating_votes", col_names)
+
+        # 404 for nonexistent table
+        res_404 = self.client.get("/api/database/tables/nonexistent_table/columns")
+        self.assertEqual(res_404.status_code, 404)
+
+    def test_api_alter_column_default(self):
+        """POST /api/database/alter-column-default alters column default and backfills NULLs."""
+        # Seed an entry in linkdatamodel with author=None
+        entry_repo = EntryRepository(self.session)
+        entry_repo.add_entry(link="https://example.com/test-author", title="Test Entry")
+
+        # 1. Validation error on missing fields
+        res_bad = self.client.post("/api/database/alter-column-default", json={})
+        self.assertEqual(res_bad.status_code, 400)
+
+        # 2. Alter column default on linkdatamodel.author with backfill
+        res = self.client.post(
+            "/api/database/alter-column-default",
+            json={
+                "table": "linkdatamodel",
+                "column": "author",
+                "default_value": "Anonymous",
+                "backfill_existing": True,
+            },
+        )
+        self.assertEqual(res.status_code, 200)
+        data = res.get_json()
+        self.assertTrue(data["success"])
+        self.assertEqual(data["column"], "author")
+        self.assertGreaterEqual(data["backfilled_count"], 1)
+
+        # Verify existing record was backfilled
+        from yafr.db.session import get_engine
+        from sqlalchemy import text
+
+        with get_engine().connect() as conn:
+            row = conn.execute(
+                text("SELECT author FROM linkdatamodel WHERE title='Test Entry'")
+            ).fetchone()
+            self.assertEqual(row[0], "Anonymous")
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -623,6 +623,56 @@ Following the project requirement to **"prefer having small server functions tha
   ```
 - **Offline Capable**: Yes.
 
+#### `GET /api/database/tables`
+- **Purpose**: Dynamically inspects and lists all available database tables with row counts.
+- **Response**:
+  ```json
+  {
+    "success": true,
+    "tables": [
+      { "name": "linkdatamodel", "row_count": 1420 },
+      { "name": "sourcedatamodel", "row_count": 12 }
+    ]
+  }
+  ```
+- **Offline Capable**: Yes.
+
+#### `GET /api/database/tables/<table_name>/columns`
+- **Purpose**: Dynamically returns column definitions, data types, nullability, and current default values for a table.
+- **Response**:
+  ```json
+  {
+    "success": true,
+    "table": "linkdatamodel",
+    "columns": [
+      { "name": "id", "type": "INTEGER", "primary_key": true, "nullable": false, "default": null },
+      { "name": "page_rating_votes", "type": "INTEGER", "primary_key": false, "nullable": true, "default": "0" }
+    ]
+  }
+  ```
+- **Offline Capable**: Yes.
+
+#### `POST /api/database/alter-column-default`
+- **Purpose**: Updates column default value and optionally backfills existing NULL rows.
+- **Request Body**:
+  ```json
+  {
+    "table": "linkdatamodel",
+    "column": "page_rating_votes",
+    "default_value": "0",
+    "backfill_existing": true
+  }
+  ```
+- **Response**:
+  ```json
+  {
+    "success": true,
+    "message": "Default value for column 'page_rating_votes' in table 'linkdatamodel' updated.",
+    "backfilled_count": 42
+  }
+  ```
+- **Offline Capable**: Yes.
+
 #### `POST /api/database/replace-from-url`
 - **Purpose**: Downloads a remote SQLite database file from a URL, validates integrity, and atomically swaps it with the current active database.
 - **Request Body**:

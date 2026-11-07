@@ -154,9 +154,7 @@ class SearchQueryBuilder:
         """
         joined_social = False
         for clause in clauses:
-            stmt, joined_social = cls._apply_single_clause(
-                stmt, clause, joined_social
-            )
+            stmt, joined_social = cls._apply_single_clause(stmt, clause, joined_social)
         return stmt
 
     @classmethod
@@ -229,9 +227,7 @@ class SearchQueryBuilder:
         return stmt, joined_social
 
     @classmethod
-    def _apply_free_text_clause(
-        cls, stmt: Select, val: str, negated: bool
-    ) -> Select:
+    def _apply_free_text_clause(cls, stmt: Select, val: str, negated: bool) -> Select:
         """
         Applies a free-text search clause matching title, description, link, or tag.
         """
@@ -410,7 +406,9 @@ class SearchQueryBuilder:
         elif normalized.startswith("socialdata_"):
             normalized = normalized[11:]
 
-        col_name = cls.SOCIAL_ORDER_ALIASES.get(normalized) or cls.SOCIAL_ORDER_ALIASES.get(clean_token)
+        col_name = cls.SOCIAL_ORDER_ALIASES.get(
+            normalized
+        ) or cls.SOCIAL_ORDER_ALIASES.get(clean_token)
         if col_name is not None and hasattr(SocialData, col_name):
             return getattr(SocialData, col_name)
         return None

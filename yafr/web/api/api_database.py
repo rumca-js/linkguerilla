@@ -221,3 +221,69 @@ def replace_from_url():
     except Exception as err:
         logger.error("Failed to replace database from URL: %s", err)
         return api_response(success=False, error=str(err), status_code=500)
+
+
+@api_database_bp.route("/tables", methods=["GET"])
+def get_tables():
+    """
+    Dynamically returns all discovered database tables with row counts and metadata.
+    """
+    try:
+        tables = DatabaseService.get_known_tables()
+        return jsonify({"success": True, "tables": tables})
+    except Exception as err:
+        logger.error("Failed to retrieve database tables: %s", err)
+        return api_response(success=False, error=str(err), status_code=500)
+
+
+@api_database_bp.route("/tables/<table_name>/columns", methods=["GET"])
+def get_columns(table_name: str):
+    """
+    Dynamically inspects and returns all columns of a specified table.
+    """
+    try:
+        columns = DatabaseService.get_table_columns(table_name)
+        return jsonify({"success": True, "table": table_name, "columns": columns})
+    except ValueError as val_err:
+        return api_response(success=False, error=str(val_err), status_code=404)
+    except Exception as err:
+        logger.error("Failed to retrieve columns for table %s: %s", table_name, err)
+        return api_response(success=False, error=str(err), status_code=500)
+
+
+@api_database_bp.route("/alter-column-default", methods=["POST"])
+def alter_column_default():
+    """
+    Modifies a column's default value constraint and optionally backfills existing NULL rows.
+    """
+    try:
+        payload = request.get_json(silent=True) or request.form.to_dict()
+        table_name = payload.get("table", "").strip()
+        column_name = payload.get("column", "").strip()
+        default_value = payload.get("default_value")
+        backfill_existing = payload.get("backfill_existing", True)
+
+        if isinstance(backfill_existing, str):
+            backfill_existing = backfill_existing.lower() in ("true", "1", "yes", "on")
+
+        if not table_name:
+            return api_response(
+                success=False, error="Target table name is required.", status_code=400
+            )
+        if not column_name:
+            return api_response(
+                success=False, error="Target column name is required.", status_code=400
+            )
+
+        result = DatabaseService.alter_column_default(
+            table_name=table_name,
+            column_name=column_name,
+            default_value=default_value,
+            backfill_existing=backfill_existing,
+        )
+        return jsonify(result)
+    except ValueError as val_err:
+        return api_response(success=False, error=str(val_err), status_code=400)
+    except Exception as err:
+        logger.error("Failed to alter column default: %s", err)
+        return api_response(success=False, error=str(err), status_code=500)

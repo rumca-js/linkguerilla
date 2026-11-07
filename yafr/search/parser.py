@@ -152,7 +152,9 @@ class SearchParser:
                 merged.append(f"{tok}{tokens[i + 1]}{tokens[i + 2]}")
                 i += 3
             # Case 2: [field, op+val]
-            elif i + 1 < len(tokens) and any(tokens[i + 1].startswith(op) for op in cls.OPERATORS):
+            elif i + 1 < len(tokens) and any(
+                tokens[i + 1].startswith(op) for op in cls.OPERATORS
+            ):
                 merged.append(f"{tok}{tokens[i + 1]}")
                 i += 2
             # Case 3: [field+op, val]
@@ -172,7 +174,7 @@ class SearchParser:
         lower = token.lower()
         for prefix in ORDER_DIRECTIVES:
             if lower.startswith(prefix):
-                return token[len(prefix):].strip().lower()
+                return token[len(prefix) :].strip().lower()
         return None
 
     @classmethod

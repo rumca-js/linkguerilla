@@ -449,3 +449,46 @@ class DatabaseService:
                 except Exception:
                     pass
             raise
+
+    @classmethod
+    def get_known_tables(cls) -> List[Dict[str, Any]]:
+        """
+        Dynamically returns all discovered database tables with row counts and metadata.
+        """
+        from yafr.services.schema_service import SchemaService
+
+        return SchemaService.get_tables(
+            engine=get_engine(), metadata_lookup=DATABASE_TABLE_METADATA
+        )
+
+    @classmethod
+    def get_table_columns(cls, table_name: str) -> List[Dict[str, Any]]:
+        """
+        Dynamically inspects and returns all columns of a specified table.
+        """
+        from yafr.services.schema_service import SchemaService
+
+        return SchemaService.get_table_columns(
+            table_name=table_name, engine=get_engine()
+        )
+
+    @classmethod
+    def alter_column_default(
+        cls,
+        table_name: str,
+        column_name: str,
+        default_value: Any,
+        backfill_existing: bool = True,
+    ) -> Dict[str, Any]:
+        """
+        Modifies a column's default value constraint and optionally backfills existing NULL rows.
+        """
+        from yafr.services.schema_service import SchemaService
+
+        return SchemaService.alter_column_default(
+            table_name=table_name,
+            column_name=column_name,
+            default_value=default_value,
+            backfill_existing=backfill_existing,
+            engine=get_engine(),
+        )

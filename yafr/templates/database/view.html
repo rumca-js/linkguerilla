@@ -29,6 +29,11 @@
             <i class="bi bi-pencil me-1"></i>Edit Name
           </button>
 
+          <!-- Alter Column Default Button -->
+          <button type="button" class="btn btn-outline-dark btn-sm rounded-pill px-3 shadow-sm" data-bs-toggle="modal" data-bs-target="#alterColumnModal" id="open-alter-column-btn">
+            <i class="bi bi-layout-text-window-reverse me-1"></i>Alter Column
+          </button>
+
           <!-- Replace Database from URL Button -->
           <button type="button" class="btn btn-primary btn-sm rounded-pill px-3 shadow-sm" data-bs-toggle="modal" data-bs-target="#replaceDbModal">
             <i class="bi bi-cloud-arrow-down me-1"></i>Replace Database
@@ -148,6 +153,7 @@
                 <th style="width: 180px;">Category</th>
                 <th>Description</th>
                 <th style="width: 130px;" class="text-end">Row Count</th>
+                <th style="width: 110px;" class="text-end">Actions</th>
               </tr>
             </thead>
             <tbody>
@@ -165,6 +171,11 @@
                     <span class="badge bg-primary-subtle text-primary border border-primary-subtle fs-6 font-monospace" id="table-count-{{ t.table_name }}">
                       {{ "{:,}".format(t.count) }}
                     </span>
+                  </td>
+                  <td class="text-end">
+                    <button type="button" class="btn btn-outline-secondary btn-sm rounded-pill px-2 py-0 btn-alter-table-col" data-table="{{ t.table_name }}" title="Alter column in {{ t.table_name }}">
+                      <i class="bi bi-gear me-1"></i>Alter
+                    </button>
                   </td>
                 </tr>
               {% endfor %}
@@ -466,6 +477,66 @@
           <i class="bi bi-trash me-1"></i>Clear Data
         </button>
       </div>
+    </div>
+  </div>
+</div>
+
+<!-- Modal: Alter Column Default -->
+<div class="modal fade" id="alterColumnModal" tabindex="-1" aria-labelledby="alterColumnModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content shadow">
+      <div class="modal-header">
+        <h5 class="modal-title text-dark d-flex align-items-center gap-2" id="alterColumnModalLabel">
+          <i class="bi bi-layout-text-window-reverse text-primary"></i>
+          <span>Alter Column Default Value</span>
+        </h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <form id="alter-column-form">
+        <div class="modal-body">
+          <p class="small text-muted mb-3">
+            Select a table and column to update its default value constraint and optionally backfill existing rows where the column is currently NULL.
+          </p>
+
+          <div class="mb-3">
+            <label for="alter-table-select" class="form-label small fw-semibold">Table <span class="text-danger">*</span></label>
+            <select class="form-select font-monospace small" id="alter-table-select" name="table" required>
+              <option value="" disabled selected>Select a table...</option>
+            </select>
+          </div>
+
+          <div class="mb-3">
+            <label for="alter-column-select" class="form-label small fw-semibold">Column <span class="text-danger">*</span></label>
+            <select class="form-select font-monospace small" id="alter-column-select" name="column" disabled required>
+              <option value="" disabled selected>Select a table first...</option>
+            </select>
+            <div id="column-details-help" class="form-text small text-muted"></div>
+          </div>
+
+          <div class="mb-3">
+            <label for="alter-default-input" class="form-label small fw-semibold">New Default Value</label>
+            <input type="text" class="form-control font-monospace small" id="alter-default-input" name="default_value" placeholder="e.g. 0, active, NULL">
+            <div class="form-text small">
+              Enter the default value (number, text, or <code>NULL</code>, <code>TRUE</code>, <code>FALSE</code>).
+            </div>
+          </div>
+
+          <div class="form-check mb-2">
+            <input class="form-check-input" type="checkbox" id="alter-backfill-check" name="backfill_existing" checked>
+            <label class="form-check-label small" for="alter-backfill-check">
+              Backfill existing rows (<code>UPDATE ... WHERE column IS NULL</code>)
+            </label>
+          </div>
+
+          <div id="alter-column-alert" class="alert small d-none mt-3 mb-0" role="alert"></div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary btn-sm rounded-pill" data-bs-dismiss="modal">Cancel</button>
+          <button type="submit" class="btn btn-primary btn-sm rounded-pill px-4" id="alter-column-submit-btn">
+            <i class="bi bi-check-lg me-1"></i>Update Column
+          </button>
+        </div>
+      </form>
     </div>
   </div>
 </div>
