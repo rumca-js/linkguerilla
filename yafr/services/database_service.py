@@ -478,10 +478,11 @@ class DatabaseService:
         table_name: str,
         column_name: str,
         default_value: Any,
+        nullable: Optional[bool] = None,
         backfill_existing: bool = True,
     ) -> Dict[str, Any]:
         """
-        Modifies a column's default value constraint and optionally backfills existing NULL rows.
+        Modifies a column's default value constraint and nullability, optionally backfilling NULL rows.
         """
         from yafr.services.schema_service import SchemaService
 
@@ -489,6 +490,7 @@ class DatabaseService:
             table_name=table_name,
             column_name=column_name,
             default_value=default_value,
+            nullable=nullable,
             backfill_existing=backfill_existing,
             engine=get_engine(),
         )

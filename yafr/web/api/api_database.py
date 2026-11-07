@@ -262,9 +262,20 @@ def alter_column_default():
         column_name = payload.get("column", "").strip()
         default_value = payload.get("default_value")
         backfill_existing = payload.get("backfill_existing", True)
+        nullable_param = payload.get("nullable")
 
         if isinstance(backfill_existing, str):
             backfill_existing = backfill_existing.lower() in ("true", "1", "yes", "on")
+
+        nullable = None
+        if nullable_param is not None:
+            if isinstance(nullable_param, str):
+                if nullable_param.lower() in ("true", "1", "yes", "nullable"):
+                    nullable = True
+                elif nullable_param.lower() in ("false", "0", "no", "not_null"):
+                    nullable = False
+            elif isinstance(nullable_param, bool):
+                nullable = nullable_param
 
         if not table_name:
             return api_response(
@@ -279,6 +290,7 @@ def alter_column_default():
             table_name=table_name,
             column_name=column_name,
             default_value=default_value,
+            nullable=nullable,
             backfill_existing=backfill_existing,
         )
         return jsonify(result)

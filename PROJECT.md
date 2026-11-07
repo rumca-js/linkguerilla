@@ -423,7 +423,7 @@ The screen displays, where available:
 - displays database information
 - Provides the following actions:
   -- Edit - edits display name of the database
-  -- Alter Column - opens dialog to update column default value and backfill existing NULL records
+  -- Alter Column - opens dialog to update column default value, nullability (NOT NULL), and backfill existing NULL records
 - Displays the database name.
 - Displays the database type.
 - Displays the local file information.

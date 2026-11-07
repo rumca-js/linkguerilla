@@ -307,9 +307,13 @@ document.addEventListener("DOMContentLoaded", function () {
     var selectedOpt = $(this).find("option:selected");
     var colType = selectedOpt.data("type") || "";
     var currentDefault = selectedOpt.data("default");
-    var nullable = selectedOpt.data("nullable") === "1" ? "Nullable" : "NOT NULL";
+    var isNullable = selectedOpt.data("nullable") === 1 || selectedOpt.data("nullable") === "1";
+    var nullableLabel = isNullable ? "Nullable" : "NOT NULL";
 
-    var info = "Type: " + colType + " | " + nullable;
+    // Set nullability select
+    $("#alter-nullable-select").val(isNullable ? "nullable" : "not_null");
+
+    var info = "Type: " + colType + " | " + nullableLabel;
     if (currentDefault !== "" && currentDefault !== undefined) {
       info += " | Current default: " + currentDefault;
       $("#alter-default-input").val(currentDefault);
@@ -329,6 +333,14 @@ document.addEventListener("DOMContentLoaded", function () {
     var columnName = $("#alter-column-select").val();
     var defaultValue = $("#alter-default-input").val();
     var backfill = $("#alter-backfill-check").is(":checked");
+    var nullableChoice = $("#alter-nullable-select").val();
+
+    var nullableParam = null;
+    if (nullableChoice === "nullable") {
+      nullableParam = true;
+    } else if (nullableChoice === "not_null") {
+      nullableParam = false;
+    }
 
     if (!tableName || !columnName) {
       alertBox
@@ -351,6 +363,7 @@ document.addEventListener("DOMContentLoaded", function () {
         table: tableName,
         column: columnName,
         default_value: defaultValue,
+        nullable: nullableParam,
         backfill_existing: backfill,
       }),
       dataType: "json",

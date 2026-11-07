@@ -98,12 +98,14 @@ class SchemaService:
         table_name: str,
         column_name: str,
         default_value: Any,
+        nullable: Optional[bool] = None,
         backfill_existing: bool = True,
         engine: Optional[Engine] = None,
     ) -> Dict[str, Any]:
         """
-        Modifies a column's default value constraint and optionally backfills existing NULL rows.
-        Uses SQLite safe table recreation to apply the constraint.
+        Modifies a column's default value constraint and nullability (NOT NULL),
+        optionally backfilling existing NULL rows.
+        Uses SQLite safe table recreation to apply the constraints.
         """
         eng = engine or get_engine()
         inspector = inspect(eng)
@@ -127,26 +129,45 @@ class SchemaService:
         # Format SQL literal and typed representation for backfill
         sql_default_literal, typed_value = cls._format_default_literal(val_str)
 
-        # 1. Rebuild SQLite Table with updated DEFAULT definition
-        cls._rebuild_sqlite_table_with_new_default(
-            eng, table_name, canonical_col_name, sql_default_literal
-        )
-
-        # 2. Backfill existing NULL records if requested
+        # 1. Backfill existing NULL records if requested or if column is becoming NOT NULL
         backfilled_count = 0
-        if backfill_existing and sql_default_literal != "NULL":
+        if (backfill_existing or nullable is False) and sql_default_literal != "NULL":
             with eng.begin() as conn:
                 stmt = text(
                     f"UPDATE {table_name} SET {canonical_col_name} = :val WHERE {canonical_col_name} IS NULL"
                 )
                 res = conn.execute(stmt, {"val": typed_value})
                 backfilled_count = res.rowcount or 0
+        elif nullable is False:
+            with eng.connect() as conn:
+                null_count = (
+                    conn.execute(
+                        text(
+                            f"SELECT COUNT(*) FROM {table_name} WHERE {canonical_col_name} IS NULL"
+                        )
+                    ).scalar()
+                    or 0
+                )
+                if null_count > 0:
+                    raise ValueError(
+                        f"Cannot set NOT NULL on column '{canonical_col_name}': {null_count} rows have NULL values and no default value was provided to backfill."
+                    )
+
+        # 2. Rebuild SQLite Table with updated DEFAULT and NOT NULL definition
+        cls._rebuild_sqlite_table_with_new_default(
+            eng,
+            table_name,
+            canonical_col_name,
+            sql_default_literal,
+            nullable=nullable,
+        )
 
         logger.info(
-            "Altered column '%s' on table '%s': new default=%s, backfilled=%d",
+            "Altered column '%s' on table '%s': new default=%s, nullable=%s, backfilled=%d",
             canonical_col_name,
             table_name,
             sql_default_literal,
+            nullable,
             backfilled_count,
         )
 
@@ -156,8 +177,9 @@ class SchemaService:
             "column": canonical_col_name,
             "default_value": val_str,
             "default_literal": sql_default_literal,
+            "nullable": nullable,
             "backfilled_count": backfilled_count,
-            "message": f"Default value for column '{canonical_col_name}' in table '{table_name}' updated successfully.",
+            "message": f"Column '{canonical_col_name}' in table '{table_name}' updated successfully.",
         }
 
     @classmethod
@@ -193,10 +215,15 @@ class SchemaService:
 
     @classmethod
     def _rebuild_sqlite_table_with_new_default(
-        cls, eng: Engine, table_name: str, column_name: str, default_literal: str
+        cls,
+        eng: Engine,
+        table_name: str,
+        column_name: str,
+        default_literal: str,
+        nullable: Optional[bool] = None,
     ) -> None:
         """
-        Performs atomic SQLite table recreation to alter column DEFAULT constraint.
+        Performs atomic SQLite table recreation to alter column DEFAULT constraint and nullability.
         """
         raw_conn = eng.raw_connection()
         try:
@@ -222,9 +249,9 @@ class SchemaService:
             )
             index_sqls = [r[0] for r in cur.fetchall()]
 
-            # Update DDL with new default
+            # Update DDL with new default and nullability
             new_ddl = cls._update_ddl_column_default(
-                original_ddl, column_name, default_literal
+                original_ddl, column_name, default_literal, nullable=nullable
             )
 
             tmp_table = f"_yafr_tmp_{table_name}"
@@ -256,10 +283,14 @@ class SchemaService:
 
     @classmethod
     def _update_ddl_column_default(
-        cls, ddl: str, column_name: str, default_literal: str
+        cls,
+        ddl: str,
+        column_name: str,
+        default_literal: str,
+        nullable: Optional[bool] = None,
     ) -> str:
         """
-        Parses CREATE TABLE DDL and updates the DEFAULT constraint for a column.
+        Parses CREATE TABLE DDL and updates the DEFAULT constraint and NOT NULL for a column.
         """
         start_idx = ddl.find("(")
         end_idx = ddl.rfind(")")
@@ -307,6 +338,16 @@ class SchemaService:
                     part,
                     flags=re.IGNORECASE,
                 )
+                if nullable is False:
+                    # Enforce NOT NULL
+                    if not re.search(r"\bNOT\s+NULL\b", cleaned, re.IGNORECASE):
+                        cleaned = f"{cleaned} NOT NULL"
+                elif nullable is True:
+                    # Remove NOT NULL
+                    cleaned = re.sub(
+                        r"\s+NOT\s+NULL\b", "", cleaned, flags=re.IGNORECASE
+                    )
+
                 if default_literal != "NULL":
                     new_parts.append(f"{cleaned} DEFAULT {default_literal}")
                 else:

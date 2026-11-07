@@ -514,6 +514,18 @@
           </div>
 
           <div class="mb-3">
+            <label for="alter-nullable-select" class="form-label small fw-semibold">Nullability Constraint</label>
+            <select class="form-select font-monospace small" id="alter-nullable-select" name="nullable">
+              <option value="keep">Keep Current</option>
+              <option value="nullable">Nullable (Allow NULL values)</option>
+              <option value="not_null">NOT NULL (Disallow NULL values)</option>
+            </select>
+            <div class="form-text small">
+              Enforce whether this column allows or rejects NULL records.
+            </div>
+          </div>
+
+          <div class="mb-3">
             <label for="alter-default-input" class="form-label small fw-semibold">New Default Value</label>
             <input type="text" class="form-control font-monospace small" id="alter-default-input" name="default_value" placeholder="e.g. 0, active, NULL">
             <div class="form-text small">

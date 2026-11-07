@@ -365,6 +365,41 @@ class TestDatabaseWebRoutes(unittest.TestCase):
             ).fetchone()
             self.assertEqual(row[0], "Anonymous")
 
+        # 3. Alter column to NOT NULL
+        res_not_null = self.client.post(
+            "/api/database/alter-column-default",
+            json={
+                "table": "linkdatamodel",
+                "column": "author",
+                "default_value": "Anonymous",
+                "nullable": False,
+                "backfill_existing": True,
+            },
+        )
+        self.assertEqual(res_not_null.status_code, 200)
+
+        # Verify column is now NOT NULL
+        cols_after = self.client.get("/api/database/tables/linkdatamodel/columns").get_json()["columns"]
+        author_col = next(c for c in cols_after if c["name"] == "author")
+        self.assertFalse(author_col["nullable"])
+
+        # 4. Alter column back to nullable
+        res_nullable = self.client.post(
+            "/api/database/alter-column-default",
+            json={
+                "table": "linkdatamodel",
+                "column": "author",
+                "default_value": "NULL",
+                "nullable": True,
+            },
+        )
+        self.assertEqual(res_nullable.status_code, 200)
+
+        # Verify column is now nullable
+        cols_final = self.client.get("/api/database/tables/linkdatamodel/columns").get_json()["columns"]
+        author_col_final = next(c for c in cols_final if c["name"] == "author")
+        self.assertTrue(author_col_final["nullable"])
+
 
 if __name__ == "__main__":
     unittest.main()
