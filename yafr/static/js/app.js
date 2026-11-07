@@ -144,4 +144,17 @@ document.addEventListener("DOMContentLoaded", function () {
 
   updateWorkerStatus();
   setInterval(updateWorkerStatus, 60000);
+
+  // 5. Global Bootstrap Popovers and Tooltips Initialization
+  if (typeof bootstrap !== "undefined") {
+    const popoverTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="popover"]'));
+    popoverTriggerList.forEach(function (popoverTriggerEl) {
+      new bootstrap.Popover(popoverTriggerEl, { sanitize: false });
+    });
+
+    const tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
+    tooltipTriggerList.forEach(function (tooltipTriggerEl) {
+      new bootstrap.Tooltip(tooltipTriggerEl);
+    });
+  }
 });

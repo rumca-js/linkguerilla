@@ -1,0 +1,80 @@
+{# 
+  Reusable Filter and Search Syntax Help Component.
+  Provides popover mouseover badges and expandable interactive suggestion chips
+  for filter statements and order-by clauses.
+#}
+
+{% macro filter_help_badge(title="Supported Filter Syntax", placement="top", badge_text="Filter Help") %}
+<span class="badge rounded-pill bg-info-subtle text-info border border-info-subtle cursor-pointer"
+      role="button"
+      tabindex="0"
+      data-bs-toggle="popover"
+      data-bs-placement="{{ placement }}"
+      data-bs-trigger="hover focus"
+      data-bs-html="true"
+      data-bs-title="{{ title }}"
+      data-bs-content="&lt;div class='small'&gt;&lt;strong class='d-block mb-1 text-primary'&gt;Multiple Conditions:&lt;/strong&gt;Separate terms by spaces; all conditions are joined with logical &lt;strong&gt;AND&lt;/strong&gt;.&lt;hr class='my-1'&gt;&lt;strong class='d-block mb-1 text-info'&gt;Filter Operators &amp; Fields:&lt;/strong&gt;&lt;ul class='ps-3 mb-1'&gt;&lt;li&gt;&lt;code&gt;tag=news&lt;/code&gt; (or &lt;code&gt;tag:news&lt;/code&gt;, &lt;code&gt;tags=...&lt;/code&gt;)&lt;/li&gt;&lt;li&gt;&lt;code&gt;bookmarked=True&lt;/code&gt; (or &lt;code&gt;bookmarked=False&lt;/code&gt;)&lt;/li&gt;&lt;li&gt;&lt;code&gt;status=active&lt;/code&gt; (or &lt;code&gt;status=dead&lt;/code&gt;, &lt;code&gt;status=200&lt;/code&gt;)&lt;/li&gt;&lt;li&gt;&lt;code&gt;title=python&lt;/code&gt; (substring LIKE) or &lt;code&gt;title==python&lt;/code&gt; (exact)&lt;/li&gt;&lt;li&gt;&lt;code&gt;desc=tutorial&lt;/code&gt; (or &lt;code&gt;description=...&lt;/code&gt;)&lt;/li&gt;&lt;li&gt;&lt;code&gt;author=dev&lt;/code&gt; (or &lt;code&gt;channel=...&lt;/code&gt;)&lt;/li&gt;&lt;li&gt;&lt;code&gt;lang=en&lt;/code&gt; (or &lt;code&gt;language=...&lt;/code&gt;)&lt;/li&gt;&lt;li&gt;&lt;code&gt;link=youtube&lt;/code&gt; (or &lt;code&gt;url=...&lt;/code&gt;)&lt;/li&gt;&lt;/ul&gt;&lt;hr class='my-1'&gt;&lt;strong class='d-block mb-1 text-secondary'&gt;Negation &amp; Quotes:&lt;/strong&gt;Prefix with &lt;code&gt;-&lt;/code&gt; or &lt;code&gt;!&lt;/code&gt; to invert (&lt;code&gt;-author=bot&lt;/code&gt;, &lt;code&gt;!tag=nsfw&lt;/code&gt;). Wrap multi-word phrases in quotes (&lt;code&gt;title=&amp;quot;deep learning&amp;quot;&lt;/code&gt;).&lt;/div&gt;">
+  <i class="bi bi-question-circle-fill me-1"></i>{{ badge_text }}
+</span>
+{% endmacro %}
+
+{% macro filter_suggestions_tray(container_id="filter-fields-container", target_input_id="sv_filter_statement", hidden=true) %}
+<div id="{{ container_id }}" class="mt-2 p-2 bg-body-tertiary rounded border small {% if hidden %}d-none{% endif %}">
+  <div class="d-flex align-items-center justify-content-between mb-1">
+    <span class="text-muted fw-semibold small"><i class="bi bi-cursor-fill me-1"></i>Click to append filter (hover for info):</span>
+  </div>
+  <div class="d-flex flex-wrap gap-1 align-items-center">
+    <span class="badge bg-primary-subtle text-primary me-1">Status &amp; Flags:</span>
+    <button type="button" class="btn btn-outline-primary btn-sm py-0 px-2 rounded-pill font-monospace filter-field-chip" data-filter="bookmarked=True" data-target="{{ target_input_id }}" data-bs-toggle="tooltip" title="Only include bookmarked entries">bookmarked=True</button>
+    <button type="button" class="btn btn-outline-primary btn-sm py-0 px-2 rounded-pill font-monospace filter-field-chip" data-filter="status=active" data-target="{{ target_input_id }}" data-bs-toggle="tooltip" title="Only include active HTTP 200 entries">status=active</button>
+    <button type="button" class="btn btn-outline-danger btn-sm py-0 px-2 rounded-pill font-monospace filter-field-chip" data-filter="status=dead" data-target="{{ target_input_id }}" data-bs-toggle="tooltip" title="Only include dead or unreachable entries (>=400)">status=dead</button>
+  </div>
+  <div class="d-flex flex-wrap gap-1 align-items-center mt-1 pt-1 border-top">
+    <span class="badge bg-secondary-subtle text-secondary me-1">Fields:</span>
+    <button type="button" class="btn btn-outline-secondary btn-sm py-0 px-2 rounded-pill font-monospace filter-field-chip" data-filter="tag=news" data-target="{{ target_input_id }}" data-bs-toggle="tooltip" title="Match entries with the tag 'news' (or -tag=nsfw to exclude)">tag=news</button>
+    <button type="button" class="btn btn-outline-secondary btn-sm py-0 px-2 rounded-pill font-monospace filter-field-chip" data-filter='title="phrase"' data-target="{{ target_input_id }}" data-bs-toggle="tooltip" title="Substring LIKE match in title (use title==... for exact)">title="phrase"</button>
+    <button type="button" class="btn btn-outline-secondary btn-sm py-0 px-2 rounded-pill font-monospace filter-field-chip" data-filter="author=dev" data-target="{{ target_input_id }}" data-bs-toggle="tooltip" title="Match author/channel name">author=dev</button>
+    <button type="button" class="btn btn-outline-secondary btn-sm py-0 px-2 rounded-pill font-monospace filter-field-chip" data-filter="lang=en" data-target="{{ target_input_id }}" data-bs-toggle="tooltip" title="Match language code (e.g. en, es)">lang=en</button>
+    <button type="button" class="btn btn-outline-secondary btn-sm py-0 px-2 rounded-pill font-monospace filter-field-chip" data-filter="link=youtube" data-target="{{ target_input_id }}" data-bs-toggle="tooltip" title="Substring match in entry URL">link=youtube</button>
+    <button type="button" class="btn btn-outline-warning btn-sm py-0 px-2 rounded-pill font-monospace filter-field-chip" data-filter="-tag=nsfw" data-target="{{ target_input_id }}" data-bs-toggle="tooltip" title="Exclude entries with tag 'nsfw' (negation)">-tag=nsfw</button>
+  </div>
+</div>
+{% endmacro %}
+
+{% macro order_help_badge(title="Supported Order By Fields", placement="top", badge_text="Field Help") %}
+<span class="badge rounded-pill bg-info-subtle text-info border border-info-subtle cursor-pointer"
+      role="button"
+      tabindex="0"
+      data-bs-toggle="popover"
+      data-bs-placement="{{ placement }}"
+      data-bs-trigger="hover focus"
+      data-bs-html="true"
+      data-bs-title="{{ title }}"
+      data-bs-content="&lt;div class='small'&gt;&lt;strong class='d-block mb-1 text-primary'&gt;Entry Fields:&lt;/strong&gt;&lt;code&gt;date_published&lt;/code&gt; (published), &lt;code&gt;date_created&lt;/code&gt; (created), &lt;code&gt;votes&lt;/code&gt; (page_rating_votes), &lt;code&gt;rating&lt;/code&gt; (page_rating), &lt;code&gt;visits&lt;/code&gt; (page_rating_visits), &lt;code&gt;link&lt;/code&gt;&lt;hr class='my-1'&gt;&lt;strong class='d-block mb-1 text-info'&gt;Social Data Fields:&lt;/strong&gt;&lt;code&gt;followers_count&lt;/code&gt; (followers, socialdata_followers), &lt;code&gt;view_count&lt;/code&gt; (views, socialdata_views), &lt;code&gt;stars&lt;/code&gt;, &lt;code&gt;thumbs_up&lt;/code&gt;, &lt;code&gt;thumbs_down&lt;/code&gt;, &lt;code&gt;upvote_ratio&lt;/code&gt;, &lt;code&gt;upvote_diff&lt;/code&gt;, &lt;code&gt;date_updated&lt;/code&gt;&lt;hr class='my-1'&gt;&lt;strong class='d-block mb-1 text-secondary'&gt;Syntax:&lt;/strong&gt;Prefix with &lt;code&gt;-&lt;/code&gt; for descending (e.g. &lt;code&gt;-followers_count&lt;/code&gt;), &lt;code&gt;+&lt;/code&gt; for ascending. Comma-separated for multiple fields.&lt;/div&gt;">
+  <i class="bi bi-question-circle-fill me-1"></i>{{ badge_text }}
+</span>
+{% endmacro %}
+
+{% macro order_suggestions_tray(container_id="order-fields-container", target_input_id="sv_order_by", hidden=true) %}
+<div id="{{ container_id }}" class="mt-2 p-2 bg-body-tertiary rounded border small {% if hidden %}d-none{% endif %}">
+  <div class="d-flex align-items-center justify-content-between mb-1">
+    <span class="text-muted fw-semibold small"><i class="bi bi-cursor-fill me-1"></i>Click to append field (hover for field info):</span>
+  </div>
+  <div class="d-flex flex-wrap gap-1 align-items-center">
+    <span class="badge bg-secondary-subtle text-secondary me-1">Entry:</span>
+    <button type="button" class="btn btn-outline-secondary btn-sm py-0 px-2 rounded-pill font-monospace order-field-chip" data-field="-date_published" data-target="{{ target_input_id }}" data-bs-toggle="tooltip" title="Publication date descending (newest first)">-date_published</button>
+    <button type="button" class="btn btn-outline-secondary btn-sm py-0 px-2 rounded-pill font-monospace order-field-chip" data-field="-date_created" data-target="{{ target_input_id }}" data-bs-toggle="tooltip" title="Creation/insertion date descending">-date_created</button>
+    <button type="button" class="btn btn-outline-secondary btn-sm py-0 px-2 rounded-pill font-monospace order-field-chip" data-field="-votes" data-target="{{ target_input_id }}" data-bs-toggle="tooltip" title="User vote rating descending">-votes</button>
+    <button type="button" class="btn btn-outline-secondary btn-sm py-0 px-2 rounded-pill font-monospace order-field-chip" data-field="-visits" data-target="{{ target_input_id }}" data-bs-toggle="tooltip" title="Page rating visit count descending">-visits</button>
+    <button type="button" class="btn btn-outline-secondary btn-sm py-0 px-2 rounded-pill font-monospace order-field-chip" data-field="link" data-target="{{ target_input_id }}" data-bs-toggle="tooltip" title="Link URL alphabetically ascending">link</button>
+  </div>
+  <div class="d-flex flex-wrap gap-1 align-items-center mt-1 pt-1 border-top">
+    <span class="badge bg-info-subtle text-info me-1">Social:</span>
+    <button type="button" class="btn btn-outline-info btn-sm py-0 px-2 rounded-pill font-monospace order-field-chip" data-field="-followers_count" data-target="{{ target_input_id }}" data-bs-toggle="tooltip" title="SocialData: Follower count descending (alias: socialdata_followers, followers)">-followers_count</button>
+    <button type="button" class="btn btn-outline-info btn-sm py-0 px-2 rounded-pill font-monospace order-field-chip" data-field="-view_count" data-target="{{ target_input_id }}" data-bs-toggle="tooltip" title="SocialData: Total view count descending (alias: socialdata_views, views)">-view_count</button>
+    <button type="button" class="btn btn-outline-info btn-sm py-0 px-2 rounded-pill font-monospace order-field-chip" data-field="-stars" data-target="{{ target_input_id }}" data-bs-toggle="tooltip" title="SocialData: Star rating count descending (alias: socialdata_stars)">-stars</button>
+    <button type="button" class="btn btn-outline-info btn-sm py-0 px-2 rounded-pill font-monospace order-field-chip" data-field="-thumbs_up" data-target="{{ target_input_id }}" data-bs-toggle="tooltip" title="SocialData: Thumbs up / upvote count descending">-thumbs_up</button>
+    <button type="button" class="btn btn-outline-info btn-sm py-0 px-2 rounded-pill font-monospace order-field-chip" data-field="-upvote_ratio" data-target="{{ target_input_id }}" data-bs-toggle="tooltip" title="SocialData: Upvote ratio descending (0.0 to 1.0)">-upvote_ratio</button>
+  </div>
+</div>
+{% endmacro %}

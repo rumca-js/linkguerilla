@@ -261,6 +261,34 @@ class TestSearchQueryBuilder(unittest.TestCase):
         )
         self.assertEqual(entries[0].id, self.e2.id)  # votes=90 first
 
+    def test_ordering_by_socialdata_followers(self):
+        """Verifies ordering by socialdata followers count using various aliases."""
+        from linkarchivetools.model.definitions import SocialData
+
+        # e1 has 100 followers, e2 has 5000 followers
+        s1 = SocialData(entry_id=self.e1.id, followers_count=100, view_count=50)
+        s2 = SocialData(entry_id=self.e2.id, followers_count=5000, view_count=2000)
+        self.session.add_all([s1, s2])
+        self.session.commit()
+
+        # Test -followers_count
+        pq1 = SearchParser.parse("order:-followers_count")
+        entries1, _ = SearchQueryBuilder.execute_search(self.session, pq1)
+        self.assertEqual(entries1[0].id, self.e2.id)
+        self.assertEqual(entries1[1].id, self.e1.id)
+
+        # Test -socialdata_followers (alias)
+        pq2 = SearchParser.parse("order:-socialdata_followers")
+        entries2, _ = SearchQueryBuilder.execute_search(self.session, pq2)
+        self.assertEqual(entries2[0].id, self.e2.id)
+        self.assertEqual(entries2[1].id, self.e1.id)
+
+        # Test -socialdata__followers_count
+        pq3 = SearchParser.parse("order:-socialdata__followers_count")
+        entries3, _ = SearchQueryBuilder.execute_search(self.session, pq3)
+        self.assertEqual(entries3[0].id, self.e2.id)
+        self.assertEqual(entries3[1].id, self.e1.id)
+
 
 class TestFilterRegistry(unittest.TestCase):
     """

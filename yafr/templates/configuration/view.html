@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% from "components/filter_help.html" import filter_help_badge, filter_suggestions_tray, order_help_badge, order_suggestions_tray %}
 
 {% block title %}{{ app_name }} - Configuration{% endblock %}
 
@@ -784,16 +785,38 @@
 
           <!-- Filter Statement -->
           <div class="mb-3">
-            <label for="sv_filter_statement" class="form-label fw-semibold">Filter Statement</label>
-            <input type="text" class="form-control font-monospace shadow-sm" id="sv_filter_statement" name="filter_statement" placeholder="e.g. tag=python bookmarked=True">
-            <div class="form-text">Same syntax as main search (e.g. <code>tag=news</code>, <code>title=python</code>, <code>bookmarked=True</code>, <code>status=active</code>, <code>-author=bot</code>).</div>
+            <div class="d-flex align-items-center justify-content-between mb-1">
+              <label for="sv_filter_statement" class="form-label fw-semibold mb-0 d-flex align-items-center gap-1">
+                <span>Filter Statement</span>
+                {{ filter_help_badge() }}
+              </label>
+              <button type="button" class="btn btn-link btn-sm text-decoration-none p-0 text-muted small" id="toggle-filter-fields-guide">
+                <i class="bi bi-list-check me-1"></i><span id="filter-guide-toggle-text">Show Suggestions</span>
+              </button>
+            </div>
+            <input type="text" class="form-control font-monospace shadow-sm" id="sv_filter_statement" name="filter_statement" placeholder="e.g. tag=python bookmarked=True status=active">
+            <div class="form-text">Space-separated conditions (evaluated with logical <code>AND</code>). Supports negation (<code>-tag=nsfw</code>), exact match (<code>==</code>), and quotes.</div>
+
+            <!-- Interactive Filter Suggestions & Hover Bubble Help -->
+            {{ filter_suggestions_tray(container_id="filter-fields-container", target_input_id="sv_filter_statement", hidden=true) }}
           </div>
 
           <!-- Order By -->
           <div class="mb-3">
-            <label for="sv_order_by" class="form-label fw-semibold">Order By</label>
-            <input type="text" class="form-control font-monospace shadow-sm" id="sv_order_by" name="order_by" placeholder="e.g. -date_published, -page_rating, link">
-            <div class="form-text">Ordering criteria (e.g. <code>-date_published</code>, <code>-date_created, link</code>, <code>votes</code>, <code>visits</code>). Prefix with <code>-</code> for descending.</div>
+            <div class="d-flex align-items-center justify-content-between mb-1">
+              <label for="sv_order_by" class="form-label fw-semibold mb-0 d-flex align-items-center gap-1">
+                <span>Order By</span>
+                {{ order_help_badge() }}
+              </label>
+              <button type="button" class="btn btn-link btn-sm text-decoration-none p-0 text-muted small" id="toggle-order-fields-guide">
+                <i class="bi bi-list-check me-1"></i><span id="guide-toggle-text">Show Suggestions</span>
+              </button>
+            </div>
+            <input type="text" class="form-control font-monospace shadow-sm" id="sv_order_by" name="order_by" placeholder="e.g. -followers_count, -date_published, link">
+            <div class="form-text">Ordering criteria (e.g. <code>-date_published</code>, <code>-followers_count</code>, <code>votes</code>, <code>visits</code>, <code>link</code>). Prefix with <code>-</code> for descending.</div>
+
+            <!-- Interactive Suggestions & Hover Bubble Help -->
+            {{ order_suggestions_tray(container_id="order-fields-container", target_input_id="sv_order_by", hidden=true) }}
           </div>
 
           <!-- Default Toggle -->

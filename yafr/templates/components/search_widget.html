@@ -1,3 +1,5 @@
+{% from "components/filter_help.html" import filter_help_badge %}
+
 {% if not has_query %}
 <!-- Large Centered Search Box (When user has not searched yet) -->
 <div class="row justify-content-center align-items-center min-vh-75 py-5">
@@ -56,11 +58,12 @@
       </div>
     </form>
 
-    <!-- Syntax Hint Accordion / Help -->
-    <div class="mt-4 text-start">
-      <small class="text-muted d-block text-center">
-        Supported operators: <code>=</code> (LIKE search, e.g. <code>title=youtube</code>), <code>==</code> (exact match, e.g. <code>title==news</code>).
+    <!-- Syntax Hint / Help -->
+    <div class="mt-4 text-center">
+      <small class="text-muted me-2">
+        Search supports <code>=</code> (LIKE), <code>==</code> (exact), tags, and fields.
       </small>
+      {{ filter_help_badge(title="Search Syntax Guide", badge_text="Syntax Guide") }}
     </div>
   </div>
 </div>

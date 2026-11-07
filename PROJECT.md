@@ -318,13 +318,13 @@ There are several list styles:
  - tag LIKE '%something%'
  - Search implementation should use appropriate SQLite indexes where possible.
  - The search implementation should support large databases efficiently.
- - provide ability to support order (at least) by
-    -- page rating votes
-    -- date created
-    -- date published
-    -- followers count
-    -- stars
-    -- page rating visits
+ - Ordering behavior:
+    -- Queries support inline ordering directives: `order:<field>` or `sort:<field>` (e.g. `order:-votes`, `sort:published`).
+    -- Direction: prefix witk `-` for descending (e.g. `-date_published`, `-followers_count`) and `+` or no prefix for ascending (e.g. `+votes`, `link`).
+    -- Multiple ordering fields can be specified separated by commas: `e.g. -followers_count, -date_published, link`.
+    -- Supported entry order fields: `date_published` (or `published`), `date_created` (or `created`), `page_rating_votes` (or `votes`), `page_rating` (or `rating`), `page_rating_visits` (or `visits`, `visit_count`), `link`.
+    -- Supported social data order fields: `followers_count` (or `followers`, `socialdata_followers`, `socialdata__followers_count`), `view_count` (or `views`, `socialdata_views`), `stars`, `thumbs_up`, `thumbs_down`, `upvote_ratio`, `upvote_diff`, `date_updated`.
+    -- Fallback order: when no explicit query order is specified, falls back to the active filter's order or `date_published DESC (nullslast), id DESC`.
  - search syntax might have effect on SearchViews (filter statement, or order by)
 
 ## EntryDetailScreen
@@ -450,8 +450,7 @@ The screen displays, where available:
 
 ## SearchView
 
- - support only name, default, priority
-    filter_statement  (same as format as user search statement),
-    order_by (ascending and descending should be supported. Proposing format like in django link sorts ascending -link sorts descending. should support multiple order_by columns, delimited with , character
-    fields for now
+ - support name, default, priority, filter_statement, and order_by.
+    -- filter_statement: search filter expression using the standard search syntax.
+    -- order_by: comma-separated list of ordering columns. Prefix with `-` for descending and `+` (or omitted) for ascending (e.g. `-followers_count, -date_published, link`). Supports all entry and social data ordering fields.
  - currently it can be only used for searching linkdatamodel

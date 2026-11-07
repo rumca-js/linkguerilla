@@ -33,25 +33,40 @@ class SearchQueryBuilder:
     SOCIAL_ORDER_ALIASES = {
         "thumbs_up": "thumbs_up",
         "socialdata__thumbs_up": "thumbs_up",
+        "socialdata_thumbs_up": "thumbs_up",
         "thumbs_down": "thumbs_down",
         "socialdata__thumbs_down": "thumbs_down",
+        "socialdata_thumbs_down": "thumbs_down",
         "view_count": "view_count",
         "views": "view_count",
         "socialdata__view_count": "view_count",
+        "socialdata_view_count": "view_count",
+        "socialdata__views": "view_count",
+        "socialdata_views": "view_count",
         "socialdata__rating": "rating",
+        "socialdata_rating": "rating",
+        "rating": "rating",
         "upvote_ratio": "upvote_ratio",
         "socialdata__upvote_ratio": "upvote_ratio",
+        "socialdata_upvote_ratio": "upvote_ratio",
         "upvote_diff": "upvote_diff",
         "socialdata__upvote_diff": "upvote_diff",
+        "socialdata_upvote_diff": "upvote_diff",
         "upvote_view_ratio": "upvote_view_ratio",
         "socialdata__upvote_view_ratio": "upvote_view_ratio",
+        "socialdata_upvote_view_ratio": "upvote_view_ratio",
         "stars": "stars",
         "socialdata__stars": "stars",
+        "socialdata_stars": "stars",
         "followers_count": "followers_count",
         "followers": "followers_count",
         "socialdata__followers_count": "followers_count",
+        "socialdata_followers_count": "followers_count",
+        "socialdata__followers": "followers_count",
+        "socialdata_followers": "followers_count",
         "date_updated": "date_updated",
         "socialdata__date_updated": "date_updated",
+        "socialdata_date_updated": "date_updated",
     }
 
     @classmethod
@@ -300,8 +315,14 @@ class SearchQueryBuilder:
         :param clean_token: Lowered, stripped order token
         :return: SocialData mapped column attribute, or None
         """
-        col_name = cls.SOCIAL_ORDER_ALIASES.get(clean_token)
-        if col_name is not None:
+        normalized = clean_token
+        if normalized.startswith("socialdata__"):
+            normalized = normalized[12:]
+        elif normalized.startswith("socialdata_"):
+            normalized = normalized[11:]
+
+        col_name = cls.SOCIAL_ORDER_ALIASES.get(normalized) or cls.SOCIAL_ORDER_ALIASES.get(clean_token)
+        if col_name is not None and hasattr(SocialData, col_name):
             return getattr(SocialData, col_name)
         return None
 

@@ -202,6 +202,18 @@ document.addEventListener("DOMContentLoaded", function () {
   const deleteSvModalEl = document.getElementById("deleteSearchViewModal");
   const deleteSvModal = deleteSvModalEl ? new bootstrap.Modal(deleteSvModalEl) : null;
 
+  function resetSuggestionsContainers() {
+    const fContainer = document.getElementById("filter-fields-container");
+    const fText = document.getElementById("filter-guide-toggle-text");
+    if (fContainer) fContainer.classList.add("d-none");
+    if (fText) fText.textContent = "Show Suggestions";
+
+    const oContainer = document.getElementById("order-fields-container");
+    const oText = document.getElementById("guide-toggle-text");
+    if (oContainer) oContainer.classList.add("d-none");
+    if (oText) oText.textContent = "Show Suggestions";
+  }
+
   // 1. Add Search View Button
   const btnAddSv = document.getElementById("btn-add-searchview");
   if (btnAddSv) {
@@ -212,6 +224,7 @@ document.addEventListener("DOMContentLoaded", function () {
       document.getElementById("sv-modal-title").textContent = "New Search View";
       document.getElementById("sv_priority").value = "0";
       document.getElementById("sv_default").checked = false;
+      resetSuggestionsContainers();
       if (svModal) svModal.show();
     });
   }
@@ -227,6 +240,7 @@ document.addEventListener("DOMContentLoaded", function () {
       document.getElementById("sv_order_by").value = d.orderBy || "";
       document.getElementById("sv_default").checked = (d.default === "1");
       document.getElementById("sv-modal-title").textContent = "Edit Search View: " + (d.name || "");
+      resetSuggestionsContainers();
       if (svModal) svModal.show();
     });
   });
@@ -367,6 +381,91 @@ document.addEventListener("DOMContentLoaded", function () {
           confirmDeleteSvBtn.innerHTML = '<i class="bi bi-trash me-1"></i>Confirm Delete';
         }
       });
+    });
+  }
+
+  // 7. Initialize Popovers and Tooltips
+  if (typeof bootstrap !== "undefined") {
+    const popoverTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="popover"]'));
+    popoverTriggerList.forEach(function (popoverTriggerEl) {
+      new bootstrap.Popover(popoverTriggerEl, { sanitize: false });
+    });
+
+    const tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
+    tooltipTriggerList.forEach(function (tooltipTriggerEl) {
+      new bootstrap.Tooltip(tooltipTriggerEl);
+    });
+  }
+
+  // 8. Order By Field Chips Click Handler (appends field to sv_order_by)
+  document.querySelectorAll(".order-field-chip").forEach(function (chip) {
+    chip.addEventListener("click", function () {
+      const field = this.dataset.field;
+      const orderInput = document.getElementById("sv_order_by");
+      if (!orderInput || !field) return;
+
+      const currentVal = orderInput.value.trim();
+      if (!currentVal) {
+        orderInput.value = field;
+      } else {
+        const parts = currentVal.split(",").map(function (s) { return s.trim(); });
+        if (!parts.includes(field)) {
+          orderInput.value = currentVal + ", " + field;
+        }
+      }
+      orderInput.focus();
+    });
+  });
+
+  // 9. Toggle Order By Suggestions Container
+  const toggleGuideBtn = document.getElementById("toggle-order-fields-guide");
+  const guideContainer = document.getElementById("order-fields-container");
+  const guideText = document.getElementById("guide-toggle-text");
+  if (toggleGuideBtn && guideContainer) {
+    toggleGuideBtn.addEventListener("click", function () {
+      if (guideContainer.classList.contains("d-none")) {
+        guideContainer.classList.remove("d-none");
+        if (guideText) guideText.textContent = "Hide Suggestions";
+      } else {
+        guideContainer.classList.add("d-none");
+        if (guideText) guideText.textContent = "Show Suggestions";
+      }
+    });
+  }
+
+  // 10. Filter Statement Field Chips Click Handler (appends token to sv_filter_statement)
+  document.querySelectorAll(".filter-field-chip").forEach(function (chip) {
+    chip.addEventListener("click", function () {
+      const token = this.dataset.filter;
+      const filterInput = document.getElementById("sv_filter_statement");
+      if (!filterInput || !token) return;
+
+      const currentVal = filterInput.value.trim();
+      if (!currentVal) {
+        filterInput.value = token;
+      } else {
+        const parts = currentVal.split(/\s+/);
+        if (!parts.includes(token)) {
+          filterInput.value = currentVal + " " + token;
+        }
+      }
+      filterInput.focus();
+    });
+  });
+
+  // 11. Toggle Filter Suggestions Container
+  const toggleFilterGuideBtn = document.getElementById("toggle-filter-fields-guide");
+  const filterGuideContainer = document.getElementById("filter-fields-container");
+  const filterGuideText = document.getElementById("filter-guide-toggle-text");
+  if (toggleFilterGuideBtn && filterGuideContainer) {
+    toggleFilterGuideBtn.addEventListener("click", function () {
+      if (filterGuideContainer.classList.contains("d-none")) {
+        filterGuideContainer.classList.remove("d-none");
+        if (filterGuideText) filterGuideText.textContent = "Hide Suggestions";
+      } else {
+        filterGuideContainer.classList.add("d-none");
+        if (filterGuideText) filterGuideText.textContent = "Show Suggestions";
+      }
     });
   }
 
