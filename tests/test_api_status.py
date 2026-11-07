@@ -40,7 +40,9 @@ class TestApiStatus(unittest.TestCase):
 
     def test_worker_status_active(self):
         """When worker heartbeat is fresh, status is active and visible is True."""
-        self.op_repo.record_heartbeat(status=True, thread_id="t-123", check_type="worker")
+        self.op_repo.record_heartbeat(
+            status=True, thread_id="t-123", check_type="worker"
+        )
 
         res = self.client.get("/api/status/worker")
         self.assertEqual(res.status_code, 200)
@@ -81,12 +83,16 @@ class TestApiStatus(unittest.TestCase):
     def test_worker_status_timed_out_disabled(self):
         """When worker heartbeat is older than timeout and enable_background_jobs is False, visible is False."""
         self.config_repo.update_config(enable_background_jobs=False)
-        rec = self.op_repo.record_heartbeat(status=True, thread_id="t-old", check_type="worker")
+        rec = self.op_repo.record_heartbeat(
+            status=True, thread_id="t-old", check_type="worker"
+        )
         # Artificially set date_created to 20 minutes ago
         rec.date_created = datetime.now(timezone.utc) - timedelta(minutes=20)
         self.op_repo.commit()
 
-        status_data = self.op_repo.check_worker_status(max_age_seconds=DEFAULT_WORKER_TIMEOUT_SECONDS)
+        status_data = self.op_repo.check_worker_status(
+            max_age_seconds=DEFAULT_WORKER_TIMEOUT_SECONDS
+        )
         self.assertFalse(status_data["visible"])
         self.assertFalse(status_data["is_active"])
         self.assertEqual(status_data["status_label"], "disabled")
@@ -123,7 +129,9 @@ class TestApiStatus(unittest.TestCase):
     def test_system_status_endpoint_indications_when_worker_enabled(self):
         """GET /api/status provides worker active indication when background jobs are enabled."""
         self.config_repo.update_config(enable_background_jobs=True)
-        self.op_repo.record_heartbeat(status=True, thread_id="t-live", check_type="worker")
+        self.op_repo.record_heartbeat(
+            status=True, thread_id="t-live", check_type="worker"
+        )
 
         res = self.client.get("/api/status")
         self.assertEqual(res.status_code, 200)

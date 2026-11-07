@@ -133,7 +133,6 @@ class TestSearchViewRepository(unittest.TestCase):
         self.assertEqual(len(defaults), 1)
 
 
-
 class TestSearchViewService(unittest.TestCase):
     """
     Tests for SearchViewService business validation and operations.
@@ -189,7 +188,9 @@ class TestSearchViewService(unittest.TestCase):
 
         # Valid update
         updated = SearchViewService.update_view(
-            v2.id, {"priority": 10, "filter_statement": "tag=tech"}, session=self.session
+            v2.id,
+            {"priority": 10, "filter_statement": "tag=tech"},
+            session=self.session,
         )
         self.assertEqual(updated.priority, 10)
         self.assertEqual(updated.filter_statement, "tag=tech")
@@ -301,11 +302,15 @@ class TestSearchViewAPIAndSearch(unittest.TestCase):
         self.assertEqual(res.status_code, 404)
 
     def test_api_set_default(self):
-        res1 = self.client.post("/api/search-views", json={"name": "View A", "default": True})
+        res1 = self.client.post(
+            "/api/search-views", json={"name": "View A", "default": True}
+        )
         self.assertEqual(res1.status_code, 201)
         id1 = res1.get_json()["search_view"]["id"]
 
-        res2 = self.client.post("/api/search-views", json={"name": "View B", "default": False})
+        res2 = self.client.post(
+            "/api/search-views", json={"name": "View B", "default": False}
+        )
         self.assertEqual(res2.status_code, 201)
         id2 = res2.get_json()["search_view"]["id"]
 
@@ -371,7 +376,9 @@ class TestSearchViewAPIAndSearch(unittest.TestCase):
 
             # Test FilterRegistry exposes custom view
             filters = FilterRegistry.get_available_filters(session=session)
-            custom_filter = next((f for f in filters if f.id == f"custom_{view.id}"), None)
+            custom_filter = next(
+                (f for f in filters if f.id == f"custom_{view.id}"), None
+            )
             self.assertIsNotNone(custom_filter)
             self.assertEqual(custom_filter.name, "Top Python")
 
@@ -384,7 +391,7 @@ class TestSearchViewAPIAndSearch(unittest.TestCase):
             )
             self.assertEqual(count, 2)
             self.assertEqual(entries[0].title, "Advanced Python")  # 100 votes
-            self.assertEqual(entries[1].title, "Python Tutorial")   # 10 votes
+            self.assertEqual(entries[1].title, "Python Tutorial")  # 10 votes
 
     def test_configuration_view_renders_search_views(self):
         # Create a view
@@ -448,7 +455,9 @@ class TestSearchViewAPIAndSearch(unittest.TestCase):
             # All system filters must have is_default=False
             for f in filters:
                 if f.id != f"custom_{v2.id}":
-                    self.assertFalse(f.is_default, f"Filter {f.id} should not be default")
+                    self.assertFalse(
+                        f.is_default, f"Filter {f.id} should not be default"
+                    )
 
     def test_entries_search_combo_renders_default_on_top(self):
         # 1. Default system view on top
@@ -456,11 +465,13 @@ class TestSearchViewAPIAndSearch(unittest.TestCase):
         self.assertEqual(res.status_code, 200)
         html = res.get_data(as_text=True)
         # Verify first option in #filter-select is date_published
-        self.assertIn('<select \n          name="filter" \n          id="filter-select"', html)
+        self.assertIn(
+            '<select \n          name="filter" \n          id="filter-select"', html
+        )
         opt_start = html.find('id="filter-select"')
         first_option_chunk = html[opt_start : opt_start + 600]
         self.assertIn('value="date_published"', first_option_chunk)
-        self.assertIn('selected', first_option_chunk)
+        self.assertIn("selected", first_option_chunk)
 
         # 2. Create custom default view
         res_create = self.client.post(
@@ -483,8 +494,8 @@ class TestSearchViewAPIAndSearch(unittest.TestCase):
         opt_start2 = html2.find('id="filter-select"')
         first_option_chunk2 = html2[opt_start2 : opt_start2 + 600]
         self.assertIn(f'value="custom_{custom_id}"', first_option_chunk2)
-        self.assertIn('Primary Custom Filter', first_option_chunk2)
-        self.assertIn('selected', first_option_chunk2)
+        self.assertIn("Primary Custom Filter", first_option_chunk2)
+        self.assertIn("selected", first_option_chunk2)
 
         # 4. Request /entries?q=test (compact search widget)
         res3 = self.client.get("/entries?q=test")
@@ -493,8 +504,8 @@ class TestSearchViewAPIAndSearch(unittest.TestCase):
         opt_start3 = html3.find('id="compact-filter-select"')
         compact_chunk = html3[opt_start3 : opt_start3 + 600]
         self.assertIn(f'value="custom_{custom_id}"', compact_chunk)
-        self.assertIn('Primary Custom Filter', compact_chunk)
-        self.assertIn('selected', compact_chunk)
+        self.assertIn("Primary Custom Filter", compact_chunk)
+        self.assertIn("selected", compact_chunk)
 
 
 if __name__ == "__main__":

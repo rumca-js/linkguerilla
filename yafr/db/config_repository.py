@@ -52,6 +52,7 @@ class ConfigRepository(BaseRepository[ConfigurationEntry]):
                 entries_visit_alpha=0.6,
                 entries_dead_alpha=0.4,
                 number_of_update_entries=10,
+                days_to_check_std_entries=1,
                 max_number_of_user_search=300,
                 max_user_entry_visit_history=5000,
                 links_per_page=25,

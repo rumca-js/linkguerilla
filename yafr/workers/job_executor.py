@@ -256,10 +256,12 @@ class JobExecutor:
             "message": res.get("message") or res.get("error", "Source refreshed."),
         }
 
-    def _process_outdated_entry(self, session: Session) -> Optional[Dict[str, Any]]:
+    def _process_outdated_entry(
+        self, session: Session, days_to_check: Optional[int] = None
+    ) -> Optional[Dict[str, Any]]:
         """
-        Checks for the oldest entry by date_update_last and refreshes its metadata,
-        updating date_update_last to 'now'.
+        Checks for the oldest entry by date_update_last exceeding days_to_check_std_entries
+        and refreshes its metadata, updating date_update_last to 'now'.
         """
         config_repo = ConfigRepository(session)
         config = config_repo.get_config()
@@ -267,16 +269,22 @@ class JobExecutor:
         if limit is not None and limit <= 0:
             return None
 
-        one_day_ago = datetime.now(timezone.utc) - timedelta(days=1)
+        days = (
+            days_to_check
+            if days_to_check is not None
+            else config.days_to_check_std_entries
+        )
+        if days is None or days <= 0:
+            days = 1
+        cutoff = datetime.now(timezone.utc) - timedelta(days=days)
 
         stmt = (
             select(LinkDataModel)
             .where(LinkDataModel.link.isnot(None))
             .where(LinkDataModel.link != "")
             .where(
-                # TODO this needs to be obtained from configuration
                 or_(
-                    LinkDataModel.date_update_last < one_day_ago,
+                    LinkDataModel.date_update_last < cutoff,
                     LinkDataModel.date_update_last.is_(None),
                 )
             )
@@ -368,12 +376,15 @@ class JobExecutor:
         )
         return 1
 
-    def enqueue_outdated_entry_jobs(self, session: Optional[Session] = None) -> int:
+    def enqueue_outdated_entry_jobs(
+        self, session: Optional[Session] = None, days_to_check: Optional[int] = None
+    ) -> int:
         """
-        Enqueues link-update-data jobs for the oldest entries based on date_update_last,
-        limited by ConfigurationEntry.number_of_update_entries.
+        Enqueues link-update-data jobs for the oldest entries based on date_update_last
+        exceeding days_to_check_std_entries, limited by ConfigurationEntry.number_of_update_entries.
 
         :param session: Optional active database session
+        :param days_to_check: Optional override for days elapsed before entry is considered outdated
         :return: Count of newly enqueued entry update jobs
         """
         sess = self._get_session(session)
@@ -403,11 +414,26 @@ class JobExecutor:
         if remaining_slots <= 0:
             return 0
 
+        days = (
+            days_to_check
+            if days_to_check is not None
+            else config.days_to_check_std_entries
+        )
+        if days is None or days <= 0:
+            days = 1
+        cutoff = datetime.now(timezone.utc) - timedelta(days=days)
+
         candidates = (
             sess.execute(
                 select(LinkDataModel)
                 .where(LinkDataModel.link.isnot(None))
                 .where(LinkDataModel.link != "")
+                .where(
+                    or_(
+                        LinkDataModel.date_update_last < cutoff,
+                        LinkDataModel.date_update_last.is_(None),
+                    )
+                )
                 .order_by(
                     LinkDataModel.date_update_last.asc().nullsfirst(),
                     LinkDataModel.id.asc(),
@@ -443,22 +469,29 @@ class JobExecutor:
         return enqueued_count
 
     def enqueue_outdated_jobs(
-        self, session: Optional[Session] = None, max_age_seconds: int = 3600
+        self,
+        session: Optional[Session] = None,
+        max_age_seconds: int = 3600,
+        days_to_check: Optional[int] = None,
     ) -> int:
         """
         When idle, checks what should be done next:
         - Checks how many sources to fetch (outdated sources) and enqueues them.
         - Checks how many entries to update (ConfigurationEntry.number_of_update_entries)
-          based on date_update_last and enqueues link-update-data jobs.
+          based on date_update_last (exceeding ConfigurationEntry.days_to_check_std_entries)
+          and enqueues link-update-data jobs.
 
         :param session: Optional active database session
         :param max_age_seconds: Maximum age before a source is considered outdated (default: 3600s = 1 hour)
+        :param days_to_check: Optional override for days elapsed before entry is considered outdated
         :return: Total count of newly enqueued jobs
         """
         sources_enqueued = self.enqueue_outdated_source_jobs(
             session=session, max_age_seconds=max_age_seconds
         )
-        entries_enqueued = self.enqueue_outdated_entry_jobs(session=session)
+        entries_enqueued = self.enqueue_outdated_entry_jobs(
+            session=session, days_to_check=days_to_check
+        )
         return sources_enqueued + entries_enqueued
 
     def run_loop(

@@ -53,7 +53,10 @@ def create_app(config_object=None) -> Flask:
         logger.error("Database error occurred: %s", error)
         close_session()
         if request.path.startswith("/api/") or request.is_json:
-            return jsonify({"success": False, "error": f"Database failure: {error}"}), 500
+            return (
+                jsonify({"success": False, "error": f"Database failure: {error}"}),
+                500,
+            )
         return (
             render_template(
                 "entries/list.html",
@@ -83,7 +86,10 @@ def create_app(config_object=None) -> Flask:
     @app.errorhandler(500)
     def internal_error(error):
         if request.path.startswith("/api/") or request.is_json:
-            return jsonify({"success": False, "error": f"Internal server error: {error}"}), 500
+            return (
+                jsonify({"success": False, "error": f"Internal server error: {error}"}),
+                500,
+            )
         return (
             render_template(
                 "entries/list.html",

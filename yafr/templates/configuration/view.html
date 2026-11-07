@@ -385,15 +385,20 @@
                 <p class="text-muted small mb-4">Policies used when parsing feeds, fetching URLs, or executing background jobs.</p>
 
                 <div class="row g-3 mb-4">
-                  <div class="col-12 col-md-6">
+                  <div class="col-12 col-md-4">
                     <label for="sources_refresh_period" class="form-label fw-semibold">Sources Refresh Period (seconds)</label>
                     <input type="number" class="form-control shadow-sm" id="sources_refresh_period" name="sources_refresh_period" min="60" max="864000" value="{{ config.sources_refresh_period or 3600 }}" required>
                     <div class="form-text">Minimum duration before an RSS source is marked outdated for auto-refresh (default: 3600s = 1 hour).</div>
                   </div>
-                  <div class="col-12 col-md-6">
+                  <div class="col-12 col-md-4">
                     <label for="number_of_update_entries" class="form-label fw-semibold">Idle Entry Updates Limit</label>
                     <input type="number" class="form-control shadow-sm" id="number_of_update_entries" name="number_of_update_entries" min="0" max="1000" value="{{ config.number_of_update_entries if config.number_of_update_entries is not none else 10 }}">
                     <div class="form-text">Max number of update jobs added when the queue is idle, prioritizing oldest date_update_last (default: 10).</div>
+                  </div>
+                  <div class="col-12 col-md-4">
+                    <label for="days_to_check_std_entries" class="form-label fw-semibold">Days to Check Standard Entries</label>
+                    <input type="number" class="form-control shadow-sm" id="days_to_check_std_entries" name="days_to_check_std_entries" min="1" max="365" value="{{ config.days_to_check_std_entries if config.days_to_check_std_entries is not none else 1 }}">
+                    <div class="form-text">Days elapsed since last update before an entry is considered outdated for auto-refresh (default: 1 day).</div>
                   </div>
                 </div>
 

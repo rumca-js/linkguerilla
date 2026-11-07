@@ -161,7 +161,9 @@ class TestRulesRoutes(unittest.TestCase):
         """POST /rules/block-lists/<id>/process splits and ingests entries."""
         l = self.list_repo.add_list("https://example.com/list.txt")
 
-        with patch("yafr.db.block_repository.fetch_and_split_block_list_url") as mock_fetch:
+        with patch(
+            "yafr.db.block_repository.fetch_and_split_block_list_url"
+        ) as mock_fetch:
             mock_fetch.return_value = ["tracker1.com", "tracker2.com", "adnetwork.io"]
             response = self.client.post(
                 f"/rules/block-lists/{l.id}/process",

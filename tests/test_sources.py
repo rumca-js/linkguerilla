@@ -138,6 +138,7 @@ class TestSourceRoutes(unittest.TestCase):
     def test_source_detail_screen(self):
         """GET /sources/<id> renders SourceDetailScreen with entries linking to /entries/<id>."""
         from linkarchivetools.model.definitions import LinkDataModel
+
         entry = LinkDataModel(
             link="https://news.ycombinator.com/item?id=123",
             title="Sample HN Item",

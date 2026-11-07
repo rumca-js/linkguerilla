@@ -449,6 +449,7 @@ class TestJobExecutor(unittest.TestCase):
         with patch(
             "yafr.services.source_service.SourceService.fetch_source"
         ) as mock_fetch:
+
             def fake_fetch(source_id, session=None):
                 self.source_repo.update_operational_data(
                     source_id, date_fetched=datetime.now(timezone.utc)
@@ -535,6 +536,98 @@ class TestJobExecutor(unittest.TestCase):
         # Running again does not create duplicate jobs
         enqueued_again = executor.enqueue_outdated_entry_jobs(session=self.session)
         self.assertEqual(enqueued_again, 0)
+
+    def test_enqueue_outdated_entry_jobs_respects_days_to_check_std_entries(self):
+        """enqueue_outdated_entry_jobs only enqueues entries older than days_to_check_std_entries."""
+        now = datetime.now(timezone.utc)
+        # Entry 1: None (never updated, must be enqueued)
+        e1 = self.entry_repo.add_entry(
+            link="https://example.com/check-none", title="Check None"
+        )
+        e1.date_update_last = None
+
+        # Entry 2: 7 days ago (> 5 days, must be enqueued)
+        e2 = self.entry_repo.add_entry(
+            link="https://example.com/check-old", title="Check Old"
+        )
+        e2.date_update_last = now - timedelta(days=7)
+
+        # Entry 3: 3 days ago (< 5 days, must NOT be enqueued)
+        e3 = self.entry_repo.add_entry(
+            link="https://example.com/check-recent", title="Check Recent"
+        )
+        e3.date_update_last = now - timedelta(days=3)
+
+        # Entry 4: 1 hour ago (< 5 days, must NOT be enqueued)
+        e4 = self.entry_repo.add_entry(
+            link="https://example.com/check-fresh", title="Check Fresh"
+        )
+        e4.date_update_last = now - timedelta(hours=1)
+        self.session.commit()
+
+        # Set days_to_check_std_entries = 5 in config
+        config = self.config_repo.get_config()
+        config.number_of_update_entries = 10
+        config.days_to_check_std_entries = 5
+        self.session.commit()
+
+        executor = JobExecutor(session=self.session, auto_refresh_sources=False)
+        enqueued = executor.enqueue_outdated_entry_jobs(session=self.session)
+
+        self.assertEqual(enqueued, 2)
+        enqueued_subjects = list(
+            self.session.execute(
+                select(BackgroundJob.subject).where(
+                    BackgroundJob.job == "link-update-data",
+                    BackgroundJob.enabled == True,
+                )
+            )
+            .scalars()
+            .all()
+        )
+        self.assertIn(str(e1.id), enqueued_subjects)
+        self.assertIn(str(e2.id), enqueued_subjects)
+        self.assertNotIn(str(e3.id), enqueued_subjects)
+        self.assertNotIn(str(e4.id), enqueued_subjects)
+
+    def test_process_outdated_entry_respects_days_to_check_std_entries(self):
+        """_process_outdated_entry respects days_to_check_std_entries threshold."""
+        now = datetime.now(timezone.utc)
+        e = self.entry_repo.add_entry(
+            link="https://example.com/item-3days", title="3 Days Ago"
+        )
+        e.date_update_last = now - timedelta(days=3)
+        self.session.commit()
+
+        config = self.config_repo.get_config()
+        config.days_to_check_std_entries = 5
+        self.session.commit()
+
+        executor = JobExecutor(session=self.session, auto_refresh_sources=False)
+        # Entry is 3 days old, threshold is 5 days -> should return None
+        res_skipped = executor._process_outdated_entry(self.session)
+        self.assertIsNone(res_skipped)
+
+        # If threshold is lowered to 2 days -> should update entry
+        config.days_to_check_std_entries = 2
+        self.session.commit()
+
+        with patch("yafr.workers.jobs.link_jobs.WebToolsWrapper") as mock_webtools_cls:
+            mock_client = MagicMock()
+            mock_client.get_title.return_value = "Refreshed Title"
+            mock_client.get_description.return_value = "Refreshed Desc"
+            mock_client.get_date_published.return_value = None
+            mock_client.get_author.return_value = None
+            mock_client.get_response.return_value = MagicMock(is_valid=lambda: True)
+            mock_client.is_valid.return_value = True
+            mock_client.get_status_code.return_value = 200
+            mock_webtools_cls.return_value = mock_client
+
+            res_updated = executor._process_outdated_entry(self.session)
+
+        self.assertIsNotNone(res_updated)
+        self.assertTrue(res_updated["success"])
+        self.assertEqual(res_updated["subject"], str(e.id))
 
     def test_empty_queue_fallback_to_outdated_entry(self):
         """When queue is empty and no outdated sources exist, enqueues link-update-data and updates oldest entry."""

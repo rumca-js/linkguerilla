@@ -387,7 +387,9 @@ class TestEntryBuilder(unittest.TestCase):
         self.block_repo.add_entry("&track_click=1")
 
         builder = EntryBuilder(session=self.session)
-        allowed, reason = builder.can_build("https://example.com/item?foo=bar&track_click=1")
+        allowed, reason = builder.can_build(
+            "https://example.com/item?foo=bar&track_click=1"
+        )
         self.assertFalse(allowed)
         self.assertIn("blocked by block entry '&track_click=1'", reason)
 
@@ -416,13 +418,17 @@ class TestEntryBuilder(unittest.TestCase):
         self.assertEqual(tags, [])
 
         # build_and_save
-        saved = builder.build_and_save("https://malicious-site.org/payload", commit=True)
+        saved = builder.build_and_save(
+            "https://malicious-site.org/payload", commit=True
+        )
         self.assertIsNone(saved)
 
         # Verify not in DB
         existing = (
             self.session.execute(
-                select(LinkDataModel).where(LinkDataModel.link == "https://malicious-site.org/payload")
+                select(LinkDataModel).where(
+                    LinkDataModel.link == "https://malicious-site.org/payload"
+                )
             )
             .scalars()
             .first()
@@ -444,7 +450,9 @@ class TestEntryBuilder(unittest.TestCase):
         self.block_repo.add_entry("bad-site.org")
 
         builder = EntryBuilder(session=self.session)
-        allowed, reason = builder.can_build("https://bad-site.org/page", ignore_policy=True)
+        allowed, reason = builder.can_build(
+            "https://bad-site.org/page", ignore_policy=True
+        )
         self.assertFalse(allowed)
         self.assertIn("blocked by block entry", reason)
 

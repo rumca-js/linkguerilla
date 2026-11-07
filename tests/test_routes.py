@@ -306,6 +306,5 @@ class TestEntryRoutes(unittest.TestCase):
             self.assertNotIn("gallery-thumb-wrap", html)
 
 
-
 if __name__ == "__main__":
     unittest.main()

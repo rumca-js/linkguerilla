@@ -359,7 +359,9 @@ class TestSourceServiceWithWrapper(unittest.TestCase):
                 .all()
             )
             self.assertEqual(len(entries), 1)
-            self.assertEqual(entries[0].link, "https://filtered.example.com/allowed/item-1")
+            self.assertEqual(
+                entries[0].link, "https://filtered.example.com/allowed/item-1"
+            )
 
     def test_fetch_parse_source_with_regex_match_filter(self):
         """
@@ -388,8 +390,9 @@ class TestSourceServiceWithWrapper(unittest.TestCase):
             "https://other.com/external",
         ]
 
-        with patch.object(BaseUrl, "get_response", return_value=mock_resp), \
-             patch.object(BaseUrl, "get_content_links", return_value=discovered_links):
+        with patch.object(
+            BaseUrl, "get_response", return_value=mock_resp
+        ), patch.object(BaseUrl, "get_content_links", return_value=discovered_links):
             res = SourceService.fetch_source(parse_source.id, session=self.session)
             self.assertTrue(res.get("success"))
             self.assertEqual(res.get("entries_added"), 2)
@@ -407,7 +410,10 @@ class TestSourceServiceWithWrapper(unittest.TestCase):
             links = {e.link for e in entries}
             self.assertEqual(
                 links,
-                {"https://parse.example.com/posts/101", "https://parse.example.com/posts/102"},
+                {
+                    "https://parse.example.com/posts/101",
+                    "https://parse.example.com/posts/102",
+                },
             )
 
             # Verify background link-update-data jobs were enqueued for each extracted link
@@ -421,7 +427,10 @@ class TestSourceServiceWithWrapper(unittest.TestCase):
             job_subjects = {j.subject for j in jobs}
             self.assertEqual(
                 job_subjects,
-                {"https://parse.example.com/posts/101", "https://parse.example.com/posts/102"},
+                {
+                    "https://parse.example.com/posts/101",
+                    "https://parse.example.com/posts/102",
+                },
             )
 
     def test_fetch_source_unchanged_hash_skips_parsing(self):
@@ -564,8 +573,12 @@ class TestSourceServiceWithWrapper(unittest.TestCase):
             )
             self.assertEqual(len(entries), 1)
             self.assertEqual(entries[0].title, "Weekly Digest #42")
-            self.assertEqual(entries[0].link, "email://imap.example.com/reader@example.com/msg123")
-            self.assertEqual(entries[0].description, "Here are the top stories of the week.")
+            self.assertEqual(
+                entries[0].link, "email://imap.example.com/reader@example.com/msg123"
+            )
+            self.assertEqual(
+                entries[0].description, "Here are the top stories of the week."
+            )
 
             # Operational data: email sources do not store page_hash / body_hash
             op_data = self.session.execute(
@@ -608,8 +621,12 @@ class TestSourceServiceWithWrapper(unittest.TestCase):
 
         # AppLogging contains notification
         logs = self.log_repo.list_logs(limit=10)
-        self.assertTrue(any("removed (blocked)" in (log.info_text or "") for log in logs))
-        self.assertTrue(any("Block Spam Feed" in (log.detail_text or "") for log in logs))
+        self.assertTrue(
+            any("removed (blocked)" in (log.info_text or "") for log in logs)
+        )
+        self.assertTrue(
+            any("Block Spam Feed" in (log.detail_text or "") for log in logs)
+        )
 
     def test_fetch_source_removed_when_blocked_by_block_entry(self):
         """When source.url matches a BlockEntry pattern, source is removed and applogging records it."""
@@ -635,8 +652,12 @@ class TestSourceServiceWithWrapper(unittest.TestCase):
 
         # AppLogging contains notification
         logs = self.log_repo.list_logs(limit=10)
-        self.assertTrue(any("removed (blocked)" in (log.info_text or "") for log in logs))
-        self.assertTrue(any("tracker-ads.net" in (log.detail_text or "") for log in logs))
+        self.assertTrue(
+            any("removed (blocked)" in (log.info_text or "") for log in logs)
+        )
+        self.assertTrue(
+            any("tracker-ads.net" in (log.detail_text or "") for log in logs)
+        )
 
 
 class TestWebToolsStatusApi(unittest.TestCase):
@@ -789,7 +810,10 @@ class TestWebToolsStatusApi(unittest.TestCase):
         mock_handler.get_album.return_value = "Sample Album"
         mock_handler.get_tags.return_value = ["tech", "python"]
         mock_handler.get_canonical_url.return_value = "https://example.com/canonical"
-        mock_handler.get_social_properties.return_value = {"rating": 4.5, "thumbs_up": 100}
+        mock_handler.get_social_properties.return_value = {
+            "rating": 4.5,
+            "thumbs_up": 100,
+        }
         mock_handler.get_content_links.return_value = [
             "https://example.com/link1",
             "https://example.com/link2",
@@ -827,7 +851,9 @@ class TestWebToolsStatusApi(unittest.TestCase):
 
         # 1. Normal list
         mock_handler.get_content_links.return_value = ["https://a.com", "https://b.com"]
-        self.assertEqual(wrapper.get_content_links(), ["https://a.com", "https://b.com"])
+        self.assertEqual(
+            wrapper.get_content_links(), ["https://a.com", "https://b.com"]
+        )
 
         # 2. Set / tuple conversion to list
         mock_handler.get_content_links.return_value = ("https://c.com",)
@@ -838,7 +864,9 @@ class TestWebToolsStatusApi(unittest.TestCase):
         self.assertEqual(wrapper.get_content_links(), [])
 
         # 4. Exception handled gracefully returning empty list
-        mock_handler.get_content_links.side_effect = RuntimeError("Parser error in webtoolkit")
+        mock_handler.get_content_links.side_effect = RuntimeError(
+            "Parser error in webtoolkit"
+        )
         self.assertEqual(wrapper.get_content_links(), [])
 
     def test_convenience_fetch_metadata_helpers(self):
@@ -854,9 +882,13 @@ class TestWebToolsStatusApi(unittest.TestCase):
         mock_handler.get_author.return_value = "Fetched Author"
         mock_handler.get_content_links.return_value = ["https://example.com/out1"]
 
-        with patch.object(WebToolsWrapper, "_create_handler", return_value=mock_handler):
+        with patch.object(
+            WebToolsWrapper, "_create_handler", return_value=mock_handler
+        ):
             self.assertEqual(
-                WebToolsWrapper.fetch_title("https://example.com/f", session=self.session),
+                WebToolsWrapper.fetch_title(
+                    "https://example.com/f", session=self.session
+                ),
                 "Fetched Title",
             )
             self.assertEqual(

@@ -115,7 +115,9 @@ class TestBlockRepository(unittest.TestCase):
         mock_fetch.return_value = ["blocked1.com", "blocked2.com"]
         res = self.repo.fetch_url("https://example.com/easylist.txt")
         self.assertEqual(res, ["blocked1.com", "blocked2.com"])
-        mock_fetch.assert_called_once_with("https://example.com/easylist.txt", timeout=15)
+        mock_fetch.assert_called_once_with(
+            "https://example.com/easylist.txt", timeout=15
+        )
 
     def test_block_entry_list_crud(self):
         """Tests CRUD operations on BlockEntryList."""
@@ -262,12 +264,16 @@ class TestBlockRepository(unittest.TestCase):
         self.entry_repo.add_entry("ad_channel=")
 
         # Substring match in full URL
-        matched = self.entry_repo.get_matching_entry("https://subdomain.tracker.io/analytics.js")
+        matched = self.entry_repo.get_matching_entry(
+            "https://subdomain.tracker.io/analytics.js"
+        )
         self.assertIsNotNone(matched)
         self.assertEqual(matched.url, "tracker.io")
 
         # Query param match
-        matched_param = self.entry_repo.get_matching_entry("https://example.com/page?ad_channel=top")
+        matched_param = self.entry_repo.get_matching_entry(
+            "https://example.com/page?ad_channel=top"
+        )
         self.assertIsNotNone(matched_param)
         self.assertEqual(matched_param.url, "ad_channel=")
 

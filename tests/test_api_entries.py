@@ -191,7 +191,10 @@ class TestApiEntries(unittest.TestCase):
         self.assertEqual(len(data_empty["jobs"]), 0)
 
         # Enqueue an active job
-        from linkarchivetools.model.definitions import BackgroundJob, BackgroundJobHistory
+        from linkarchivetools.model.definitions import (
+            BackgroundJob,
+            BackgroundJobHistory,
+        )
         from yafr.services.job_service import (
             JOB_LINK_DOWNLOAD_SOCIAL,
             JOB_LINK_UPDATE_DATA,
