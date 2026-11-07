@@ -441,7 +441,7 @@ The screen displays, where available:
 - user should be able to replace database with database from URL. It shall download and replace the database file. Should user restart process then?
 - Dynamic Schema API:
   -- Provides JSON API endpoints for tables and columns inspection (`/api/database/tables`, `/api/database/tables/<table_name>/columns`).
-  -- Provides JSON API endpoint to alter column default values (`/api/database/alter-column-default`).
+  -- Provides JSON API endpoint to alter column default values and NOT NULL constraints (`/api/database/alter-column-default`).
 
 ## EntryRulesScreen
  - you can use fields: trigger_rule_url, rule_name, enabled, priority, block, trust, auto_tag, apply_age_limit, source_id. Other fields do not have to be used right now

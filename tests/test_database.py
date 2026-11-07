@@ -379,7 +379,9 @@ class TestDatabaseWebRoutes(unittest.TestCase):
         self.assertEqual(res_not_null.status_code, 200)
 
         # Verify column is now NOT NULL
-        cols_after = self.client.get("/api/database/tables/linkdatamodel/columns").get_json()["columns"]
+        cols_after = self.client.get(
+            "/api/database/tables/linkdatamodel/columns"
+        ).get_json()["columns"]
         author_col = next(c for c in cols_after if c["name"] == "author")
         self.assertFalse(author_col["nullable"])
 
@@ -396,7 +398,9 @@ class TestDatabaseWebRoutes(unittest.TestCase):
         self.assertEqual(res_nullable.status_code, 200)
 
         # Verify column is now nullable
-        cols_final = self.client.get("/api/database/tables/linkdatamodel/columns").get_json()["columns"]
+        cols_final = self.client.get(
+            "/api/database/tables/linkdatamodel/columns"
+        ).get_json()["columns"]
         author_col_final = next(c for c in cols_final if c["name"] == "author")
         self.assertTrue(author_col_final["nullable"])
 
