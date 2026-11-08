@@ -591,10 +591,22 @@ class JobExecutor:
             config_repo = ConfigRepository(self._get_session())
             config = config_repo.get_config()
             if not config.enable_background_jobs:
+                # Release session before sleeping so the identity map doesn't
+                # accumulate stale objects while the worker is effectively idle.
+                close_session()
                 time.sleep(interval)
                 continue
 
             result = self.process_one()
+
+            # Release the scoped session after each job iteration so that the
+            # SQLAlchemy identity map (ORM object cache) is cleared and memory
+            # held by loaded ORM objects (LinkDataModel rows, BackgroundJob
+            # records, etc.) is returned to the heap promptly.
+            try:
+                close_session()
+            except Exception as cs_err:
+                logger.debug("Failed to close session after job iteration: %s", cs_err)
 
             if result and result.get("processed"):
                 executed_count += 1
