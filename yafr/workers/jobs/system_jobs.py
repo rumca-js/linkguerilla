@@ -43,6 +43,7 @@ class CleanupJobHandler(BaseJobHandler):
 
         return {
             "success": True,
+            "consume": True,
             "status": "completed",
             "message": f"Enforced storage caps: max_searches={max_searches}.",
         }
@@ -62,6 +63,7 @@ class GenericJobHandler(BaseJobHandler):
         logger.info("Executing custom/generic job type: '%s'", job.job)
         return {
             "success": True,
+            "consume": True,
             "status": "completed",
             "message": f"Processed generic task: {job.job}",
         }

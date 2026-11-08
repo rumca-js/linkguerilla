@@ -245,6 +245,7 @@ class SourceService:
         if not source:
             return {
                 "success": False,
+                "consume": True,
                 "source_id": source_id,
                 "error": "Source not found",
                 "status": "error",
@@ -281,6 +282,7 @@ class SourceService:
 
             return {
                 "success": True,
+                "consume": True,
                 "source_id": source_id,
                 "status": "removed",
                 "message": f"Source #{source_id} removed: {reason}",
@@ -321,6 +323,7 @@ class SourceService:
         session: Session,
         error_msg: str,
         status: str = "error",
+        consume: Optional[bool] = None,
     ) -> Dict[str, Any]:
         """
         Records a fetch failure on source operational data and commits the error state.
@@ -330,13 +333,17 @@ class SourceService:
         :param session: Active database session
         :param error_msg: Descriptive failure message
         :param status: Result status code
+        :param consume: Whether the job should be consumed upon reaching max retries
         :return: Standard error result dictionary
         """
         op_data.consecutive_errors = (op_data.consecutive_errors or 0) + 1
         op_data.date_fetched = datetime.now(timezone.utc)
         session.commit()
+        if consume is None:
+            consume = WebToolsWrapper.is_status_active(session)
         return {
             "success": False,
+            "consume": consume,
             "source_id": source.id,
             "error": error_msg,
             "status": status,
@@ -369,6 +376,7 @@ class SourceService:
         session.commit()
         return {
             "success": True,
+            "consume": True,
             "source_id": source.id,
             "status": "unchanged",
             "message": "Content unchanged (hash match).",
@@ -476,6 +484,7 @@ class SourceService:
 
         return {
             "success": True,
+            "consume": True,
             "source_id": source.id,
             "status": "completed",
             "message": f"Successfully refreshed {source.title}: {entries_added} new entries added.",
@@ -502,7 +511,9 @@ class SourceService:
         """
         result = extractor.extract(source, op_data, session)
         if result.error:
-            return cls._record_fetch_error(source, op_data, session, result.error)
+            return cls._record_fetch_error(
+                source, op_data, session, result.error, consume=result.consume
+            )
 
         if result.is_unchanged:
             return cls._record_operational_unchanged(source, op_data, session)
@@ -564,12 +575,14 @@ class FetchExtractionResult:
         body_hash: Optional[bytes] = None,
         is_unchanged: bool = False,
         error: Optional[str] = None,
+        consume: Optional[bool] = None,
     ) -> None:
         self.raw_entries = raw_entries or []
         self.page_hash = page_hash
         self.body_hash = body_hash
         self.is_unchanged = is_unchanged
         self.error = error
+        self.consume = consume
 
 
 class RssSourceExtractor:
@@ -619,7 +632,15 @@ class RssSourceExtractor:
             logger.warning(
                 "Failed to fetch source %s (%s): %s", source.id, source.url, err
             )
-            return FetchExtractionResult(error=f"Network download error: {err}")
+            is_active = (
+                web_client.is_active()
+                if "web_client" in locals() and hasattr(web_client, "is_active")
+                else WebToolsWrapper.is_status_active(session)
+            )
+            return FetchExtractionResult(
+                error=f"Network download error: {err}",
+                consume=is_active,
+            )
 
         # Calculate hashes
         page_hash = hashlib.sha256(content_bytes).digest()
@@ -655,7 +676,7 @@ class RssSourceExtractor:
                 raw_entries = filtered
         except Exception as err:
             logger.warning("Error parsing RSS feed for source %s: %s", source.id, err)
-            return FetchExtractionResult(error=f"Feed parsing error: {err}")
+            return FetchExtractionResult(error=f"Feed parsing error: {err}", consume=True)
 
         return FetchExtractionResult(
             raw_entries=raw_entries,
@@ -701,7 +722,7 @@ class EmailSourceExtractor:
             logger.warning(
                 "Failed to fetch source %s (%s): %s", source.id, source.url, err
             )
-            return FetchExtractionResult(error=f"Network download error: {err}")
+            return FetchExtractionResult(error=f"Network download error: {err}", consume=True)
 
         # Retrieve emails and convert to raw entry dictionaries
         try:
@@ -719,7 +740,7 @@ class EmailSourceExtractor:
                 )
         except Exception as err:
             logger.warning("Error reading emails for source %s: %s", source.id, err)
-            return FetchExtractionResult(error=f"Email reading error: {err}")
+            return FetchExtractionResult(error=f"Email reading error: {err}", consume=True)
 
         return FetchExtractionResult(
             raw_entries=raw_entries,
@@ -731,9 +752,8 @@ class EmailSourceExtractor:
 
 class ParseSourceExtractor:
     """
-    Extractor strategy for email sources using EmailReader.
-    Handles credentials lookup, IMAP connection, and email retrieval.
-    Does not compute content hashes.
+    Extractor strategy for parse sources using WebToolsWrapper.
+    Extracts embedded links matching patterns.
     """
 
     @classmethod
@@ -767,7 +787,15 @@ class ParseSourceExtractor:
             logger.warning(
                 "Failed to fetch source %s (%s): %s", source.id, source.url, err
             )
-            return FetchExtractionResult(error=f"Network download error: {err}")
+            is_active = (
+                web_client.is_active()
+                if "web_client" in locals() and hasattr(web_client, "is_active")
+                else WebToolsWrapper.is_status_active(session)
+            )
+            return FetchExtractionResult(
+                error=f"Network download error: {err}",
+                consume=is_active,
+            )
 
         page_hash = web_client.get_hash()
         body_hash = web_client.get_body_hash()
@@ -812,7 +840,7 @@ class ParseSourceExtractor:
 
         except Exception as err:
             logger.warning("Error extracting links for source %s: %s", source.id, err)
-            return FetchExtractionResult(error=f"Link extraction error: {err}")
+            return FetchExtractionResult(error=f"Link extraction error: {err}", consume=True)
 
         return FetchExtractionResult(
             raw_entries=raw_entries,

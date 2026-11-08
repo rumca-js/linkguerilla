@@ -46,6 +46,7 @@ class ProcessSourceJobHandler(BaseJobHandler):
         if not source:
             return {
                 "success": False,
+                "consume": True,
                 "status": "error",
                 "error": f"Source not found for subject: '{subject}'",
             }
@@ -56,8 +57,17 @@ class ProcessSourceJobHandler(BaseJobHandler):
             )
             return {
                 "success": True,
+                "consume": True,
                 "status": "skipped",
                 "message": f"Source #{source.id} is disabled, skipped.",
             }
 
-        return SourceService.fetch_source(source.id, session=session)
+        res = SourceService.fetch_source(source.id, session=session)
+        if "consume" not in res:
+            if res.get("success", False):
+                res["consume"] = True
+            else:
+                from yafr.services.webtools_service import WebToolsWrapper
+
+                res["consume"] = WebToolsWrapper.is_status_active(session)
+        return res

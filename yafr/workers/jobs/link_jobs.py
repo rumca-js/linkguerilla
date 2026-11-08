@@ -55,6 +55,7 @@ class LinkUpdateDataJobHandler(BaseJobHandler):
         if not entry:
             return {
                 "success": False,
+                "consume": True,
                 "status": "error",
                 "error": f"Entry not found for subject: '{subject}'",
             }
@@ -62,6 +63,7 @@ class LinkUpdateDataJobHandler(BaseJobHandler):
         if not entry.link:
             return {
                 "success": False,
+                "consume": True,
                 "status": "error",
                 "error": f"Entry #{entry.id} has no link URL",
             }
@@ -70,6 +72,7 @@ class LinkUpdateDataJobHandler(BaseJobHandler):
         if not location.is_web_link():
             return {
                 "success": False,
+                "consume": True,
                 "status": "error",
                 "error": f"Cannot update non web links: '{subject}'",
             }
@@ -79,8 +82,10 @@ class LinkUpdateDataJobHandler(BaseJobHandler):
             web_client = WebToolsWrapper(url=entry.link, session=session, timeout_s=15)
 
             response = web_client.get_response()
+            is_active = web_client.is_active()
+
             if response is None or not response.is_valid():
-                # Response is not valid (failed fetch or HTTP error) — mark dead, log error, consume job
+                # Response is not valid (failed fetch or HTTP error) — mark dead, log error
                 status_code = None
                 if response is not None and hasattr(response, "get_status_code"):
                     try:
@@ -126,7 +131,7 @@ class LinkUpdateDataJobHandler(BaseJobHandler):
                     log_repo = LoggingRepository(session)
                     log_repo.log(
                         info_text=err_msg,
-                        detail_text=f"Entry #{entry.id} marked as dead. Job #{getattr(job, 'id', '?')} consumed.",
+                        detail_text=f"Entry #{entry.id} marked as dead. Job #{getattr(job, 'id', '?')}.",
                         level=LoggingRepository.ERROR,
                     )
                 except Exception as log_err:
@@ -134,18 +139,9 @@ class LinkUpdateDataJobHandler(BaseJobHandler):
                         "Failed to record error log in applogging: %s", log_err
                     )
 
-                # Consume job from queue if it has a valid database ID
-                if job and getattr(job, "id", None) and job.id > 0:
-                    try:
-                        from yafr.db.job_repository import JobRepository
-
-                        job_repo = JobRepository(session=session)
-                        job_repo.complete_job(job.id)
-                    except Exception as c_err:
-                        logger.debug("Failed to complete job #%s: %s", job.id, c_err)
-
                 return {
-                    "success": True,
+                    "success": False,
+                    "consume": is_active,
                     "status": "error",
                     "error": err_msg,
                     "message": err_msg,
@@ -229,6 +225,7 @@ class LinkUpdateDataJobHandler(BaseJobHandler):
                     entry_repo.delete_entry(entry.id)
                     return {
                         "success": True,
+                        "consume": True,
                         "status": "removed",
                         "message": f"Entry #{entry.id} removed: {reason}",
                     }
@@ -247,6 +244,7 @@ class LinkUpdateDataJobHandler(BaseJobHandler):
                     entry_repo.delete_entry(entry.id)
                     return {
                         "success": True,
+                        "consume": True,
                         "status": "removed",
                         "message": f"Entry #{entry.id} removed: {reason}",
                     }
@@ -276,6 +274,7 @@ class LinkUpdateDataJobHandler(BaseJobHandler):
 
             return {
                 "success": True,
+                "consume": True,
                 "status": "completed",
                 "message": f"Updated entry #{entry.id} metadata (title='{entry.title}').",
                 "entry_id": entry.id,
@@ -296,8 +295,10 @@ class LinkUpdateDataJobHandler(BaseJobHandler):
                     session.commit()
             except Exception:
                 pass
+            is_active = WebToolsWrapper.is_status_active(session)
             return {
                 "success": False,
+                "consume": is_active,
                 "status": "error",
                 "error": f"Error updating link data: {err}",
             }
@@ -335,6 +336,7 @@ class LinkDownloadSocialJobHandler(BaseJobHandler):
         if not entry or not entry.link:
             return {
                 "success": False,
+                "consume": True,
                 "status": "error",
                 "error": f"Entry not found or has no URL for subject: '{subject}'",
             }
@@ -402,6 +404,7 @@ class LinkDownloadSocialJobHandler(BaseJobHandler):
 
             return {
                 "success": True,
+                "consume": True,
                 "status": "completed",
                 "message": f"Updated social metadata for entry #{entry.id}.",
                 "entry_id": entry.id,
@@ -413,8 +416,10 @@ class LinkDownloadSocialJobHandler(BaseJobHandler):
                 entry.link,
                 err,
             )
+            is_active = WebToolsWrapper.is_status_active(session)
             return {
                 "success": False,
+                "consume": is_active,
                 "status": "error",
                 "error": str(err),
             }

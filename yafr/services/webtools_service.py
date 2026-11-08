@@ -164,6 +164,34 @@ class WebToolsWrapper:
         """
         return cls.resolve_remote_server_location(session=session) is not None
 
+    def is_active(self) -> bool:
+        """
+        Determines whether WebTools status is active.
+
+        If remote WebTools is configured, checks whether the remote WebTools server is reachable/online.
+        If local BaseUrl crawling is used, returns True.
+        """
+        if self.is_remote:
+            res = self.check_remote_status(
+                remote_server_location=self.remote_server_location,
+                session=self.session,
+            )
+            return bool(res.get("online"))
+        return True
+
+    @classmethod
+    def is_status_active(cls, session: Optional[Session] = None) -> bool:
+        """
+        Determines whether WebTools status is active (class-level check).
+
+        If remote WebTools is configured, tests remote server reachability.
+        If local BaseUrl crawling is used, returns True.
+        """
+        if cls.is_remote_enabled(session=session):
+            res = cls.check_remote_status(session=session)
+            return bool(res.get("online"))
+        return True
+
     @classmethod
     def _create_handler(
         cls,

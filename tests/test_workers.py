@@ -366,7 +366,7 @@ class TestJobExecutor(unittest.TestCase):
         self.assertIsNone(self.job_repo.get_by_id(BackgroundJob, job.id))
 
     def test_process_source_job_failure_retry(self):
-        """Job failure records error and disables job after reaching max_retries."""
+        """Job failure records error and consumes job after reaching max_retries when consume is True."""
         job = self.job_repo.enqueue_job(
             job="process-source",
             subject="99999",  # Non-existent source ID
@@ -385,16 +385,75 @@ class TestJobExecutor(unittest.TestCase):
         self.assertEqual(updated_job.errors, 1)
         self.assertTrue(updated_job.enabled)
 
-        # Second failure -> reaches max_retries=2 -> disabled
+        # Second failure -> reaches max_retries=2 -> consumed (archived and removed)
         res2 = executor.process_one(session=self.session)
         self.assertFalse(res2["success"])
         updated_job = self.job_repo.get_by_id(BackgroundJob, job.id)
-        self.assertEqual(updated_job.errors, 2)
-        self.assertFalse(updated_job.enabled)
+        self.assertIsNone(updated_job)
 
-        # No more pending jobs (disabled job is skipped)
+        # No more pending jobs (consumed job is removed)
         res3 = executor.process_one(session=self.session)
         self.assertIsNone(res3)
+
+    def test_process_source_job_disabled_when_webtools_inactive(self):
+        """When WebTools is inactive and job fails, job is disabled after max_retries rather than consumed."""
+        from unittest.mock import patch
+
+        job = self.job_repo.enqueue_job(
+            job="process-source",
+            subject="99999",
+            priority=1,
+            enabled=True,
+        )
+
+        executor = JobExecutor(
+            session=self.session, max_retries=2, auto_refresh_sources=False
+        )
+
+        # Mock WebTools status as inactive (consume=False)
+        with patch("yafr.workers.jobs.source_jobs.ProcessSourceJobHandler.execute") as mock_exec:
+            mock_exec.return_value = {
+                "success": False,
+                "consume": False,
+                "status": "error",
+                "error": "WebTools server offline",
+            }
+            # First failure
+            executor.process_one(session=self.session)
+            j1 = self.job_repo.get_by_id(BackgroundJob, job.id)
+            self.assertEqual(j1.errors, 1)
+            self.assertTrue(j1.enabled)
+
+            # Second failure -> disabled because consume=False
+            executor.process_one(session=self.session)
+            j2 = self.job_repo.get_by_id(BackgroundJob, job.id)
+            self.assertIsNotNone(j2)
+            self.assertEqual(j2.errors, 2)
+            self.assertFalse(j2.enabled)
+
+    def test_disabled_source_job_does_not_block_outdated_source_enqueue(self):
+        """Disabled process-source jobs in queue do not block enqueue_outdated_source_jobs."""
+        # Add a disabled process-source job
+        self.job_repo.enqueue_job(
+            job="process-source",
+            subject="123",
+            priority=5,
+            enabled=False,
+        )
+        # Add an outdated source
+        src = self.source_repo.add_source(
+            url="https://example.com/outdated2.xml",
+            title="Outdated Feed 2",
+            source_type="RSS",
+            enabled=True,
+        )
+        self.source_repo.update_operational_data(
+            src.id,
+            date_fetched=datetime.now(timezone.utc) - timedelta(hours=3),
+        )
+        executor = JobExecutor(session=self.session, auto_refresh_sources=False)
+        enqueued = executor.enqueue_outdated_source_jobs(session=self.session)
+        self.assertEqual(enqueued, 1)
 
     def test_empty_queue_fallback_to_outdated_source(self):
         """When queue is empty, enqueues process-source jobs for outdated sources and processes the first."""

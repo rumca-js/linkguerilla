@@ -154,15 +154,21 @@ class JobRepository(BaseRepository[BackgroundJob]):
         return True
 
     def record_job_error(
-        self, job_id: int, max_retries: int = 3
+        self,
+        job_id: int,
+        max_retries: int = 3,
+        consume_on_max_retries: bool = False,
     ) -> Optional[BackgroundJob]:
         """
         Increments the failure counter for a job. If consecutive errors
-        reach max_retries, disables the job to avoid blocking the queue.
+        reach max_retries:
+          - If consume_on_max_retries is True, completes and archives the job.
+          - If consume_on_max_retries is False, disables the job to avoid blocking the queue.
 
         :param job_id: Job ID
-        :param max_retries: Max allowed failures before disabling (default: 3)
-        :return: Updated BackgroundJob or None
+        :param max_retries: Max allowed failures before action (default: 3)
+        :param consume_on_max_retries: Whether to consume and archive the job when reaching max_retries (default: False)
+        :return: Updated BackgroundJob if still in queue, or None if consumed/not found
         """
         job = self.get_by_id(BackgroundJob, job_id)
         if not job:
@@ -170,13 +176,23 @@ class JobRepository(BaseRepository[BackgroundJob]):
 
         job.errors = (job.errors or 0) + 1
         if job.errors >= max_retries:
-            job.enabled = False
-            logger.warning(
-                "Job id=%d (%s) disabled after reaching %d failures",
-                job.id,
-                job.job,
-                job.errors,
-            )
+            if consume_on_max_retries:
+                logger.info(
+                    "Job id=%d (%s) consumed after reaching %d failures",
+                    job.id,
+                    job.job,
+                    job.errors,
+                )
+                self.complete_job(job_id)
+                return None
+            else:
+                job.enabled = False
+                logger.warning(
+                    "Job id=%d (%s) disabled after reaching %d failures",
+                    job.id,
+                    job.job,
+                    job.errors,
+                )
 
         self.session.commit()
         return job

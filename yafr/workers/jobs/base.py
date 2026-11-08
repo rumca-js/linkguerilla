@@ -33,6 +33,8 @@ class BaseJobHandler(ABC):
 
         :param job: BackgroundJob database model instance
         :param session: Active SQLAlchemy session
-        :return: Dictionary containing 'success' (bool), and optional 'status', 'message', 'error'
+        :return: Dictionary containing 'success' (bool), and optional 'consume' (bool indicating
+                 whether the job should be consumed and removed from queue upon reaching max retries or success),
+                 'status' (str), 'message' (str), and 'error' (str).
         """
         raise NotImplementedError

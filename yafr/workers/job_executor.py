@@ -114,10 +114,16 @@ class JobExecutor:
             result = self.registry.dispatch(job, sess)
 
             success = result.get("success", False)
+            should_consume = result.get("consume")
+            if should_consume is None:
+                should_consume = True
+            else:
+                should_consume = bool(should_consume)
 
             if success:
                 # 3. On success: archive to history and remove from queue
-                job_repo.complete_job(job_id)
+                if should_consume:
+                    job_repo.complete_job(job_id)
                 is_error = result.get("status") == "error" or bool(result.get("error"))
                 try:
                     if is_error:
@@ -148,20 +154,51 @@ class JobExecutor:
                         job_type,
                     )
             else:
-                # 4. On task failure: record error and increment retry count
+                # 4. On task failure: record error and increment retry count (consume if max retries reached and should_consume is True)
                 err_msg = result.get("error", "Unknown job error")
                 updated_job = job_repo.record_job_error(
-                    job_id, max_retries=self.max_retries
+                    job_id,
+                    max_retries=self.max_retries,
+                    consume_on_max_retries=should_consume,
                 )
                 try:
-                    log_repo.log(
-                        info_text=f"Job #{job_id} [{job_type}] failed: {err_msg}",
-                        detail_text=f"Subject: {job_subject} | Retries: {updated_job.errors if updated_job else '?'}",
-                        level=40,  # ERROR
-                    )
+                    if updated_job is None:
+                        log_repo.log(
+                            info_text=f"Job #{job_id} [{job_type}] failed after {self.max_retries} attempts and was consumed: {err_msg}",
+                            detail_text=f"Subject: {job_subject} | Consumed after {self.max_retries} retries",
+                            level=40,  # ERROR
+                        )
+                    elif not updated_job.enabled:
+                        log_repo.log(
+                            info_text=f"Job #{job_id} [{job_type}] failed after {self.max_retries} attempts and was disabled: {err_msg}",
+                            detail_text=f"Subject: {job_subject} | Retries: {updated_job.errors}",
+                            level=40,  # ERROR
+                        )
+                    else:
+                        log_repo.log(
+                            info_text=f"Job #{job_id} [{job_type}] failed: {err_msg}",
+                            detail_text=f"Subject: {job_subject} | Retries: {updated_job.errors}/{self.max_retries}",
+                            level=40,  # ERROR
+                        )
                 except Exception:
                     pass
-                logger.warning("Job #%d recorded failure: %s", job_id, err_msg)
+                if updated_job is None:
+                    logger.warning(
+                        "Job #%d [%s] failed and was consumed after reaching %d failures: %s",
+                        job_id,
+                        job_type,
+                        self.max_retries,
+                        err_msg,
+                    )
+                else:
+                    logger.warning(
+                        "Job #%d [%s] recorded failure (%d/%d): %s",
+                        job_id,
+                        job_type,
+                        updated_job.errors or 0,
+                        self.max_retries,
+                        err_msg,
+                    )
 
             return {
                 "processed": True,
@@ -169,6 +206,7 @@ class JobExecutor:
                 "job_type": job_type,
                 "subject": job_subject,
                 "success": success,
+                "consume": should_consume,
                 "status": result.get("status", "completed" if success else "failed"),
                 "message": result.get("message") or result.get("error", ""),
             }
@@ -178,7 +216,14 @@ class JobExecutor:
             logger.exception(
                 "Exception executing job #%d [%s]: %s", job_id, job_type, exc
             )
-            job_repo.record_job_error(job_id, max_retries=self.max_retries)
+            from yafr.services.webtools_service import WebToolsWrapper
+
+            is_wt_active = WebToolsWrapper.is_status_active(sess)
+            job_repo.record_job_error(
+                job_id,
+                max_retries=self.max_retries,
+                consume_on_max_retries=is_wt_active,
+            )
             try:
                 log_repo.log(
                     info_text=f"Job #{job_id} [{job_type}] crashed with exception: {exc}",
@@ -194,6 +239,7 @@ class JobExecutor:
                 "job_type": job_type,
                 "subject": job_subject,
                 "success": False,
+                "consume": is_wt_active,
                 "status": "crashed",
                 "message": str(exc),
             }
@@ -341,6 +387,7 @@ class JobExecutor:
             sess.execute(
                 select(BackgroundJob.subject).where(
                     BackgroundJob.job.in_(("process-source", "JOB_PROCESS_SOURCE")),
+                    BackgroundJob.enabled == True,
                 )
             )
             .scalars()

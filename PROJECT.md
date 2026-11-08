@@ -140,6 +140,10 @@ Should be written in a such way, so it would be easily changed in code from SQli
    - `JOB_LINK_DOWNLOAD_SOCIAL = "link-download-social"`: Downloads social metadata (`url.get_social_properties`) and updates ratings and visit counters.
    - `JOB_CLEANUP = "cleanup"`: Enforces storage quotas and retention limits.
  - Direct WebToolkit Metadata Extraction: `webtoolkit` (`BaseUrl` or `RemoteUrl`) was introduced to provide parsing and reading of titles, descriptions, date_published, author, etc. Do not fall back on response, nor use beautiful soup. Either BaseUrl/RemoteUrl works, or not.
+ - Job handlers return information whether a job should be consumed (`consume: bool`).
+ - If a job is not successful, it is repeated up to 3 times. After that time, if `consume` is True, the job is consumed (archived to history and removed from queue) instead of being left paused/disabled in the queue.
+ - If WebToolsWrapper response fails and WebTools status is active, the job should be consumed. If WebTools status is inactive/offline, job should not be consumed.
+ - Outdated source enqueueing checks only enabled pending `process-source` jobs, preventing failed or disabled jobs from blocking new jobs.
  - When there are no jobs in the queue, the worker decides what should be done next:
    - Checks how many sources to fetch (outdated sources exceeding refresh period), adds `process-source` jobs into the queue, and processes them.
    - Checks how many entries to update: `ConfigurationEntry.number_of_update_entries` is used to identify how many update jobs can be added if no job is in queue. Candidate entries are selected ordered by oldest `date_update_last` (`nullsfirst`), and up to `number_of_update_entries` `link-update-data` jobs are enqueued and processed.
@@ -176,6 +180,8 @@ It should be possible to download a new database .db file from the internet, or 
  - When handling SQLite tables, then apply some storage limits. For example, we may store history of user searches. Do not allow for infinite growth, but allow only a fixed amount of entries to be added. New entries replace old ones. One exception is Entries. There is no limit for them
  - when creating views check if url can be accessed. Even if we don't have yet any 'permissions' we will be able to addd it later
  - consider batch operations to obtain data. There can be many rows in link database.
+ - make test runs and check tests. you can run differently to use less verbose output
+ - make reformat runs python black to format lines
 
 # General Requirements
  - The application must remain usable when the device is offline.
