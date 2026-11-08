@@ -18,3 +18,43 @@
   footprint via copy-on-write, cutting per-instance RAM roughly in half. See the artifact for code-level
   recommendations.
                          
+
+
+  ## Why 100-200MB Virtual Memory Is Expected
+
+  Looking at your running processes:
+
+    PID 6388:  128 MB VSZ (main.py)
+    PID 6391:  136 MB VSZ (process_jobs.py)
+    PID 6392:  130 MB VSZ (run.py)
+    PID 6397:  204 MB VSZ (run.py - Werkzeug reloader child)
+
+  Virtual memory (VSZ) ≠ actual RAM used. VSZ includes memory-mapped files, shared libraries, and reserved-but-not-
+  yet-used space. The RSS (resident set) column is what's actually in RAM — your processes are using ~106–115 MB
+  RSS, which is still expected.
+
+  ### What's consuming that memory:
+
+   Component                               │ Approx. impact
+  ─────────────────────────────────────────┼───────────────────────────────────────────────────────────────────────
+   Python 3.12 runtime                     │ ~20–30 MB base
+   Flask + Werkzeug                        │ ~5–10 MB
+   SQLAlchemy + linkarchivetools           │ ~15–25 MB (ORM metadata, connection pools)
+   yt-dlp                                  │ ~20–40 MB (massive library with many plugins/extractors loaded at
+                                           │ import)
+   requests + beautifulsoup4               │ ~5–10 MB
+   Jinja2 + template cache                 │ ~5 MB
+   Werkzeug dev server reloader (PID 6397) │ Forks a child process, doubles base cost
+
+  ### The biggest culprit: yt-dlp
+
+  yt-dlp is by far the heaviest dependency — it ships hundreds of site-specific extractors that are eagerly
+  imported. This alone can add 20–40 MB to your process footprint.
+
+  ### The reloader process (PID 6397)
+
+  When running Flask in dev mode (run.py), Werkzeug spawns a child watcher process alongside the app — so you see
+  two run.py entries. This is normal in development.
+  ──────
+  TL;DR: 100–200 MB virtual memory for a Python Flask app with SQLAlchemy + yt-dlp is completely expected and not a
+  concern. It would only become an issue if you're deploying to a device with very limited RAM (< 256 MB total).
