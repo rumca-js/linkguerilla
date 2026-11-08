@@ -84,7 +84,7 @@ class Config:
 
     SECRET_KEY = os.environ.get("YAFR_SECRET_KEY", "yafr-dev-secret-key-change-in-prod")
     DEBUG = os.environ.get("YAFR_DEBUG", "False").lower() in ("true", "1", "yes")
-    HOST = os.environ.get("YAFR_HOST", "127.0.0.1")
+    HOST = os.environ.get("YAFR_HOST", "0.0.0.0")
     PORT = int(os.environ.get("YAFR_PORT", 5000))
 
     # SQLite Database File Location - Defaults to data/table.db
