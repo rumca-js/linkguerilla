@@ -12,6 +12,7 @@ import json
 import logging
 import threading
 import time
+import gc
 from typing import Any, Callable, Dict, Optional
 from sqlalchemy import or_, select
 from sqlalchemy.orm import Session
@@ -607,6 +608,8 @@ class JobExecutor:
                 close_session()
             except Exception as cs_err:
                 logger.debug("Failed to close session after job iteration: %s", cs_err)
+
+            gc.collect()
 
             if result and result.get("processed"):
                 executed_count += 1
