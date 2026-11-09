@@ -683,3 +683,41 @@ class TestSourceApi(unittest.TestCase):
             json={"target_type": "PARSE"},
         )
         self.assertEqual(res_404.status_code, 404)
+
+    def test_source_thumbnails_case_insensitive(self):
+        """Verify parse source thumbnail uses parse icon (bi-code-slash) in list and detail regardless of casing."""
+        parse_lower = self.repo.add_source(
+            url="https://example.com/parse-lower",
+            title="Parse Lowercase Source",
+            source_type="parse",
+        )
+        parse_upper = self.repo.add_source(
+            url="https://example.com/parse-upper",
+            title="Parse Uppercase Source",
+            source_type="PARSE",
+        )
+
+        # Test detail page for lowercase parse source
+        res_detail_lower = self.client.get(f"/sources/{parse_lower.id}")
+        self.assertEqual(res_detail_lower.status_code, 200)
+        html_detail_lower = res_detail_lower.get_data(as_text=True)
+        self.assertIn("bi-code-slash fs-2 text-success", html_detail_lower)
+        self.assertNotIn("bi-rss fs-2 text-warning", html_detail_lower)
+        self.assertIn(f"/sources/{parse_lower.id}/edit-parse", html_detail_lower)
+
+        # Test detail page for uppercase parse source
+        res_detail_upper = self.client.get(f"/sources/{parse_upper.id}")
+        self.assertEqual(res_detail_upper.status_code, 200)
+        html_detail_upper = res_detail_upper.get_data(as_text=True)
+        self.assertIn("bi-code-slash fs-2 text-success", html_detail_upper)
+        self.assertNotIn("bi-rss fs-2 text-warning", html_detail_upper)
+        self.assertIn(f"/sources/{parse_upper.id}/edit-parse", html_detail_upper)
+
+        # Test list page
+        res_list = self.client.get("/sources")
+        self.assertEqual(res_list.status_code, 200)
+        html_list = res_list.get_data(as_text=True)
+        self.assertIn(f"/sources/{parse_lower.id}/edit-parse", html_list)
+        self.assertIn(f"/sources/{parse_upper.id}/edit-parse", html_list)
+        self.assertIn("bi-code-slash fs-5 text-success", html_list)
+

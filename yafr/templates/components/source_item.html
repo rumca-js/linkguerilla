@@ -2,6 +2,7 @@
      id="source-row-{{ source.id }}" 
      data-source-id="{{ source.id }}"
      {% if not source.enabled %}style="opacity: {{ dead_alpha }};"{% endif %}>
+  {% set stype = (source.source_type or '')|trim|upper %}
   <div class="card-body p-3">
     <div class="d-flex align-items-center justify-content-between flex-wrap gap-2">
       
@@ -32,13 +33,19 @@
               onerror="this.onerror=null;this.classList.add('d-none');this.nextElementSibling.classList.remove('d-none');"
             >
             <div class="rounded border bg-body-tertiary d-none align-items-center justify-content-center" style="width:40px; height:40px;">
-              <i class="bi bi-rss fs-5 text-secondary"></i>
+              {% if stype == 'EMAIL' %}
+                <i class="bi bi-envelope fs-5 text-info"></i>
+              {% elif stype == 'PARSE' %}
+                <i class="bi bi-code-slash fs-5 text-success"></i>
+              {% else %}
+                <i class="bi bi-rss fs-5 text-secondary"></i>
+              {% endif %}
             </div>
           {% else %}
             <div class="rounded border bg-body-tertiary d-flex align-items-center justify-content-center" style="width:40px; height:40px;">
-              {% if source.source_type == 'EMAIL' %}
+              {% if stype == 'EMAIL' %}
                 <i class="bi bi-envelope fs-5 text-info"></i>
-              {% elif source.source_type == 'PARSE' %}
+              {% elif stype == 'PARSE' %}
                 <i class="bi bi-code-slash fs-5 text-success"></i>
               {% else %}
                 <i class="bi bi-rss fs-5 text-warning"></i>
@@ -134,11 +141,11 @@
         </button>
 
         <!-- Edit source button -->
-        {% if source.source_type == 'EMAIL' %}
+        {% if stype == 'EMAIL' %}
           <a href="{{ url_for('sources.source_edit_email', id=source.id) }}" class="btn btn-outline-secondary btn-sm rounded-pill" title="Edit source">
             <i class="bi bi-pencil"></i>
           </a>
-        {% elif source.source_type == 'PARSE' %}
+        {% elif stype == 'PARSE' %}
           <a href="{{ url_for('sources.source_edit_parse', id=source.id) }}" class="btn btn-outline-secondary btn-sm rounded-pill" title="Edit source">
             <i class="bi bi-pencil"></i>
           </a>

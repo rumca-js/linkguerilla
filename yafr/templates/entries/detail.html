@@ -352,7 +352,14 @@
               {% if source.favicon %}
                 <img src="{{ source.favicon }}" alt="" width="20" height="20" class="rounded-circle border">
               {% else %}
-                <i class="bi bi-rss text-warning fs-5"></i>
+                {% set src_type = (source.source_type or '')|trim|upper %}
+                {% if src_type == 'EMAIL' %}
+                  <i class="bi bi-envelope text-info fs-5"></i>
+                {% elif src_type == 'PARSE' %}
+                  <i class="bi bi-code-slash text-success fs-5"></i>
+                {% else %}
+                  <i class="bi bi-rss text-warning fs-5"></i>
+                {% endif %}
               {% endif %}
               <a href="{{ url_for('sources.source_detail', id=source.id) }}" class="fw-semibold text-decoration-none">
                 {{ source.title or source.url }}
