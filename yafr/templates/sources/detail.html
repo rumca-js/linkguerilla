@@ -104,6 +104,12 @@
                   <i class="bi bi-exclamation-octagon me-1"></i>Age {{ source.age }}+
                 </span>
               {% endif %}
+
+              {% if source.auto_add_to_read_later %}
+                <span class="badge bg-primary-subtle text-primary border border-primary-subtle" id="badge-source-read-later" title="Auto add to Read Later">
+                  <i class="bi bi-bookmark-check me-1"></i>Auto Read Later
+                </span>
+              {% endif %}
             </div>
 
             <!-- Feed URL Link -->

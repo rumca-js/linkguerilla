@@ -243,6 +243,7 @@ def source_add_rss():
         title = request.form.get("title", "").strip() or url
         xpath = request.form.get("xpath", "").strip() or None
         enabled = "enabled" in request.form
+        auto_add_to_read_later = "auto_add_to_read_later" in request.form
         auto_tag = request.form.get("auto_tag", "").strip()
         favicon = request.form.get("favicon", "").strip() or None
         category_name = request.form.get("category_name", "").strip() or None
@@ -265,6 +266,7 @@ def source_add_rss():
             source_type="RSS",
             xpath=xpath,
             enabled=enabled,
+            auto_add_to_read_later=auto_add_to_read_later,
             auto_tag=auto_tag,
             favicon=favicon,
             category_name=category_name,
@@ -294,6 +296,7 @@ def source_edit_rss(id: int):
         url = request.form.get("url", "").strip() or source.url
         xpath = request.form.get("xpath", "").strip() or None
         enabled = "enabled" in request.form
+        auto_add_to_read_later = "auto_add_to_read_later" in request.form
         auto_tag = request.form.get("auto_tag", "").strip()
         favicon = request.form.get("favicon", "").strip() or None
         category_name = request.form.get("category_name", "").strip() or None
@@ -307,6 +310,7 @@ def source_edit_rss(id: int):
             url=url,
             xpath=xpath,
             enabled=enabled,
+            auto_add_to_read_later=auto_add_to_read_later,
             auto_tag=auto_tag,
             favicon=favicon,
             category_name=category_name,
@@ -335,6 +339,7 @@ def source_add_email():
         username = request.form.get("username", "").strip()
         password = request.form.get("password", "")
         enabled = "enabled" in request.form
+        auto_add_to_read_later = "auto_add_to_read_later" in request.form
         auto_tag = request.form.get("auto_tag", "").strip()
         language = request.form.get("language", "").strip() or None
         age = _parse_age(request.form.get("age"))
@@ -376,6 +381,7 @@ def source_add_email():
             title=title or url,
             source_type=Sources.SOURCE_TYPE_EMAIL,
             enabled=enabled,
+            auto_add_to_read_later=auto_add_to_read_later,
             auto_tag=auto_tag,
             credentials_id=creds.id,
             language=language,
@@ -413,6 +419,7 @@ def source_edit_email(id: int):
         username = request.form.get("username", "").strip()
         password = request.form.get("password", "")
         enabled = "enabled" in request.form
+        auto_add_to_read_later = "auto_add_to_read_later" in request.form
         auto_tag = request.form.get("auto_tag", "").strip()
         language = request.form.get("language", "").strip() or None
         age = _parse_age(request.form.get("age"))
@@ -455,6 +462,7 @@ def source_edit_email(id: int):
             title=title,
             url=url,
             enabled=enabled,
+            auto_add_to_read_later=auto_add_to_read_later,
             auto_tag=auto_tag,
             credentials_id=credentials.id,
             language=language,
@@ -482,6 +490,7 @@ def source_add_parse():
         url = request.form.get("url", "").strip()
         xpath = request.form.get("xpath", "").strip() or None
         enabled = "enabled" in request.form
+        auto_add_to_read_later = "auto_add_to_read_later" in request.form
         auto_tag = request.form.get("auto_tag", "").strip()
         language = request.form.get("language", "").strip() or None
         age = _parse_age(request.form.get("age"))
@@ -497,6 +506,7 @@ def source_add_parse():
             source_type="PARSE",
             xpath=xpath,
             enabled=enabled,
+            auto_add_to_read_later=auto_add_to_read_later,
             auto_tag=auto_tag,
             language=language,
             age=age,
@@ -524,6 +534,7 @@ def source_edit_parse(id: int):
         url = request.form.get("url", "").strip() or source.url
         xpath = request.form.get("xpath", "").strip() or None
         enabled = "enabled" in request.form
+        auto_add_to_read_later = "auto_add_to_read_later" in request.form
         auto_tag = request.form.get("auto_tag", "").strip()
         language = request.form.get("language", "").strip() or None
         age = _parse_age(request.form.get("age"))
@@ -535,6 +546,7 @@ def source_edit_parse(id: int):
             url=url,
             xpath=xpath,
             enabled=enabled,
+            auto_add_to_read_later=auto_add_to_read_later,
             auto_tag=auto_tag,
             language=language,
             age=age,

@@ -87,6 +87,7 @@ class SourceRepository(BaseRepository[SourcesTable]):
         title: Optional[str] = None,
         source_type: Optional[str] = "rss",
         enabled: bool = True,
+        auto_add_to_read_later: bool = False,
         favicon: Optional[str] = None,
         credentials_id: Optional[int] = None,
         xpath: Optional[str] = None,
@@ -100,6 +101,7 @@ class SourceRepository(BaseRepository[SourcesTable]):
         :param title: Display title
         :param source_type: 'rss', 'email', or 'parse'
         :param enabled: Enabled status
+        :param auto_add_to_read_later: Automatically mark new entries for reading later
         :param favicon: Favicon URL
         :param credentials_id: Foreign key to credentials (for email sources)
         :param xpath: XPath parser expression (for parse sources)
@@ -111,6 +113,7 @@ class SourceRepository(BaseRepository[SourcesTable]):
             title=title or url,
             source_type=source_type,
             enabled=enabled,
+            auto_add_to_read_later=auto_add_to_read_later,
             favicon=favicon,
             credentials_id=credentials_id,
             xpath=xpath,

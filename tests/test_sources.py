@@ -182,6 +182,7 @@ class TestSourceRoutes(unittest.TestCase):
         self.assertIn("Add New RSS", res_get.get_data(as_text=True))
         self.assertIn("fetch_period", res_get.get_data(as_text=True))
         self.assertIn("re.match", res_get.get_data(as_text=True))
+        self.assertIn('id="auto_add_to_read_later"', res_get.get_data(as_text=True))
 
         # Test POST
         res_post = self.client.post(
@@ -191,6 +192,7 @@ class TestSourceRoutes(unittest.TestCase):
                 "url": "https://feeds.arstechnica.com/arstechnica/index",
                 "xpath": r"https://arstechnica\.com/.*",
                 "enabled": "on",
+                "auto_add_to_read_later": "on",
                 "auto_tag": "tech, hardware",
                 "language": "en",
                 "age": "18",
@@ -204,6 +206,8 @@ class TestSourceRoutes(unittest.TestCase):
         self.assertIn("7,200s", html)
         self.assertIn("badge-source-language", html)
         self.assertIn("badge-source-age", html)
+        self.assertIn("badge-source-read-later", html)
+        self.assertIn("Auto Read Later", html)
         self.assertIn("Age 18+", html)
         self.assertIn(r"https://arstechnica\.com/.*", html)
 
@@ -214,6 +218,7 @@ class TestSourceRoutes(unittest.TestCase):
         self.assertIsNotNone(created)
         self.assertEqual(created.title, "Ars Technica")
         self.assertEqual(created.source_type, "RSS")
+        self.assertTrue(created.auto_add_to_read_later)
         self.assertEqual(created.xpath, r"https://arstechnica\.com/.*")
         self.assertEqual(created.fetch_period, 7200)
         self.assertEqual(created.language, "en")
@@ -221,6 +226,7 @@ class TestSourceRoutes(unittest.TestCase):
 
     def test_edit_rss_source(self):
         """GET and POST /sources/<id>/edit-rss updates existing RSS source."""
+        # Enable auto_add_to_read_later
         res_post = self.client.post(
             f"/sources/{self.s1.id}/edit-rss",
             data={
@@ -228,6 +234,7 @@ class TestSourceRoutes(unittest.TestCase):
                 "url": "https://news.ycombinator.com/rss",
                 "xpath": r"https://news\.ycombinator\.com/item\?id=\d+",
                 "enabled": "on",
+                "auto_add_to_read_later": "on",
                 "auto_tag": "tech, yc",
                 "language": "en",
                 "age": "16",
@@ -239,13 +246,38 @@ class TestSourceRoutes(unittest.TestCase):
         updated = self.repo.get_by_id(self.s1.id)
         self.assertEqual(updated.title, "Hacker News Frontpage")
         self.assertEqual(updated.xpath, r"https://news\.ycombinator\.com/item\?id=\d+")
+        self.assertTrue(updated.auto_add_to_read_later)
         self.assertEqual(updated.auto_tag, "tech, yc")
         self.assertEqual(updated.language, "en")
         self.assertEqual(updated.age, 16)
         self.assertEqual(updated.fetch_period, 3600)
 
+        # Verify GET edit page shows checkbox checked
+        res_get = self.client.get(f"/sources/{self.s1.id}/edit-rss")
+        self.assertEqual(res_get.status_code, 200)
+        self.assertIn('name="auto_add_to_read_later" \n            checked', res_get.get_data(as_text=True))
+
+        # Disable auto_add_to_read_later
+        res_post_disable = self.client.post(
+            f"/sources/{self.s1.id}/edit-rss",
+            data={
+                "title": "Hacker News Frontpage",
+                "url": "https://news.ycombinator.com/rss",
+                "enabled": "on",
+            },
+            follow_redirects=True,
+        )
+        self.assertEqual(res_post_disable.status_code, 200)
+        self.session.refresh(updated)
+        self.assertFalse(updated.auto_add_to_read_later)
+
     def test_add_and_edit_email_source(self):
         """GET and POST /sources/new/email creates email source and credentials."""
+        # Test GET
+        res_get = self.client.get("/sources/new/email")
+        self.assertEqual(res_get.status_code, 200)
+        self.assertIn('id="auto_add_to_read_later"', res_get.get_data(as_text=True))
+
         res_post = self.client.post(
             "/sources/new/email",
             data={
@@ -254,6 +286,7 @@ class TestSourceRoutes(unittest.TestCase):
                 "username": "reader@example.com",
                 "password": "secretpassword",
                 "enabled": "on",
+                "auto_add_to_read_later": "on",
                 "fetch_period": "1800",
             },
             follow_redirects=True,
@@ -264,6 +297,7 @@ class TestSourceRoutes(unittest.TestCase):
         created = self.repo.get_by_url("imaps://imap.example.com:993")
         self.assertIsNotNone(created)
         self.assertEqual(created.source_type, "EMAIL")
+        self.assertTrue(created.auto_add_to_read_later)
         self.assertEqual(created.fetch_period, 1800)
         self.assertIsNotNone(created.credentials_id)
 
@@ -272,7 +306,7 @@ class TestSourceRoutes(unittest.TestCase):
         self.assertEqual(cred.username, "reader@example.com")
         self.assertEqual(cred.password, "secretpassword")
 
-        # Edit email source
+        # Edit email source (turn off auto_add_to_read_later)
         res_edit = self.client.post(
             f"/sources/{created.id}/edit-email",
             data={
@@ -290,6 +324,7 @@ class TestSourceRoutes(unittest.TestCase):
         self.session.refresh(created)
         self.assertEqual(cred.username, "newreader@example.com")
         self.assertEqual(cred.password, "newpassword")
+        self.assertFalse(created.auto_add_to_read_later)
         self.assertEqual(created.fetch_period, 900)
 
     def test_add_and_edit_parse_source(self):
@@ -297,6 +332,7 @@ class TestSourceRoutes(unittest.TestCase):
         res_get = self.client.get("/sources/new/parse")
         self.assertEqual(res_get.status_code, 200)
         self.assertIn("re.match", res_get.get_data(as_text=True))
+        self.assertIn('id="auto_add_to_read_later"', res_get.get_data(as_text=True))
 
         res_post = self.client.post(
             "/sources/new/parse",
@@ -305,6 +341,7 @@ class TestSourceRoutes(unittest.TestCase):
                 "url": "https://lobste.rs",
                 "xpath": r"https://lobste\.rs/s/.*",
                 "enabled": "on",
+                "auto_add_to_read_later": "on",
                 "fetch_period": "86400",
             },
             follow_redirects=True,
@@ -315,9 +352,10 @@ class TestSourceRoutes(unittest.TestCase):
         self.assertIsNotNone(created)
         self.assertEqual(created.source_type, "PARSE")
         self.assertEqual(created.xpath, r"https://lobste\.rs/s/.*")
+        self.assertTrue(created.auto_add_to_read_later)
         self.assertEqual(created.fetch_period, 86400)
 
-        # Edit parse source
+        # Edit parse source (disable auto_add_to_read_later)
         res_edit = self.client.post(
             f"/sources/{created.id}/edit-parse",
             data={
@@ -332,6 +370,7 @@ class TestSourceRoutes(unittest.TestCase):
         self.assertEqual(res_edit.status_code, 200)
         self.session.refresh(created)
         self.assertEqual(created.xpath, r"https://lobste\.rs/s/\w+")
+        self.assertFalse(created.auto_add_to_read_later)
         self.assertEqual(created.fetch_period, 43200)
 
 
