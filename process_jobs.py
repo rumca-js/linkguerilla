@@ -55,6 +55,11 @@ def parse_args():
         help="Disable automatic refresh of outdated sources when job queue is empty",
     )
     parser.add_argument(
+        "--no-fix-schema",
+        action="store_true",
+        help="Disable automatic database schema fixing on startup",
+    )
+    parser.add_argument(
         "-v",
         "--verbose",
         action="store_true",
@@ -110,6 +115,7 @@ def main():
 
     executor = JobExecutor(
         auto_refresh_sources=not args.no_refresh_sources,
+        fix_schema_on_startup=not args.no_fix_schema,
     )
 
     def on_job_result(res: Dict[str, Any]):
@@ -127,6 +133,11 @@ def main():
 
     try:
         if args.once:
+            if not args.no_fix_schema:
+                try:
+                    executor.fix_database_schema(reapply_defaults=True)
+                except Exception as schema_err:
+                    logging.warning("Startup schema fix error: %s", schema_err)
             result = executor.process_one()
             if result and result.get("processed"):
                 on_job_result(result)

@@ -534,7 +534,10 @@ class DatabaseService:
 
     @classmethod
     def fix_table_schema(
-        cls, table_name: str, reapply_defaults: bool = True
+        cls,
+        table_name: str,
+        reapply_defaults: bool = True,
+        engine: Optional[Any] = None,
     ) -> Dict[str, Any]:
         """
         Synchronizes an outdated database table against linkarchivetools.model.definitions.
@@ -544,11 +547,15 @@ class DatabaseService:
         return SchemaService.fix_table_schema(
             table_name=table_name,
             reapply_defaults=reapply_defaults,
-            engine=get_engine(),
+            engine=engine or get_engine(),
         )
 
     @classmethod
-    def fix_all_tables(cls, reapply_defaults: bool = True) -> Dict[str, Any]:
+    def fix_all_tables(
+        cls,
+        reapply_defaults: bool = True,
+        engine: Optional[Any] = None,
+    ) -> Dict[str, Any]:
         """
         Fixes all outdated database tables to match linkarchivetools.model.definitions.
         """
@@ -556,5 +563,5 @@ class DatabaseService:
 
         return SchemaService.fix_all_tables(
             reapply_defaults=reapply_defaults,
-            engine=get_engine(),
+            engine=engine or get_engine(),
         )

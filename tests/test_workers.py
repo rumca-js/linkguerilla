@@ -733,6 +733,17 @@ class TestJobExecutor(unittest.TestCase):
         self.assertEqual(executed, 2)
         self.assertEqual(self.job_repo.count_jobs(), 1)
 
+    def test_fix_database_schema_at_worker_startup(self):
+        """JobExecutor.fix_database_schema repairs database schema at startup."""
+        executor = JobExecutor(
+            session=self.session,
+            auto_refresh_sources=False,
+            fix_schema_on_startup=True,
+        )
+        res = executor.fix_database_schema(reapply_defaults=True)
+        self.assertTrue(res.get("success", False))
+        self.assertIn("fixed_count", res)
+
 
 class TestProcessJobsScriptCLI(unittest.TestCase):
     """

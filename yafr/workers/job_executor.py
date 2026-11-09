@@ -52,6 +52,7 @@ class JobExecutor:
         max_retries: int = 3,
         auto_refresh_sources: bool = True,
         registry: Optional[JobRegistry] = None,
+        fix_schema_on_startup: bool = True,
     ) -> None:
         """
         Initializes the JobExecutor.
@@ -60,11 +61,34 @@ class JobExecutor:
         :param max_retries: Maximum failures allowed before a job is disabled
         :param auto_refresh_sources: Whether to check and refresh outdated sources when queue is empty
         :param registry: Optional JobRegistry instance for custom handler registration
+        :param fix_schema_on_startup: Whether to check and repair database schema at worker startup
         """
         self._session = session
         self.max_retries = max_retries
         self.auto_refresh_sources = auto_refresh_sources
         self.registry = registry or default_registry
+        self.fix_schema_on_startup = fix_schema_on_startup
+
+    def fix_database_schema(
+        self, reapply_defaults: bool = True
+    ) -> Dict[str, Any]:
+        """
+        Executes DatabaseService.fix_all_tables to reconcile SQLite schema
+        and fix eventual missing columns, obsolete columns, and default constraints.
+        """
+        from yafr.services.database_service import DatabaseService
+
+        sess = self._get_session()
+        engine = None
+        if sess is not None:
+            try:
+                engine = sess.get_bind()
+            except Exception:
+                engine = None
+
+        return DatabaseService.fix_all_tables(
+            reapply_defaults=reapply_defaults, engine=engine
+        )
 
     def _get_session(self, session: Optional[Session] = None) -> Session:
         return session or self._session or get_session()
@@ -566,6 +590,23 @@ class JobExecutor:
 
         executed_count = 0
         thread_id = str(_threading.current_thread().ident)
+
+        # Fix eventual database schema issues at worker startup before processing jobs
+        if self.fix_schema_on_startup:
+            try:
+                logger.info("Checking and repairing database schema at worker startup...")
+                fix_res = self.fix_database_schema(reapply_defaults=True)
+                fixed_count = fix_res.get("fixed_count", 0)
+                if fixed_count > 0:
+                    logger.info(
+                        "Worker startup schema fix repaired %d table(s): %s",
+                        fixed_count,
+                        [r["table"] for r in fix_res.get("results", [])],
+                    )
+            except Exception as schema_err:
+                logger.warning(
+                    "Worker startup schema fix encountered an issue: %s", schema_err
+                )
 
         # Enqueue outdated jobs at worker startup if auto_refresh_sources is enabled
         if self.auto_refresh_sources:
