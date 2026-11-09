@@ -150,11 +150,11 @@
           </button>
 
           <!-- Edit Button -->
-          {% if source.source_type == 'EMAIL' %}
+          {% if source.source_type|lower == 'email' %}
             <a href="{{ url_for('sources.source_edit_email', id=source.id) }}" class="btn btn-outline-secondary rounded-pill px-3">
               <i class="bi bi-pencil me-1"></i>Edit
             </a>
-          {% elif source.source_type == 'PARSE' %}
+          {% elif source.source_type|lower == 'parse' %}
             <a href="{{ url_for('sources.source_edit_parse', id=source.id) }}" class="btn btn-outline-secondary rounded-pill px-3">
               <i class="bi bi-pencil me-1"></i>Edit
             </a>

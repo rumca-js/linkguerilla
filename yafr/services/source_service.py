@@ -308,9 +308,9 @@ class SourceService:
             session.add(op_data)
             session.flush()
 
-        if source.source_type == Sources.SOURCE_TYPE_EMAIL:
+        if source.source_type and source.source_type == Sources.SOURCE_TYPE_EMAIL or source.source_type.lower() == "Email":
             return cls._execute_fetch_email(source, op_data, session)
-        elif source.source_type == Sources.SOURCE_TYPE_PARSE:
+        elif source.source_type and source.source_type == Sources.SOURCE_TYPE_PARSE or source.source_type.lower() == "parse":
             return cls._execute_fetch_parse(source, op_data, session)
         else:
             return cls._execute_fetch_rss(source, op_data, session)
