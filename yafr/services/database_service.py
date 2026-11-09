@@ -341,6 +341,36 @@ class DatabaseService:
         return repo.clear_all_entries()
 
     @classmethod
+    def truncate_table(
+        cls, table_name: str, session: Optional[Session] = None
+    ) -> int:
+        """
+        Deletes all rows from the specified table.
+
+        Only tables listed in DATABASE_TABLE_METADATA are permitted to prevent
+        arbitrary SQL execution on unknown tables.
+
+        :param table_name: Name of the table to truncate.
+        :param session: Optional active database session.
+        :return: Number of deleted rows.
+        :raises ValueError: When the table name is not in the known allow-list.
+        """
+        allowed = {m["table_name"] for m in DATABASE_TABLE_METADATA}
+        if table_name not in allowed:
+            raise ValueError(
+                f"Table '{table_name}' is not in the list of manageable tables."
+            )
+
+        sess = session or get_session()
+        try:
+            result = sess.execute(text(f"DELETE FROM {table_name}"))
+            sess.commit()
+            return result.rowcount or 0
+        except Exception as err:
+            sess.rollback()
+            raise
+
+    @classmethod
     def replace_database_from_url(cls, remote_url: str) -> Dict[str, Any]:
         """
         Downloads a remote SQLite database file from a URL, validates integrity,

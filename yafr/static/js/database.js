@@ -116,6 +116,24 @@ document.addEventListener("DOMContentLoaded", function () {
     modal.show();
   });
 
+  // 3b. Truncate Table Button Click (opens confirmation modal)
+  $(document).on("click", ".btn-truncate-table", function () {
+    var tableName = $(this).data("table");
+    activeClearEndpoint = "/api/database/truncate-table/" + encodeURIComponent(tableName);
+    activeClearTable = tableName;
+    activeClearExtraTables = null;
+
+    $("#confirm-clear-title").text("Truncate " + tableName);
+    $("#confirm-clear-message").html(
+      "Are you sure you want to permanently delete <strong>all rows</strong> from table <code>" +
+        tableName +
+        "</code>? This operation cannot be undone."
+    );
+
+    var modal = new bootstrap.Modal(document.getElementById("confirmClearModal"));
+    modal.show();
+  });
+
   // 4. Confirm Execute Clear Action
   $("#execute-clear-btn").on("click", function () {
     if (!activeClearEndpoint) return;

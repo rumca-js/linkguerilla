@@ -76,6 +76,8 @@ def fetch_source(source_id: int):
     """
     Enqueues a process-source background job for the given source ID.
 
+    Clears operational hashes so that the next fetch will re-read and parse
+    the feed even if the remote content hash matches the prior fetch.
     The job will be picked up by the background worker (process_jobs.py / JobExecutor)
     on its next loop cycle. This avoids doing a blocking synchronous HTTP fetch
     inside the web request.
@@ -85,6 +87,9 @@ def fetch_source(source_id: int):
     source = repo.get_by_id(source_id)
     if not source:
         return api_response(success=False, error="Source not found", status_code=404)
+
+    # Invalidate operational hashes to force re-parsing on user-initiated fetch
+    repo.clear_hashes(source_id)
 
     job_repo = JobRepository(session)
     job = job_repo.enqueue_job(

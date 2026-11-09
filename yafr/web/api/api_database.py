@@ -223,6 +223,31 @@ def replace_from_url():
         return api_response(success=False, error=str(err), status_code=500)
 
 
+@api_database_bp.route("/truncate-table/<table_name>", methods=["POST"])
+def truncate_table(table_name: str):
+    """
+    Truncates all rows in the specified database table.
+
+    :param table_name: Name of the table to truncate.
+    """
+    try:
+        session = get_session()
+        count = DatabaseService.truncate_table(table_name, session=session)
+        return jsonify(
+            {
+                "success": True,
+                "table": table_name,
+                "message": f"Table '{table_name}' truncated.",
+                "deleted_count": count,
+            }
+        )
+    except ValueError as val_err:
+        return api_response(success=False, error=str(val_err), status_code=400)
+    except Exception as err:
+        logger.error("Failed to truncate table %s: %s", table_name, err)
+        return api_response(success=False, error=str(err), status_code=500)
+
+
 @api_database_bp.route("/tables", methods=["GET"])
 def get_tables():
     """

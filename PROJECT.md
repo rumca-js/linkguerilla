@@ -133,9 +133,11 @@ Should be written in a such way, so it would be easily changed in code from SQli
 
 # Jobs
  - Background task / worker script processes jobs sequentially from `backgroundjob` ordered by priority.
+ - some additional information can be passed as args, as JSON
  - when checking if links, or sources are outdated - put only one job into the queue. We will mitigate starvation that way
  - Identifies job types based on `linkarchivetools.BackgroundJob`:
    - `JOB_PROCESS_SOURCE = "process-source"`: Fetches feeds/sources, checks content hashes, parses entries, and persists new links.
+      if user clicks fetch / update, the source should be fetched, 
    - `JOB_LINK_UPDATE_DATA = "link-update-data"`: Refreshes properties from `BaseUrl`/`RemoteUrl` via `WebToolsWrapper`: title, description, thumbnail, date_published, author, album, language, HTTP status_code. Only updates properties when valid. Updates `date_update_last` to 'now'. If link is not valid, sets `date_dead_since`; if valid, clears it. If link is blocked by entry rules, it is removed. Automatically enqueues `JOB_LINK_DOWNLOAD_SOCIAL`.
    - `JOB_LINK_DOWNLOAD_SOCIAL = "link-download-social"`: Downloads social metadata (`url.get_social_properties`) and updates ratings and visit counters.
    - `JOB_CLEANUP = "cleanup"`: Enforces storage quotas and retention limits.

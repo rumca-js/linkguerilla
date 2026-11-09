@@ -264,6 +264,19 @@ class SourceRepository(BaseRepository[SourcesTable]):
         self.session.commit()
         return op_data
 
+    def clear_hashes(self, source_id: int) -> None:
+        """
+        Clears operational hashes (page_hash and body_hash) for a source,
+        forcing the next fetch to re-parse feed content.
+
+        :param source_id: Source ID
+        """
+        op_data = self.get_operational_data(source_id)
+        if op_data:
+            op_data.page_hash = None
+            op_data.body_hash = None
+            self.session.flush()
+
     def get_outdated_sources(
         self, max_age_seconds: int = 3600, limit: Optional[int] = None
     ) -> List[SourcesTable]:

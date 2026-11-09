@@ -153,7 +153,7 @@
                 <th style="width: 180px;">Category</th>
                 <th>Description</th>
                 <th style="width: 130px;" class="text-end">Row Count</th>
-                <th style="width: 110px;" class="text-end">Actions</th>
+                <th style="width: 180px;" class="text-end">Actions</th>
               </tr>
             </thead>
             <tbody>
@@ -173,9 +173,14 @@
                     </span>
                   </td>
                   <td class="text-end">
-                    <button type="button" class="btn btn-outline-secondary btn-sm rounded-pill px-2 py-0 btn-alter-table-col" data-table="{{ t.table_name }}" title="Alter column in {{ t.table_name }}">
-                      <i class="bi bi-gear me-1"></i>Alter
-                    </button>
+                    <div class="d-flex justify-content-end gap-1">
+                      <button type="button" class="btn btn-outline-secondary btn-sm rounded-pill px-2 py-0 btn-alter-table-col" data-table="{{ t.table_name }}" title="Alter column in {{ t.table_name }}">
+                        <i class="bi bi-gear me-1"></i>Alter
+                      </button>
+                      <button type="button" class="btn btn-outline-danger btn-sm rounded-pill px-2 py-0 btn-truncate-table" data-table="{{ t.table_name }}" title="Truncate {{ t.table_name }}">
+                        <i class="bi bi-trash me-1"></i>Truncate
+                      </button>
+                    </div>
                   </td>
                 </tr>
               {% endfor %}

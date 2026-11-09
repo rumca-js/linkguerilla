@@ -444,3 +444,28 @@ class TestSourceApi(unittest.TestCase):
         self.assertIn("queued_sources_count", data)
         # Give worker a moment to process the mocked fetches
         time.sleep(0.2)
+
+    def test_fetch_source_endpoint_clears_hashes_and_enqueues_job(self):
+        """POST /api/sources/<id>/fetch clears hashes and enqueues process-source job."""
+        source_id = self.s1.id
+        # Pre-set hashes
+        self.repo.update_operational_data(
+            source_id,
+            page_hash=b"pre-existing-page-hash",
+            body_hash=b"pre-existing-body-hash",
+        )
+        op_data = self.repo.get_operational_data(source_id)
+        self.assertIsNotNone(op_data.page_hash)
+        self.assertIsNotNone(op_data.body_hash)
+
+        res = self.client.post(f"/api/sources/{source_id}/fetch")
+        self.assertEqual(res.status_code, 200)
+        data = res.get_json()
+        self.assertTrue(data["success"])
+        self.assertEqual(data["status"], "queued")
+        self.assertIn("job_id", data)
+
+        # Verify operational hashes were cleared
+        op_data_after = self.repo.get_operational_data(source_id)
+        self.assertIsNone(op_data_after.page_hash)
+        self.assertIsNone(op_data_after.body_hash)
