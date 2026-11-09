@@ -6,13 +6,13 @@ batch deletion, batch refresh, progress status tracking, and IMAP connection tes
 """
 
 import logging
-import sys
-import webtoolkit
 from flask import Blueprint, jsonify, request
 from yafr.db import JobRepository, SourceRepository, get_session
 from yafr.services import SourceService
 from yafr.web.shared import api_response
+
 from webtoolkit.utils.emailreader import EmailReader
+from linkarchivetools.model.sources import Sources
 
 logger = logging.getLogger(__name__)
 api_sources_bp = Blueprint("api_sources", __name__, url_prefix="/api/sources")
@@ -144,6 +144,59 @@ def enable_source(source_id: int):
         return api_response(success=False, error="Source not found", status_code=404)
 
     return jsonify({"success": True, "source_id": source_id, "enabled": True})
+
+
+@api_sources_bp.route("/<int:source_id>/convert", methods=["POST"])
+def convert_source(source_id: int):
+    """
+    Converts a source's type between RSS and Parse.
+    - Not filled source type can be converted to parse or rss.
+    - Parse can be changed to rss.
+    - RSS can be changed to parse.
+    - Email cannot be changed (returns 400).
+    """
+    session = get_session()
+    source_repo = SourceRepository(session)
+    source = source_repo.get_by_id(source_id)
+    if not source:
+        return api_response(success=False, error="Source not found", status_code=404)
+
+    payload = request.get_json(silent=True) or request.form or {}
+    target_type = (payload.get("target_type") or "").strip().upper()
+
+    if target_type not in (Sources.SOURCE_TYPE_RSS, Sources.SOURCE_TYPE_PARSE):
+        return api_response(
+            success=False,
+            error=f"Invalid target type '{target_type}'. Allowed types: RSS, PARSE",
+            status_code=400,
+        )
+
+    current_type = (source.source_type or "").strip().upper()
+    if current_type == Sources.SOURCE_TYPE_EMAIL:
+        return api_response(
+            success=False,
+            error="Email sources cannot be converted.",
+            status_code=400,
+        )
+
+    if current_type == target_type:
+        return api_response(
+            success=False,
+            error=f"Source is already of type {target_type}.",
+            status_code=400,
+        )
+
+    source_repo.update_source(source_id, source_type=target_type)
+    source_repo.update_operational_data(source_id, page_hash=None, body_hash=None)
+
+    return jsonify(
+        {
+            "success": True,
+            "source_id": source_id,
+            "source_type": target_type,
+            "message": f"Source converted to {target_type} successfully.",
+        }
+    )
 
 
 @api_sources_bp.route("/<int:source_id>", methods=["DELETE"])

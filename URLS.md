@@ -20,6 +20,7 @@ This document details the complete routing matrix for YAFR, encompassing both **
 | `/sources/<int:id>/edit-email`| `GET`, `POST` | **SourceEmailEditScreen** | Form to edit an existing IMAP Email source. | **Yes** |
 | `/sources/new/parse` | `GET`, `POST` | **SourceParseEditScreen** | Form to configure custom XPath/HTML parsing source. | **Yes** |
 | `/sources/<int:id>/edit-parse`| `GET`, `POST` | **SourceParseEditScreen** | Form to edit an existing parse source. | **Yes** |
+| `/sources/<int:id>/convert`   | `POST`        | **SourceDetailScreen** | Converts source type between RSS and Parse (or unfilled to RSS/Parse). | **Yes** |
 | `/credentials` | `GET` | **CredentialsScreen** | Displays and manages stored email/IMAP credentials. | **Yes** |
 | `/jobs` | `GET` | **JobsView** | Displays table of background jobs, orderable by priority, date created, or error count, with type filters and pause/resume/delete actions. | **Yes** |
 | `/logs` | `GET` | **LogsView** | Displays entries from `applogging` table, filterable by severity level (DEBUG, INFO, WARNING, ERROR, CRITICAL). | **Yes** |
@@ -344,6 +345,23 @@ Following the project requirement to **"prefer having small server functions tha
     "success": true,
     "source_id": 7,
     "enabled": true
+  }
+  ```
+- **Offline Capable**: Yes.
+
+#### `POST /api/sources/<int:id>/convert`
+- **Purpose**: Converts a source's type between RSS and Parse (or unfilled source type to RSS or Parse). Email sources cannot be converted.
+- **Request Body**:
+  ```json
+  { "target_type": "PARSE" }
+  ```
+- **Response**:
+  ```json
+  {
+    "success": true,
+    "source_id": 7,
+    "source_type": "PARSE",
+    "message": "Source converted to PARSE successfully."
   }
   ```
 - **Offline Capable**: Yes.

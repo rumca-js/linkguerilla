@@ -174,6 +174,74 @@ class TestSourceRoutes(unittest.TestCase):
         response = self.client.get("/sources/99999")
         self.assertEqual(response.status_code, 404)
 
+    def test_source_detail_convert_ui_rss_source(self):
+        """GET /sources/<id> for RSS source provides conversion to Parse, but not to RSS."""
+        response = self.client.get(f"/sources/{self.s1.id}")
+        self.assertEqual(response.status_code, 200)
+        html = response.get_data(as_text=True)
+        self.assertIn("convertSourceDropdown", html)
+        self.assertIn("btn-convert-to-parse", html)
+        self.assertIn("Convert to Parse", html)
+        self.assertNotIn("btn-convert-to-rss", html)
+
+    def test_source_detail_convert_ui_parse_source(self):
+        """GET /sources/<id> for Parse source provides conversion to RSS, but not to Parse."""
+        parse_src = self.repo.add_source(
+            url="https://example.com/parse-ui",
+            title="Parse UI Source",
+            source_type="PARSE",
+        )
+        response = self.client.get(f"/sources/{parse_src.id}")
+        self.assertEqual(response.status_code, 200)
+        html = response.get_data(as_text=True)
+        self.assertIn("convertSourceDropdown", html)
+        self.assertIn("btn-convert-to-rss", html)
+        self.assertIn("Convert to RSS", html)
+        self.assertNotIn("btn-convert-to-parse", html)
+
+    def test_source_detail_convert_ui_unfilled_source(self):
+        """GET /sources/<id> for unfilled source provides conversion to BOTH Parse and RSS."""
+        unfilled_src = self.repo.add_source(
+            url="https://example.com/unfilled-ui",
+            title="Unfilled UI Source",
+            source_type="",
+        )
+        response = self.client.get(f"/sources/{unfilled_src.id}")
+        self.assertEqual(response.status_code, 200)
+        html = response.get_data(as_text=True)
+        self.assertIn("convertSourceDropdown", html)
+        self.assertIn("btn-convert-to-rss", html)
+        self.assertIn("btn-convert-to-parse", html)
+        self.assertIn("Convert to RSS", html)
+        self.assertIn("Convert to Parse", html)
+
+    def test_source_detail_convert_ui_email_source(self):
+        """GET /sources/<id> for EMAIL source does NOT provide conversion."""
+        email_src = self.repo.add_source(
+            url="imaps://imap.example.com",
+            title="Email UI Source",
+            source_type="EMAIL",
+        )
+        response = self.client.get(f"/sources/{email_src.id}")
+        self.assertEqual(response.status_code, 200)
+        html = response.get_data(as_text=True)
+        self.assertNotIn("convertSourceDropdown", html)
+        self.assertNotIn("btn-convert-to-rss", html)
+        self.assertNotIn("btn-convert-to-parse", html)
+
+    def test_source_detail_convert_html_form_post(self):
+        """POST /sources/<id>/convert updates source_type and redirects."""
+        res = self.client.post(
+            f"/sources/{self.s1.id}/convert",
+            data={"target_type": "PARSE"},
+            follow_redirects=True,
+        )
+        self.assertEqual(res.status_code, 200)
+        self.session.refresh(self.s1)
+        self.assertEqual(self.s1.source_type, "PARSE")
+        html = res.get_data(as_text=True)
+        self.assertIn("Source converted to PARSE successfully.", html)
+
     def test_add_rss_source(self):
         """GET and POST /sources/new/rss creates new RSS source with optional regex match pattern."""
         # Test GET
@@ -508,3 +576,106 @@ class TestSourceApi(unittest.TestCase):
         op_data_after = self.repo.get_operational_data(source_id)
         self.assertIsNone(op_data_after.page_hash)
         self.assertIsNone(op_data_after.body_hash)
+
+    def test_convert_source_rss_to_parse(self):
+        """POST /api/sources/<id>/convert converts RSS source to PARSE."""
+        self.assertEqual(self.s1.source_type, "RSS")
+        res = self.client.post(
+            f"/api/sources/{self.s1.id}/convert",
+            json={"target_type": "PARSE"},
+        )
+        self.assertEqual(res.status_code, 200)
+        data = res.get_json()
+        self.assertTrue(data["success"])
+        self.assertEqual(data["source_type"], "PARSE")
+
+        self.session.refresh(self.s1)
+        self.assertEqual(self.s1.source_type, "PARSE")
+
+    def test_convert_source_parse_to_rss(self):
+        """POST /api/sources/<id>/convert converts PARSE source to RSS."""
+        parse_src = self.repo.add_source(
+            url="https://example.com/parse-feed",
+            title="Parse Source",
+            source_type="PARSE",
+        )
+        res = self.client.post(
+            f"/api/sources/{parse_src.id}/convert",
+            json={"target_type": "RSS"},
+        )
+        self.assertEqual(res.status_code, 200)
+        data = res.get_json()
+        self.assertTrue(data["success"])
+        self.assertEqual(data["source_type"], "RSS")
+
+        self.session.refresh(parse_src)
+        self.assertEqual(parse_src.source_type, "RSS")
+
+    def test_convert_source_unfilled_to_rss_and_parse(self):
+        """POST /api/sources/<id>/convert converts unfilled/empty source to RSS or PARSE."""
+        unfilled_src1 = self.repo.add_source(
+            url="https://example.com/unfilled1",
+            title="Unfilled Source 1",
+            source_type="",
+        )
+        res1 = self.client.post(
+            f"/api/sources/{unfilled_src1.id}/convert",
+            json={"target_type": "PARSE"},
+        )
+        self.assertEqual(res1.status_code, 200)
+        self.session.refresh(unfilled_src1)
+        self.assertEqual(unfilled_src1.source_type, "PARSE")
+
+        unfilled_src2 = self.repo.add_source(
+            url="https://example.com/unfilled2",
+            title="Unfilled Source 2",
+            source_type=None,
+        )
+        res2 = self.client.post(
+            f"/api/sources/{unfilled_src2.id}/convert",
+            json={"target_type": "RSS"},
+        )
+        self.assertEqual(res2.status_code, 200)
+        self.session.refresh(unfilled_src2)
+        self.assertEqual(unfilled_src2.source_type, "RSS")
+
+    def test_convert_source_email_rejected(self):
+        """POST /api/sources/<id>/convert rejects conversion for EMAIL sources."""
+        email_src = self.repo.add_source(
+            url="imaps://imap.mail.com",
+            title="Email Source",
+            source_type="EMAIL",
+        )
+        res = self.client.post(
+            f"/api/sources/{email_src.id}/convert",
+            json={"target_type": "PARSE"},
+        )
+        self.assertEqual(res.status_code, 400)
+        data = res.get_json()
+        self.assertFalse(data["success"])
+        self.assertIn("Email sources cannot be converted", data["error"])
+
+    def test_convert_source_invalid_or_same_type(self):
+        """POST /api/sources/<id>/convert rejects same type or invalid targets."""
+        # Same type
+        res_same = self.client.post(
+            f"/api/sources/{self.s1.id}/convert",
+            json={"target_type": "RSS"},
+        )
+        self.assertEqual(res_same.status_code, 400)
+        self.assertIn("already of type RSS", res_same.get_json()["error"])
+
+        # Invalid target (EMAIL)
+        res_email = self.client.post(
+            f"/api/sources/{self.s1.id}/convert",
+            json={"target_type": "EMAIL"},
+        )
+        self.assertEqual(res_email.status_code, 400)
+        self.assertIn("Allowed types: RSS, PARSE", res_email.get_json()["error"])
+
+        # Non-existent source
+        res_404 = self.client.post(
+            "/api/sources/99999/convert",
+            json={"target_type": "PARSE"},
+        )
+        self.assertEqual(res_404.status_code, 404)

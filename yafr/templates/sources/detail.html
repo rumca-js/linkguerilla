@@ -69,8 +69,8 @@
               <h2 class="h4 fw-bold mb-0">{{ source.title or source.url }}</h2>
               
               <!-- Badges -->
-              <span class="badge bg-secondary-subtle text-secondary border">
-                {{ source.source_type or 'RSS' }}
+              <span class="badge bg-secondary-subtle text-secondary border" id="badge-source-type">
+                {{ source.source_type or 'Unspecified' }}
               </span>
 
               {% if source.enabled %}
@@ -168,6 +168,52 @@
             <a href="{{ url_for('sources.source_edit_rss', id=source.id) }}" class="btn btn-outline-secondary rounded-pill px-3">
               <i class="bi bi-pencil me-1"></i>Edit
             </a>
+          {% endif %}
+
+          <!-- Convert Dropdown (Available for RSS, Parse, and Unfilled; Not available for Email) -->
+          {% set stype = (source.source_type or '')|lower|trim %}
+          {% if stype != 'email' %}
+            <div class="dropdown d-inline-block">
+              <button 
+                class="btn btn-outline-secondary rounded-pill px-3 dropdown-toggle" 
+                type="button" 
+                id="convertSourceDropdown" 
+                data-bs-toggle="dropdown" 
+                aria-expanded="false"
+              >
+                <i class="bi bi-arrow-left-right me-1"></i>Convert
+              </button>
+              <ul class="dropdown-menu dropdown-menu-end shadow-sm" aria-labelledby="convertSourceDropdown">
+                {% if stype != 'rss' %}
+                  <li>
+                    <button 
+                      class="dropdown-item d-flex align-items-center gap-2 btn-convert-source" 
+                      type="button" 
+                      id="btn-convert-to-rss"
+                      data-source-id="{{ source.id }}" 
+                      data-target-type="RSS"
+                      data-target-label="RSS"
+                    >
+                      <i class="bi bi-rss text-warning"></i>Convert to RSS
+                    </button>
+                  </li>
+                {% endif %}
+                {% if stype != 'parse' %}
+                  <li>
+                    <button 
+                      class="dropdown-item d-flex align-items-center gap-2 btn-convert-source" 
+                      type="button" 
+                      id="btn-convert-to-parse"
+                      data-source-id="{{ source.id }}" 
+                      data-target-type="PARSE"
+                      data-target-label="Parse"
+                    >
+                      <i class="bi bi-code-slash text-success"></i>Convert to Parse
+                    </button>
+                  </li>
+                {% endif %}
+              </ul>
+            </div>
           {% endif %}
 
           <!-- Remove Button -->
@@ -448,6 +494,34 @@
     </div>
   </div>
 </div>
+
+<!-- Convert Confirmation Modal -->
+<div class="modal fade" id="convertSourceModal" tabindex="-1" aria-labelledby="convertSourceModalLabel" aria-hidden="true">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title d-flex align-items-center gap-2" id="convertSourceModalLabel">
+          <i class="bi bi-arrow-left-right text-primary"></i>
+          <span>Convert Source</span>
+        </h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body">
+        <p>Are you sure you want to convert this source to <strong id="convert-target-type-name"></strong>?</p>
+        <p class="fw-bold">{{ source.title or source.url }}</p>
+        <div class="alert alert-info small mb-0">
+          Converting the source updates how its feed content is parsed. Existing entries will remain preserved.
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary rounded-pill" data-bs-dismiss="modal">Cancel</button>
+        <button type="button" class="btn btn-primary rounded-pill px-4" id="confirm-convert-btn" data-source-id="{{ source.id }}">
+          Convert Source
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
 {% endblock %}
 
 {% block scripts %}
@@ -524,6 +598,44 @@
         },
         error: function(xhr) {
           alert('Failed to delete source: ' + (xhr.responseJSON?.error || xhr.statusText));
+        }
+      });
+    });
+
+    // Detail page convert button - opens confirmation modal
+    $('.btn-convert-source').on('click', function() {
+      const targetType = $(this).data('target-type');
+      const targetLabel = $(this).data('target-label') || targetType;
+      $('#convert-target-type-name').text(targetLabel);
+      $('#confirm-convert-btn').data('target-type', targetType);
+      const modalEl = document.getElementById('convertSourceModal');
+      const convertModal = bootstrap.Modal.getOrCreateInstance(modalEl);
+      convertModal.show();
+    });
+
+    // Detail page confirm convert button
+    $('#confirm-convert-btn').on('click', function() {
+      const btn = $(this);
+      const sourceId = btn.data('source-id');
+      const targetType = btn.data('target-type');
+
+      btn.prop('disabled', true);
+      $.ajax({
+        url: `/api/sources/${sourceId}/convert`,
+        method: 'POST',
+        contentType: 'application/json',
+        data: JSON.stringify({ target_type: targetType }),
+        success: function(resp) {
+          if (resp.success) {
+            location.reload();
+          } else {
+            btn.prop('disabled', false);
+            alert('Failed to convert source: ' + (resp.error || resp.message || 'Unknown error'));
+          }
+        },
+        error: function(xhr) {
+          btn.prop('disabled', false);
+          alert('Failed to convert source: ' + (xhr.responseJSON?.error || xhr.statusText));
         }
       });
     });

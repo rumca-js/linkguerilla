@@ -10,6 +10,9 @@ import math
 from typing import Any, Optional
 from flask import Blueprint, abort, flash, redirect, render_template, request, url_for
 from sqlalchemy import func, select
+from yafr.db import ConfigRepository, SourceRepository, get_session
+from yafr.search import SOURCE_FILTERS, SearchParser, SourceSearchQueryBuilder
+
 from linkarchivetools.model.definitions import (
     Credentials,
     LinkDataModel,
@@ -18,8 +21,6 @@ from linkarchivetools.model.definitions import (
     User,
 )
 from linkarchivetools.model.sources import Sources
-from yafr.db import ConfigRepository, SourceRepository, get_session
-from yafr.search import SOURCE_FILTERS, SearchParser, SourceSearchQueryBuilder
 
 sources_bp = Blueprint("sources", __name__)
 default_source_refresh = 3600
@@ -556,3 +557,35 @@ def source_edit_parse(id: int):
         return redirect(url_for("sources.source_detail", id=id))
 
     return render_template("sources/edit_parse.html", source=source, is_new=False)
+
+
+@sources_bp.route("/sources/<int:id>/convert", methods=["POST"])
+def source_convert(id: int):
+    """
+    Converts a source's type (RSS <-> Parse, or unfilled -> RSS/Parse).
+    """
+    session = get_session()
+    source_repo = SourceRepository(session)
+    source = source_repo.get_by_id(id)
+    if not source:
+        abort(404)
+
+    target_type = (request.form.get("target_type") or "").strip().upper()
+    current_type = (source.source_type or "").strip().upper()
+
+    if current_type == Sources.SOURCE_TYPE_EMAIL:
+        flash("Email sources cannot be converted.", "danger")
+        return redirect(url_for("sources.source_detail", id=id))
+
+    if target_type not in (Sources.SOURCE_TYPE_PARSE, Sources.SOURCE_TYPE_RSS):
+        flash(f"Invalid target source type '{target_type}'. Allowed types: RSS, PARSE.", "danger")
+        return redirect(url_for("sources.source_detail", id=id))
+
+    if current_type == target_type:
+        flash(f"Source is already of type {target_type}.", "warning")
+        return redirect(url_for("sources.source_detail", id=id))
+
+    source_repo.update_source(id, source_type=target_type)
+    source_repo.update_operational_data(id, page_hash=None, body_hash=None)
+    flash(f"Source converted to {target_type} successfully.", "success")
+    return redirect(url_for("sources.source_detail", id=id))
