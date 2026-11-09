@@ -183,6 +183,320 @@ class SchemaService:
         }
 
     @classmethod
+    def get_schema_diff(
+        cls,
+        table_name: str,
+        engine: Optional[Engine] = None,
+    ) -> Dict[str, Any]:
+        """
+        Compares an active SQLite database table against linkarchivetools.model.definitions.
+        Returns missing columns, extra columns to remove, and columns with defaults that can be reapplied.
+        """
+        import linkarchivetools.model.definitions as model_definitions
+
+        eng = engine or get_engine()
+        defined_table = model_definitions.Base.metadata.tables.get(table_name.lower())
+
+        if defined_table is None:
+            return {
+                "table_name": table_name,
+                "defined_in_models": False,
+                "exists_in_db": True,
+                "is_synced": True,
+                "columns_to_add": [],
+                "columns_to_remove": [],
+                "defaults_to_reapply": [],
+                "message": f"Table '{table_name}' has no model in linkarchivetools.model.definitions.",
+            }
+
+        inspector = inspect(eng)
+        existing_tables = inspector.get_table_names()
+        exists_in_db = table_name in existing_tables
+
+        if not exists_in_db:
+            columns_to_add = [
+                {
+                    "name": col.name,
+                    "type": str(col.type),
+                    "nullable": bool(col.nullable),
+                    "default": (
+                        str(col.server_default.arg).strip("'\"")
+                        if col.server_default is not None
+                        else None
+                    ),
+                }
+                for col in defined_table.columns
+            ]
+            return {
+                "table_name": table_name,
+                "defined_in_models": True,
+                "exists_in_db": False,
+                "is_synced": False,
+                "columns_to_add": columns_to_add,
+                "columns_to_remove": [],
+                "defaults_to_reapply": [],
+                "total_null_defaults": 0,
+                "message": f"Table '{table_name}' does not exist in database.",
+            }
+
+        raw_cols = inspector.get_columns(table_name)
+        existing_by_name = {c["name"].lower(): c for c in raw_cols}
+        defined_by_name = {c.name.lower(): c for c in defined_table.columns}
+
+        columns_to_add = []
+        for col in defined_table.columns:
+            if col.name.lower() not in existing_by_name:
+                columns_to_add.append(
+                    {
+                        "name": col.name,
+                        "type": str(col.type),
+                        "nullable": bool(col.nullable),
+                        "default": (
+                            str(col.server_default.arg).strip("'\"")
+                            if col.server_default is not None
+                            else None
+                        ),
+                    }
+                )
+
+        columns_to_remove = []
+        for c in raw_cols:
+            if c["name"].lower() not in defined_by_name:
+                columns_to_remove.append(
+                    {
+                        "name": c["name"],
+                        "type": str(c["type"]),
+                    }
+                )
+
+        defaults_to_reapply = []
+        with eng.connect() as conn:
+            for col in defined_table.columns:
+                if (
+                    col.server_default is not None
+                    and col.name.lower() in existing_by_name
+                ):
+                    actual_col_name = existing_by_name[col.name.lower()]["name"]
+                    def_val = str(col.server_default.arg).strip("'\"")
+                    null_count = 0
+                    try:
+                        null_count = (
+                            conn.execute(
+                                text(
+                                    f'SELECT COUNT(*) FROM "{table_name}" WHERE "{actual_col_name}" IS NULL'
+                                )
+                            ).scalar()
+                            or 0
+                        )
+                    except Exception:
+                        null_count = 0
+
+                    defaults_to_reapply.append(
+                        {
+                            "name": col.name,
+                            "default": def_val,
+                            "null_count": null_count,
+                        }
+                    )
+
+        total_null_defaults = sum(d["null_count"] for d in defaults_to_reapply)
+        is_synced = (
+            len(columns_to_add) == 0
+            and len(columns_to_remove) == 0
+            and total_null_defaults == 0
+        )
+
+        return {
+            "table_name": table_name,
+            "defined_in_models": True,
+            "exists_in_db": True,
+            "is_synced": is_synced,
+            "columns_to_add": columns_to_add,
+            "columns_to_remove": columns_to_remove,
+            "defaults_to_reapply": defaults_to_reapply,
+            "total_null_defaults": total_null_defaults,
+        }
+
+    @classmethod
+    def fix_table_schema(
+        cls,
+        table_name: str,
+        reapply_defaults: bool = True,
+        engine: Optional[Engine] = None,
+    ) -> Dict[str, Any]:
+        """
+        Synchronizes an outdated SQLite table to match linkarchivetools.model.definitions:
+        - Drops columns that are not defined in definitions.py
+        - Adds missing columns defined in definitions.py
+        - Reapplies default constraints and backfills existing NULL entries if reapply_defaults=True
+        - Recreates defined indexes and preserves custom secondary indexes
+        """
+        import linkarchivetools.model.definitions as model_definitions
+        from sqlalchemy.schema import CreateIndex, CreateTable
+
+        eng = engine or get_engine()
+        defined_table = model_definitions.Base.metadata.tables.get(table_name.lower())
+        if defined_table is None:
+            raise ValueError(
+                f"Table '{table_name}' is not defined in linkarchivetools.model.definitions."
+            )
+
+        diff = cls.get_schema_diff(table_name, engine=eng)
+
+        # Case 1: Table doesn't exist in DB at all
+        if not diff.get("exists_in_db", False):
+            with eng.begin() as conn:
+                defined_table.create(conn)
+            return {
+                "success": True,
+                "table": table_name,
+                "created": True,
+                "columns_added": [c["name"] for c in diff.get("columns_to_add", [])],
+                "columns_removed": [],
+                "defaults_applied": 0,
+                "message": f"Table '{table_name}' was missing and has been created according to definitions.",
+            }
+
+        # Case 2: Table exists in DB -> Rebuild using defined schema
+        raw_conn = eng.raw_connection()
+        defaults_applied_count = 0
+        try:
+            cur = raw_conn.cursor()
+            cur.execute("PRAGMA foreign_keys=OFF;")
+
+            tmp_table = f"_yafr_tmp_{table_name}"
+            cur.execute(f'DROP TABLE IF EXISTS "{tmp_table}";')
+
+            # Compile authoritative DDL from definitions
+            compiled_ddl = str(CreateTable(defined_table).compile(eng)).strip()
+            tmp_ddl = re.sub(
+                r"\bCREATE\s+TABLE\s+([\"\`']?\w+[\"\`']?)",
+                f'CREATE TABLE "{tmp_table}"',
+                compiled_ddl,
+                count=1,
+                flags=re.IGNORECASE,
+            )
+            cur.execute(tmp_ddl)
+
+            # Inspect columns in current table
+            inspector = inspect(eng)
+            existing_cols = {
+                c["name"].lower(): c["name"] for c in inspector.get_columns(table_name)
+            }
+            common_cols = [
+                (col.name, existing_cols[col.name.lower()])
+                for col in defined_table.columns
+                if col.name.lower() in existing_cols
+            ]
+
+            if common_cols:
+                target_cols_str = ", ".join(f'"{target}"' for target, _ in common_cols)
+                source_cols_str = ", ".join(f'"{source}"' for _, source in common_cols)
+                cur.execute(
+                    f'INSERT INTO "{tmp_table}" ({target_cols_str}) SELECT {source_cols_str} FROM "{table_name}";'
+                )
+
+            # Reapply defaults on NULL fields
+            if reapply_defaults:
+                for col in defined_table.columns:
+                    def_val = None
+                    if col.server_default is not None:
+                        def_val = str(col.server_default.arg).strip("'\"")
+                    elif col.default is not None and col.default.is_scalar:
+                        def_val = str(col.default.arg)
+
+                    if def_val is not None:
+                        sql_literal, _ = cls._format_default_literal(def_val)
+                        cur.execute(
+                            f'UPDATE "{tmp_table}" SET "{col.name}" = {sql_literal} WHERE "{col.name}" IS NULL;'
+                        )
+                        defaults_applied_count += (
+                            cur.rowcount if cur.rowcount and cur.rowcount > 0 else 0
+                        )
+
+            # Fetch existing secondary index DDLs from sqlite_master
+            cur.execute(
+                "SELECT sql FROM sqlite_master WHERE type='index' AND tbl_name=? AND sql IS NOT NULL",
+                (table_name,),
+            )
+            existing_index_sqls = [r[0] for r in cur.fetchall()]
+
+            # Swap tables
+            cur.execute(f'DROP TABLE "{table_name}";')
+            cur.execute(f'ALTER TABLE "{tmp_table}" RENAME TO "{table_name}";')
+
+            # Recreate defined indexes
+            for idx in defined_table.indexes:
+                try:
+                    idx_ddl = str(CreateIndex(idx).compile(eng))
+                    cur.execute(idx_ddl)
+                except Exception as idx_err:
+                    logger.warning(
+                        "Could not create defined index on %s: %s", table_name, idx_err
+                    )
+
+            # Recreate custom index DDLs if possible
+            for isql in existing_index_sqls:
+                try:
+                    cur.execute(isql)
+                except Exception:
+                    pass
+
+            cur.execute("PRAGMA foreign_keys=ON;")
+            raw_conn.commit()
+        finally:
+            raw_conn.close()
+
+        cols_added_names = [c["name"] for c in diff.get("columns_to_add", [])]
+        cols_removed_names = [c["name"] for c in diff.get("columns_to_remove", [])]
+
+        return {
+            "success": True,
+            "table": table_name,
+            "created": False,
+            "columns_added": cols_added_names,
+            "columns_removed": cols_removed_names,
+            "defaults_applied": defaults_applied_count,
+            "message": (
+                f"Table '{table_name}' fixed: "
+                f"+{len(cols_added_names)} cols added, "
+                f"-{len(cols_removed_names)} cols removed, "
+                f"{defaults_applied_count} defaults reapplied."
+            ),
+        }
+
+    @classmethod
+    def fix_all_tables(
+        cls,
+        reapply_defaults: bool = True,
+        engine: Optional[Engine] = None,
+    ) -> Dict[str, Any]:
+        """
+        Scans all tables defined in linkarchivetools.model.definitions and fixes any outdated tables.
+        """
+        import linkarchivetools.model.definitions as model_definitions
+
+        eng = engine or get_engine()
+        results = []
+        fixed_count = 0
+
+        for table_name in sorted(model_definitions.Base.metadata.tables.keys()):
+            diff = cls.get_schema_diff(table_name, engine=eng)
+            if not diff.get("is_synced", True):
+                res = cls.fix_table_schema(
+                    table_name, reapply_defaults=reapply_defaults, engine=eng
+                )
+                results.append(res)
+                fixed_count += 1
+
+        return {
+            "success": True,
+            "fixed_count": fixed_count,
+            "results": results,
+            "message": f"Fixed {fixed_count} outdated table(s).",
+        }
+
+    @classmethod
     def _format_default_literal(cls, val_str: str) -> tuple[str, Any]:
         """
         Converts user input string into SQL literal and Python object for parameter binding.

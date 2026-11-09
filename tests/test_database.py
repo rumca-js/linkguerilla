@@ -404,6 +404,81 @@ class TestDatabaseWebRoutes(unittest.TestCase):
         author_col_final = next(c for c in cols_final if c["name"] == "author")
         self.assertTrue(author_col_final["nullable"])
 
+    def test_api_schema_diff_and_fix_table(self):
+        """GET /api/database/tables/<table_name>/schema-diff and POST /tables/<table_name>/fix."""
+        from yafr.db.session import get_engine
+        from sqlalchemy import text
+
+        eng = get_engine()
+
+        # 1. Add an outdated extra column to linkdatamodel
+        with eng.begin() as conn:
+            conn.execute(
+                text("ALTER TABLE linkdatamodel ADD COLUMN legacy_extra_col TEXT;")
+            )
+            conn.execute(
+                text(
+                    "INSERT INTO linkdatamodel (link, title, legacy_extra_col) VALUES ('https://example.com/diff-test', 'Diff Test', 'old_val');"
+                )
+            )
+
+        # 2. Check schema-diff endpoint detects the extra column
+        res_diff = self.client.get("/api/database/tables/linkdatamodel/schema-diff")
+        self.assertEqual(res_diff.status_code, 200)
+        diff_data = res_diff.get_json()
+        self.assertTrue(diff_data["success"])
+        self.assertTrue(diff_data["defined_in_models"])
+        self.assertFalse(diff_data["is_synced"])
+
+        remove_names = [c["name"] for c in diff_data["columns_to_remove"]]
+        self.assertIn("legacy_extra_col", remove_names)
+
+        # 3. Call fix endpoint
+        res_fix = self.client.post(
+            "/api/database/tables/linkdatamodel/fix",
+            json={"reapply_defaults": True},
+        )
+        self.assertEqual(res_fix.status_code, 200)
+        fix_data = res_fix.get_json()
+        self.assertTrue(fix_data["success"])
+        self.assertIn("legacy_extra_col", fix_data["columns_removed"])
+
+        # 4. Verify in DB that legacy_extra_col is gone and data preserved
+        cols_after = self.client.get(
+            "/api/database/tables/linkdatamodel/columns"
+        ).get_json()["columns"]
+        col_names_after = [c["name"] for c in cols_after]
+        self.assertNotIn("legacy_extra_col", col_names_after)
+        self.assertIn("link", col_names_after)
+        self.assertIn("title", col_names_after)
+
+        with eng.connect() as conn:
+            row = conn.execute(
+                text(
+                    "SELECT link, title, age FROM linkdatamodel WHERE link='https://example.com/diff-test'"
+                )
+            ).fetchone()
+            self.assertIsNotNone(row)
+            self.assertEqual(row[0], "https://example.com/diff-test")
+            self.assertEqual(row[1], "Diff Test")
+            self.assertEqual(row[2], 0)  # Default reapplied
+
+        # 5. Check schema-diff is now synchronized
+        res_diff_after = self.client.get(
+            "/api/database/tables/linkdatamodel/schema-diff"
+        )
+        self.assertEqual(res_diff_after.status_code, 200)
+        self.assertTrue(res_diff_after.get_json()["is_synced"])
+
+    def test_api_fix_all_tables(self):
+        """POST /api/database/fix-all scans and synchronizes all outdated tables."""
+        res = self.client.post("/api/database/fix-all", json={"reapply_defaults": True})
+        self.assertEqual(res.status_code, 200)
+        data = res.get_json()
+        self.assertTrue(data["success"])
+        self.assertIn("fixed_count", data)
+        self.assertIn("results", data)
+
 
 if __name__ == "__main__":
     unittest.main()

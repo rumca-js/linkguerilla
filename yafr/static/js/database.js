@@ -423,4 +423,277 @@ document.addEventListener("DOMContentLoaded", function () {
       },
     });
   });
+
+  // -------------------------------------------------------------
+  // 5. Fix Table Schema Logic (Definitions Sync)
+  // -------------------------------------------------------------
+
+  function loadFixTableDiff(tableName) {
+    var diffContainer = $("#fix-diff-container");
+    var statusBadge = $("#fix-status-badge");
+    var removeSection = $("#fix-remove-section");
+    var removeList = $("#fix-remove-list");
+    var addSection = $("#fix-add-section");
+    var addList = $("#fix-add-list");
+    var defaultsSection = $("#fix-defaults-section");
+    var defaultsList = $("#fix-defaults-list");
+    var syncedMessage = $("#fix-synced-message");
+    var fixBtn = $("#fix-single-table-btn");
+    var alertBox = $("#fix-schema-alert");
+
+    alertBox.addClass("d-none");
+    diffContainer.removeClass("d-none");
+    statusBadge.removeClass().addClass("badge bg-secondary").text("Checking...");
+    removeSection.addClass("d-none");
+    addSection.addClass("d-none");
+    defaultsSection.addClass("d-none");
+    syncedMessage.addClass("d-none");
+    fixBtn.prop("disabled", true);
+
+    $.ajax({
+      url: `/api/database/tables/${tableName}/schema-diff`,
+      type: "GET",
+      dataType: "json",
+      success: function (resp) {
+        if (!resp.success) {
+          statusBadge.removeClass().addClass("badge bg-danger").text("Error");
+          alertBox.removeClass("d-none alert-success").addClass("alert-danger").text(resp.error || "Failed to inspect diff.");
+          return;
+        }
+
+        if (!resp.defined_in_models) {
+          statusBadge.removeClass().addClass("badge bg-secondary").text("Not in Definitions");
+          alertBox.removeClass("d-none alert-success").addClass("alert-info").text("This table is not defined in linkarchivetools.model.definitions.py.");
+          return;
+        }
+
+        if (resp.is_synced) {
+          statusBadge.removeClass().addClass("badge bg-success-subtle text-success border border-success-subtle").text("Synchronized");
+          syncedMessage.removeClass("d-none");
+          fixBtn.prop("disabled", false);
+        } else {
+          statusBadge.removeClass().addClass("badge bg-warning text-dark border border-warning-subtle").text("Outdated");
+          fixBtn.prop("disabled", false);
+        }
+
+        // Columns to remove
+        if (resp.columns_to_remove && resp.columns_to_remove.length > 0) {
+          removeList.empty();
+          $.each(resp.columns_to_remove, function (_, col) {
+            removeList.append(
+              $('<span></span>')
+                .addClass("badge bg-danger-subtle text-danger border border-danger-subtle font-monospace")
+                .text("-" + col.name + " (" + col.type + ")")
+            );
+          });
+          removeSection.removeClass("d-none");
+        }
+
+        // Columns to add
+        if (resp.columns_to_add && resp.columns_to_add.length > 0) {
+          addList.empty();
+          $.each(resp.columns_to_add, function (_, col) {
+            var label = "+" + col.name + " (" + col.type + ")";
+            if (col.default !== null && col.default !== undefined) {
+              label += " def=" + col.default;
+            }
+            addList.append(
+              $('<span></span>')
+                .addClass("badge bg-success-subtle text-success border border-success-subtle font-monospace")
+                .text(label)
+            );
+          });
+          addSection.removeClass("d-none");
+        }
+
+        // Defaults to reapply
+        if (resp.defaults_to_reapply && resp.defaults_to_reapply.length > 0) {
+          defaultsList.empty();
+          var defItems = [];
+          $.each(resp.defaults_to_reapply, function (_, d) {
+            var text = d.name + " default=" + d.default;
+            if (d.null_count > 0) {
+              text += " (" + d.null_count + " NULL rows to backfill)";
+            }
+            defItems.push(text);
+          });
+          defaultsList.text(defItems.join(" • "));
+          defaultsSection.removeClass("d-none");
+        }
+      },
+      error: function (xhr) {
+        statusBadge.removeClass().addClass("badge bg-danger").text("Error");
+        alertBox.removeClass("d-none alert-success").addClass("alert-danger").text("Network error checking schema diff.");
+      }
+    });
+  }
+
+  function populateFixModal(preselectedTable) {
+    var tableSelect = $("#fix-table-select");
+    tableSelect.empty().append('<option value="" disabled selected>Loading tables...</option>');
+
+    $.ajax({
+      url: "/api/database/tables",
+      type: "GET",
+      dataType: "json",
+      success: function (resp) {
+        if (resp.success && resp.tables) {
+          tableSelect.empty();
+          tableSelect.append('<option value="" disabled selected>Select a table to inspect...</option>');
+          $.each(resp.tables, function (_, t) {
+            var opt = $("<option></option>")
+              .attr("value", t.name)
+              .text(t.name + " (" + t.row_count.toLocaleString() + " rows)");
+            tableSelect.append(opt);
+          });
+
+          if (preselectedTable) {
+            tableSelect.val(preselectedTable);
+            loadFixTableDiff(preselectedTable);
+          }
+        }
+      },
+      error: function () {
+        tableSelect.html('<option value="" disabled selected>Failed to load tables</option>');
+      }
+    });
+  }
+
+  // Open Fix Schema Modal from header button
+  $("#open-fix-schema-btn").on("click", function () {
+    populateFixModal(null);
+  });
+
+  // Table row Fix button click
+  $(document).on("click", ".btn-fix-table-schema", function () {
+    var tableName = $(this).data("table");
+    populateFixModal(tableName);
+    var modalEl = document.getElementById("fixSchemaModal");
+    var modal = bootstrap.Modal.getOrCreateInstance(modalEl);
+    modal.show();
+  });
+
+  // Table select change in Fix modal
+  $("#fix-table-select").on("change", function () {
+    var tableName = $(this).val();
+    if (tableName) {
+      loadFixTableDiff(tableName);
+    }
+  });
+
+  // Submit single table fix
+  $("#fix-single-table-btn").on("click", function () {
+    var btn = $(this);
+    var tableName = $("#fix-table-select").val();
+    var reapplyDefaults = $("#fix-reapply-defaults-check").is(":checked");
+    var alertBox = $("#fix-schema-alert");
+
+    if (!tableName) return;
+
+    btn.prop("disabled", true).html(
+      '<span class="spinner-border spinner-border-sm me-1" role="status"></span>Fixing...'
+    );
+    alertBox.addClass("d-none");
+
+    $.ajax({
+      url: `/api/database/tables/${tableName}/fix`,
+      type: "POST",
+      contentType: "application/json",
+      data: JSON.stringify({ reapply_defaults: reapplyDefaults }),
+      dataType: "json",
+      success: function (resp) {
+        if (resp.success) {
+          alertBox
+            .removeClass("d-none alert-danger")
+            .addClass("alert-success")
+            .html(
+              '<i class="bi bi-check-circle me-1"></i>' + (resp.message || "Table synchronized successfully.")
+            );
+          loadFixTableDiff(tableName);
+          // Refresh overview statistics in background
+          $("#refresh-stats-btn").trigger("click");
+        } else {
+          alertBox
+            .removeClass("d-none alert-success")
+            .addClass("alert-danger")
+            .text(resp.error || "Failed to fix table.");
+        }
+      },
+      error: function (xhr) {
+        var err = "Network error fixing table.";
+        if (xhr.responseJSON && xhr.responseJSON.error) {
+          err = xhr.responseJSON.error;
+        }
+        alertBox.removeClass("d-none alert-success").addClass("alert-danger").text(err);
+      },
+      complete: function () {
+        btn
+          .prop("disabled", false)
+          .html('<i class="bi bi-tools me-1"></i>Fix Selected Table');
+      }
+    });
+  });
+
+  // Submit fix all tables
+  $("#fix-all-tables-btn").on("click", function () {
+    var btn = $(this);
+    var reapplyDefaults = $("#fix-reapply-defaults-check").is(":checked");
+    var alertBox = $("#fix-schema-alert");
+    var currentTable = $("#fix-table-select").val();
+
+    if (!confirm("Are you sure you want to scan and fix all outdated tables according to definitions.py?")) {
+      return;
+    }
+
+    btn.prop("disabled", true).html(
+      '<span class="spinner-border spinner-border-sm me-1" role="status"></span>Fixing All...'
+    );
+    alertBox.addClass("d-none");
+
+    $.ajax({
+      url: "/api/database/fix-all",
+      type: "POST",
+      contentType: "application/json",
+      data: JSON.stringify({ reapply_defaults: reapplyDefaults }),
+      dataType: "json",
+      success: function (resp) {
+        if (resp.success) {
+          var details = (resp.results || []).map(function (r) {
+            return r.table + ": +" + (r.columns_added || []).length + " / -" + (r.columns_removed || []).length;
+          }).join(", ");
+
+          alertBox
+            .removeClass("d-none alert-danger")
+            .addClass("alert-success")
+            .html(
+              '<i class="bi bi-check-circle me-1"></i>' +
+              (resp.message || "All tables updated.") +
+              (details ? "<br><small class='text-muted'>" + details + "</small>" : "")
+            );
+          if (currentTable) {
+            loadFixTableDiff(currentTable);
+          }
+          // Refresh overview statistics in background
+          $("#refresh-stats-btn").trigger("click");
+        } else {
+          alertBox
+            .removeClass("d-none alert-success")
+            .addClass("alert-danger")
+            .text(resp.error || "Failed to fix all tables.");
+        }
+      },
+      error: function (xhr) {
+        var err = "Network error executing batch fix.";
+        if (xhr.responseJSON && xhr.responseJSON.error) {
+          err = xhr.responseJSON.error;
+        }
+        alertBox.removeClass("d-none alert-success").addClass("alert-danger").text(err);
+      },
+      complete: function () {
+        btn
+          .prop("disabled", false)
+          .html('<i class="bi bi-lightning-charge me-1"></i>Fix All Outdated Tables');
+      }
+    });
+  });
 });

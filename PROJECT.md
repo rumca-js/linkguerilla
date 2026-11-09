@@ -432,6 +432,7 @@ The screen displays, where available:
 - Provides the following actions:
   -- Edit - edits display name of the database
   -- Alter Column - opens dialog to update column default value, nullability (NOT NULL), and backfill existing NULL records
+  -- Fix Table Schema - synchronizes outdated SQLite tables with linkarchivetools.model.definitions.py (removes undefined columns, adds missing columns, reapplies default values)
 - Displays the database name.
 - Displays the database type.
 - Displays the local file information.
@@ -450,6 +451,9 @@ The screen displays, where available:
 - Dynamic Schema API:
   -- Provides JSON API endpoints for tables and columns inspection (`/api/database/tables`, `/api/database/tables/<table_name>/columns`).
   -- Provides JSON API endpoint to alter column default values and NOT NULL constraints (`/api/database/alter-column-default`).
+  -- Provides JSON API endpoint to inspect schema diff against linkarchivetools definitions (`/api/database/tables/<table_name>/schema-diff`).
+  -- Provides JSON API endpoint to fix table schema against definitions (`/api/database/tables/<table_name>/fix`).
+  -- Provides JSON API endpoint to fix all outdated tables in batch (`/api/database/fix-all`).
 
 ## EntryRulesScreen
  - you can use fields: trigger_rule_url, rule_name, enabled, priority, block, trust, auto_tag, apply_age_limit, source_id. Other fields do not have to be used right now

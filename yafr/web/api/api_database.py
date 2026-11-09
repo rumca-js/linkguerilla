@@ -324,3 +324,57 @@ def alter_column_default():
     except Exception as err:
         logger.error("Failed to alter column default: %s", err)
         return api_response(success=False, error=str(err), status_code=500)
+
+
+@api_database_bp.route("/tables/<table_name>/schema-diff", methods=["GET"])
+def get_table_schema_diff(table_name: str):
+    """
+    Returns schema differences between the active SQLite table and linkarchivetools.model.definitions.
+    """
+    try:
+        diff = DatabaseService.get_schema_diff(table_name)
+        return jsonify({"success": True, **diff})
+    except Exception as err:
+        logger.error("Failed to inspect schema diff for table %s: %s", table_name, err)
+        return api_response(success=False, error=str(err), status_code=500)
+
+
+@api_database_bp.route("/tables/<table_name>/fix", methods=["POST"])
+def fix_table_schema(table_name: str):
+    """
+    Synchronizes the specified table with linkarchivetools.model.definitions:
+    removes undefined columns, adds missing columns, and optionally reapplies defaults.
+    """
+    try:
+        payload = request.get_json(silent=True) or request.form.to_dict()
+        reapply_defaults = payload.get("reapply_defaults", True)
+        if isinstance(reapply_defaults, str):
+            reapply_defaults = reapply_defaults.lower() in ("true", "1", "yes", "on")
+
+        result = DatabaseService.fix_table_schema(
+            table_name=table_name, reapply_defaults=reapply_defaults
+        )
+        return jsonify(result)
+    except ValueError as val_err:
+        return api_response(success=False, error=str(val_err), status_code=400)
+    except Exception as err:
+        logger.error("Failed to fix schema for table %s: %s", table_name, err)
+        return api_response(success=False, error=str(err), status_code=500)
+
+
+@api_database_bp.route("/fix-all", methods=["POST"])
+def fix_all_tables():
+    """
+    Scans and fixes all outdated tables according to linkarchivetools.model.definitions.
+    """
+    try:
+        payload = request.get_json(silent=True) or request.form.to_dict()
+        reapply_defaults = payload.get("reapply_defaults", True)
+        if isinstance(reapply_defaults, str):
+            reapply_defaults = reapply_defaults.lower() in ("true", "1", "yes", "on")
+
+        result = DatabaseService.fix_all_tables(reapply_defaults=reapply_defaults)
+        return jsonify(result)
+    except Exception as err:
+        logger.error("Failed to batch fix database tables: %s", err)
+        return api_response(success=False, error=str(err), status_code=500)

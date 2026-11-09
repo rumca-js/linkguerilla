@@ -341,9 +341,7 @@ class DatabaseService:
         return repo.clear_all_entries()
 
     @classmethod
-    def truncate_table(
-        cls, table_name: str, session: Optional[Session] = None
-    ) -> int:
+    def truncate_table(cls, table_name: str, session: Optional[Session] = None) -> int:
         """
         Deletes all rows from the specified table.
 
@@ -522,5 +520,41 @@ class DatabaseService:
             default_value=default_value,
             nullable=nullable,
             backfill_existing=backfill_existing,
+            engine=get_engine(),
+        )
+
+    @classmethod
+    def get_schema_diff(cls, table_name: str) -> Dict[str, Any]:
+        """
+        Inspects differences between an active table and linkarchivetools.model.definitions.
+        """
+        from yafr.services.schema_service import SchemaService
+
+        return SchemaService.get_schema_diff(table_name=table_name, engine=get_engine())
+
+    @classmethod
+    def fix_table_schema(
+        cls, table_name: str, reapply_defaults: bool = True
+    ) -> Dict[str, Any]:
+        """
+        Synchronizes an outdated database table against linkarchivetools.model.definitions.
+        """
+        from yafr.services.schema_service import SchemaService
+
+        return SchemaService.fix_table_schema(
+            table_name=table_name,
+            reapply_defaults=reapply_defaults,
+            engine=get_engine(),
+        )
+
+    @classmethod
+    def fix_all_tables(cls, reapply_defaults: bool = True) -> Dict[str, Any]:
+        """
+        Fixes all outdated database tables to match linkarchivetools.model.definitions.
+        """
+        from yafr.services.schema_service import SchemaService
+
+        return SchemaService.fix_all_tables(
+            reapply_defaults=reapply_defaults,
             engine=get_engine(),
         )
