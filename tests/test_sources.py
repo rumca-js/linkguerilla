@@ -472,9 +472,6 @@ class TestSourceApi(unittest.TestCase):
 
     def tearDown(self):
         close_session()
-        from yafr.services import SourceService
-
-        SourceService._refresh_state["is_running"] = False
 
     def test_enable_disable_source(self):
         """POST /api/sources/<id>/disable and /enable toggles state."""
@@ -537,10 +534,8 @@ class TestSourceApi(unittest.TestCase):
         self.assertIn("completed_sources", data)
         self.assertIn("total_sources", data)
 
-    @patch("yafr.services.source_service.SourceService.fetch_source")
-    def test_fetch_all_endpoint(self, mock_fetch):
-        """POST /api/sources/fetch-all triggers batch refresh."""
-        mock_fetch.return_value = {"success": True, "entries_added": 0}
+    def test_fetch_all_endpoint(self):
+        """POST /api/sources/fetch-all triggers batch refresh by enqueuing background jobs."""
         res = self.client.post(
             "/api/sources/fetch-all",
             json={"include_errors": True},
@@ -549,8 +544,13 @@ class TestSourceApi(unittest.TestCase):
         data = res.get_json()
         self.assertTrue(data["success"])
         self.assertIn("queued_sources_count", data)
-        # Give worker a moment to process the mocked fetches
-        time.sleep(0.2)
+        self.assertEqual(data["queued_sources_count"], 1)
+
+        # Verify process-source background job was enqueued in DB
+        from yafr.db.job_repository import JobRepository
+        job_repo = JobRepository(get_session())
+        jobs = job_repo.list_jobs(job_type="process-source")
+        self.assertTrue(any(j.subject == str(self.s1.id) for j in jobs))
 
     def test_fetch_source_endpoint_clears_hashes_and_enqueues_job(self):
         """POST /api/sources/<id>/fetch clears hashes and enqueues process-source job."""

@@ -11,7 +11,6 @@ import hashlib
 import logging
 import re
 import sys
-import threading
 from typing import Any, Dict, List, Optional, Tuple
 import warnings
 from bs4 import MarkupResemblesLocatorWarning
@@ -20,6 +19,8 @@ from sqlalchemy.orm import Session
 import webtoolkit
 from webtoolkit.utils.emailreader import EmailReader
 from linkarchivetools.model.definitions import (
+    BackgroundJob,
+    BackgroundJobHistory,
     LinkDataModel,
     SourceOperationalData,
     SourcesTable,
@@ -47,43 +48,79 @@ class SourceService:
     Service coordinating source operations, feed fetching, and background batch updates.
     """
 
-    _lock = threading.Lock()
-    _refresh_state: Dict[str, Any] = {
-        "is_running": False,
-        "total_sources": 0,
-        "completed_sources": 0,
-        "current_source_title": "",
-        "percentage": 0.0,
-        "errors_encountered": 0,
-    }
-
     @classmethod
-    def get_refresh_status(cls) -> Dict[str, Any]:
+    def get_refresh_status(cls, session: Optional[Session] = None) -> Dict[str, Any]:
         """
-        Returns a thread-safe snapshot of the current batch refresh progress.
+        Returns status of source refresh background jobs from the database queue.
         """
-        with cls._lock:
-            return dict(cls._refresh_state)
+        sess = session or get_session()
+        stmt = (
+            select(BackgroundJob)
+            .where(
+                BackgroundJob.job.in_(("process-source", "JOB_PROCESS_SOURCE")),
+                BackgroundJob.enabled == True,
+            )
+            .order_by(BackgroundJob.priority.asc(), BackgroundJob.date_created.asc())
+        )
+        pending_jobs = list(sess.execute(stmt).scalars().all())
+        pending_count = len(pending_jobs)
+
+        if not pending_jobs:
+            return {
+                "is_running": False,
+                "total_sources": 0,
+                "completed_sources": 0,
+                "current_source_title": "",
+                "percentage": 100.0,
+                "errors_encountered": 0,
+            }
+
+        recent_cutoff = datetime.now(timezone.utc) - timedelta(minutes=15)
+        hist_stmt = select(func.count(BackgroundJobHistory.id)).where(
+            BackgroundJobHistory.job.in_(("process-source", "JOB_PROCESS_SOURCE")),
+            BackgroundJobHistory.date_created >= recent_cutoff,
+        )
+        completed_count = sess.execute(hist_stmt).scalar() or 0
+        total_sources = pending_count + completed_count
+        percentage = (
+            round((completed_count / total_sources) * 100.0, 1)
+            if total_sources > 0
+            else 0.0
+        )
+
+        current_title = ""
+        first_job = pending_jobs[0]
+        if first_job.subject and first_job.subject.isdigit():
+            src = sess.get(SourcesTable, int(first_job.subject))
+            if src:
+                current_title = src.title or src.url
+
+        return {
+            "is_running": True,
+            "total_sources": total_sources,
+            "completed_sources": completed_count,
+            "current_source_title": current_title or f"Source #{first_job.subject}",
+            "percentage": percentage,
+            "errors_encountered": 0,
+        }
 
     @classmethod
     def start_batch_refresh(
         cls,
         source_ids: Optional[List[int]] = None,
         include_errors: bool = True,
+        session: Optional[Session] = None,
     ) -> int:
         """
-        Initiates a background thread to refresh outdated or error sources.
+        Enqueues background jobs to refresh outdated or error sources.
 
         :param source_ids: Specific list of source IDs (if None, all outdated)
         :param include_errors: Whether to also include sources with consecutive errors
+        :param session: Optional active database session
         :return: Count of queued sources
         """
-        with cls._lock:
-            if cls._refresh_state["is_running"]:
-                return cls._refresh_state["total_sources"]
-
-        session = get_session()
-        source_repo = SourceRepository(session)
+        sess = session or get_session()
+        source_repo = SourceRepository(sess)
 
         target_ids: List[int] = []
         if source_ids:
@@ -104,7 +141,7 @@ class SourceService:
                     .where(SourcesTable.enabled == True)
                     .where(SourceOperationalData.consecutive_errors > 0)
                 )
-                error_ids = list(session.execute(stmt).scalars().all())
+                error_ids = list(sess.execute(stmt).scalars().all())
                 for eid in error_ids:
                     if eid not in target_ids:
                         target_ids.append(eid)
@@ -112,61 +149,19 @@ class SourceService:
         if not target_ids:
             return 0
 
-        with cls._lock:
-            cls._refresh_state = {
-                "is_running": True,
-                "total_sources": len(target_ids),
-                "completed_sources": 0,
-                "current_source_title": "Starting batch refresh...",
-                "percentage": 0.0,
-                "errors_encountered": 0,
-            }
+        job_repo = JobRepository(sess)
+        queued_count = 0
+        for sid in target_ids:
+            job_repo.enqueue_job(
+                job="process-source",
+                subject=str(sid),
+                priority=1,
+                enabled=True,
+            )
+            queued_count += 1
 
-        worker_thread = threading.Thread(
-            target=cls._run_batch_worker,
-            args=(target_ids,),
-            daemon=True,
-            name="SourceBatchRefresher",
-        )
-        worker_thread.start()
-        return len(target_ids)
-
-    @classmethod
-    def _run_batch_worker(cls, target_ids: List[int]) -> None:
-        """
-        Background worker thread executing sequential source fetches.
-        """
-        total = len(target_ids)
-        completed = 0
-        errors = 0
-
-        for s_id in target_ids:
-            source_title = f"Source #{s_id}"
-            try:
-                with session_scope() as session:
-                    source = session.get(SourcesTable, s_id)
-                    if source:
-                        source_title = source.title or source.url
-
-                with cls._lock:
-                    cls._refresh_state["current_source_title"] = source_title
-
-                res = cls.fetch_source(s_id)
-                if not res.get("success"):
-                    errors += 1
-            except Exception as err:
-                logger.error("Batch worker error fetching source %s: %s", s_id, err)
-                errors += 1
-
-            completed += 1
-            with cls._lock:
-                cls._refresh_state["completed_sources"] = completed
-                cls._refresh_state["errors_encountered"] = errors
-                cls._refresh_state["percentage"] = round((completed / total) * 100.0, 1)
-
-        with cls._lock:
-            cls._refresh_state["is_running"] = False
-            cls._refresh_state["current_source_title"] = "Batch refresh finished."
+        sess.commit()
+        return queued_count
 
     @classmethod
     def fetch_source(
