@@ -197,7 +197,7 @@
       </div>
       <div class="modal-body">
         <p>
-          There are <strong>{{ outdated_count }}</strong> sources that require refresh (not fetched in over 1 hour).
+          There are <strong>{{ outdated_count }}</strong> sources that require refresh (past their scheduled fetch period).
         </p>
         {% if error_count > 0 %}
           <div class="form-check mt-3 p-3 bg-body-tertiary rounded border">

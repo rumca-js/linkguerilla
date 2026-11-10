@@ -21,7 +21,7 @@ from yafr.db.config_repository import ConfigRepository
 from yafr.db.job_repository import JobRepository
 from yafr.db.logging_repository import LoggingRepository
 from yafr.db.session import close_session, get_session
-from yafr.db.source_repository import SourceRepository
+from yafr.db.source_repository import SourceRepository, DEFAULT_SOURCE_REFRESH_SECONDS
 from yafr.db.system_operation_repository import SystemOperationRepository
 from yafr.services.source_service import SourceService
 from yafr.workers.jobs import (
@@ -301,10 +301,12 @@ class JobExecutor:
 
     def _process_outdated_source(self, session: Session) -> Optional[Dict[str, Any]]:
         """
-        Checks if any enabled source is outdated (> 1h since last fetch) and refreshes it.
+        Checks if any enabled source is outdated (past its fetch_period) and refreshes it.
         """
         source_repo = SourceRepository(session)
-        outdated_sources = source_repo.get_outdated_sources(max_age_seconds=3600)
+        config = ConfigRepository(session).get_config()
+        default_period = int(config.sources_refresh_period or DEFAULT_SOURCE_REFRESH_SECONDS)
+        outdated_sources = source_repo.get_outdated_sources(max_age_seconds=default_period)
 
         if not outdated_sources:
             return None
@@ -395,17 +397,22 @@ class JobExecutor:
         }
 
     def enqueue_outdated_source_jobs(
-        self, session: Optional[Session] = None, max_age_seconds: int = 3600
+        self, session: Optional[Session] = None
     ) -> int:
         """
         Enqueues the next outdated source refresh job into the backgroundjob queue (1-by-1).
 
+        Each source is evaluated against its own fetch_period; the system default
+        (sources_refresh_period from config, fallback DEFAULT_SOURCE_REFRESH_SECONDS) is
+        used for sources that have no explicit fetch_period set.
+
         :param session: Optional active database session
-        :param max_age_seconds: Maximum age before a source is considered outdated (default: 3600s = 1 hour)
         :return: Count of newly enqueued source refresh jobs (1 or 0)
         """
         sess = self._get_session(session)
         source_repo = SourceRepository(sess)
+        config = ConfigRepository(sess).get_config()
+        default_period = int(config.sources_refresh_period or DEFAULT_SOURCE_REFRESH_SECONDS)
 
         # In 1-by-1 mode, if there is already an active/pending process-source job in queue, wait
         existing = (
@@ -422,7 +429,7 @@ class JobExecutor:
             return 0
 
         outdated = source_repo.get_outdated_sources(
-            max_age_seconds=max_age_seconds, limit=1
+            max_age_seconds=default_period, limit=1
         )
         if not outdated:
             return 0
@@ -543,7 +550,6 @@ class JobExecutor:
     def enqueue_outdated_jobs(
         self,
         session: Optional[Session] = None,
-        max_age_seconds: int = 3600,
         days_to_check: Optional[int] = None,
     ) -> int:
         """
@@ -554,12 +560,11 @@ class JobExecutor:
           and enqueues link-update-data jobs.
 
         :param session: Optional active database session
-        :param max_age_seconds: Maximum age before a source is considered outdated (default: 3600s = 1 hour)
         :param days_to_check: Optional override for days elapsed before entry is considered outdated
         :return: Total count of newly enqueued jobs
         """
         sources_enqueued = self.enqueue_outdated_source_jobs(
-            session=session, max_age_seconds=max_age_seconds
+            session=session,
         )
         entries_enqueued = self.enqueue_outdated_entry_jobs(
             session=session, days_to_check=days_to_check

@@ -27,12 +27,13 @@ from linkarchivetools.model.definitions import (
 )
 from linkarchivetools.model.sources import Sources
 from yafr.db.block_repository import BlockEntryRepository
+from yafr.db.config_repository import ConfigRepository
 from yafr.db.credentials_repository import CredentialsRepository
 from yafr.db.job_repository import JobRepository
 from yafr.db.logging_repository import LoggingRepository
 from yafr.db.rules_repository import RulesRepository
 from yafr.db.session import get_session, session_scope
-from yafr.db.source_repository import SourceRepository
+from yafr.db.source_repository import DEFAULT_SOURCE_REFRESH_SECONDS, SourceRepository
 from yafr.services.entry_builder import EntryBuilder
 from yafr.services.job_service import JOB_LINK_UPDATE_DATA
 from yafr.services.webtools_service import WebToolsWrapper
@@ -126,8 +127,10 @@ class SourceService:
         if source_ids:
             target_ids = list(source_ids)
         else:
-            # Query enabled outdated sources
-            outdated = source_repo.get_outdated_sources(max_age_seconds=3600)
+            # Query enabled outdated sources using per-source fetch_period
+            config = ConfigRepository(sess).get_config()
+            default_period = int(config.sources_refresh_period or DEFAULT_SOURCE_REFRESH_SECONDS)
+            outdated = source_repo.get_outdated_sources(max_age_seconds=default_period)
             target_ids = [s.id for s in outdated]
 
             if include_errors:

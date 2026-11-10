@@ -63,7 +63,7 @@
 
             <!-- Outdated Red Dot Badge (Top Right / Badge) -->
             {% if source.id in outdated_ids %}
-              <span class="badge rounded-pill bg-danger" title="Requires refresh (outdated fetch: > 1 hour old)">
+              <span class="badge rounded-pill bg-danger" title="Requires refresh (fetch period exceeded)">
                 <i class="bi bi-dot"></i>Outdated
               </span>
             {% endif %}

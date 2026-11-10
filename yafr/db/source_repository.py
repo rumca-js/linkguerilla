@@ -8,7 +8,7 @@ corresponding operational metrics (sourceoperationaldata).
 from datetime import datetime, timedelta, timezone
 import logging
 from typing import Any, Dict, List, Optional
-from sqlalchemy import delete, func, select, text
+from sqlalchemy import case, cast, delete, func, or_, select, String, text
 from sqlalchemy.orm import Session
 from linkarchivetools.model.definitions import (
     LinkDataModel,
@@ -18,6 +18,33 @@ from linkarchivetools.model.definitions import (
 from yafr.db.base_repository import BaseRepository
 
 logger = logging.getLogger(__name__)
+
+DEFAULT_SOURCE_REFRESH_SECONDS = 3600
+
+
+def _outdated_condition(default_period: int = DEFAULT_SOURCE_REFRESH_SECONDS):
+    """
+    Returns a SQLAlchemy WHERE condition that is True when a source is outdated.
+
+    A source is outdated when:
+      - date_fetched IS NULL, OR
+      - date_fetched + source.fetch_period (or default_period if NULL/0) < now (UTC)
+
+    Uses SQLite datetime() arithmetic so the comparison is done in the DB
+    with each source's own fetch_period rather than a global cutoff.
+    """
+    effective_period = case(
+        (SourcesTable.fetch_period > 0, SourcesTable.fetch_period),
+        else_=default_period,
+    )
+    # Build as: datetime(date_fetched, '+<N> seconds') < datetime('now')
+    # where N = CASE WHEN fetch_period > 0 THEN fetch_period ELSE default_period END
+    modifier = "+" + cast(effective_period, String) + " seconds"
+    return or_(
+        SourceOperationalData.date_fetched.is_(None),
+        func.datetime(SourceOperationalData.date_fetched, modifier)
+        < func.datetime("now"),
+    )
 
 
 class SourceRepository(BaseRepository[SourcesTable]):
@@ -281,16 +308,18 @@ class SourceRepository(BaseRepository[SourcesTable]):
             self.session.flush()
 
     def get_outdated_sources(
-        self, max_age_seconds: int = 3600, limit: Optional[int] = None
+        self, max_age_seconds: int = DEFAULT_SOURCE_REFRESH_SECONDS, limit: Optional[int] = None
     ) -> List[SourcesTable]:
         """
-        Returns enabled sources that have not been refreshed within max_age_seconds.
+        Returns enabled sources whose next scheduled fetch is overdue.
 
-        :param max_age_seconds: Maximum elapsed seconds since last fetch (default: 1 hour)
+        Each source is evaluated against its own fetch_period; if fetch_period is
+        NULL or 0 the system default (max_age_seconds) is used as fallback.
+
+        :param max_age_seconds: Default period in seconds for sources without an explicit fetch_period
         :param limit: Optional maximum number of sources to return
         :return: List of SourcesTable instances requiring refresh
         """
-        cutoff = datetime.now(timezone.utc) - timedelta(seconds=max_age_seconds)
         stmt = (
             select(SourcesTable)
             .outerjoin(
@@ -298,24 +327,23 @@ class SourceRepository(BaseRepository[SourcesTable]):
                 SourcesTable.id == SourceOperationalData.source_id,
             )
             .where(SourcesTable.enabled == True)
-            .where(
-                (SourceOperationalData.date_fetched == None)
-                | (SourceOperationalData.date_fetched < cutoff)
-            )
+            .where(_outdated_condition(max_age_seconds))
             .order_by(SourceOperationalData.date_fetched.asc().nullsfirst())
         )
         if limit is not None and limit > 0:
             stmt = stmt.limit(limit)
         return list(self.session.execute(stmt).scalars().all())
 
-    def count_outdated_sources(self, max_age_seconds: int = 3600) -> int:
+    def count_outdated_sources(self, max_age_seconds: int = DEFAULT_SOURCE_REFRESH_SECONDS) -> int:
         """
-        Counts the number of enabled sources requiring refresh.
+        Counts enabled sources whose next scheduled fetch is overdue.
 
-        :param max_age_seconds: Age limit in seconds (default: 3600)
+        Each source is evaluated against its own fetch_period; if fetch_period is
+        NULL or 0 the system default (max_age_seconds) is used as fallback.
+
+        :param max_age_seconds: Default period in seconds for sources without an explicit fetch_period
         :return: Number of outdated sources
         """
-        cutoff = datetime.now(timezone.utc) - timedelta(seconds=max_age_seconds)
         stmt = (
             select(func.count(SourcesTable.id))
             .outerjoin(
@@ -323,10 +351,7 @@ class SourceRepository(BaseRepository[SourcesTable]):
                 SourcesTable.id == SourceOperationalData.source_id,
             )
             .where(SourcesTable.enabled == True)
-            .where(
-                (SourceOperationalData.date_fetched == None)
-                | (SourceOperationalData.date_fetched < cutoff)
-            )
+            .where(_outdated_condition(max_age_seconds))
         )
         return self.session.execute(stmt).scalar() or 0
 

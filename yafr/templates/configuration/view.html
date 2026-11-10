@@ -389,7 +389,7 @@
                   <div class="col-12 col-md-4">
                     <label for="sources_refresh_period" class="form-label fw-semibold">Sources Refresh Period (seconds)</label>
                     <input type="number" class="form-control shadow-sm" id="sources_refresh_period" name="sources_refresh_period" min="60" max="864000" value="{{ config.sources_refresh_period or 3600 }}" required>
-                    <div class="form-text">Minimum duration before an RSS source is marked outdated for auto-refresh (default: 3600s = 1 hour).</div>
+                    <div class="form-text">Default fallback refresh period for sources without an explicit fetch period (default: 3600s = 1 hour).</div>
                   </div>
                   <div class="col-12 col-md-4">
                     <label for="number_of_update_entries" class="form-label fw-semibold">Idle Entry Updates Limit</label>

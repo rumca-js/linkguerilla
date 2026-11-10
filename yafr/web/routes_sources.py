@@ -11,6 +11,7 @@ from typing import Any, Optional
 from flask import Blueprint, abort, flash, redirect, render_template, request, url_for
 from sqlalchemy import func, select
 from yafr.db import ConfigRepository, SourceRepository, get_session
+from yafr.db.source_repository import DEFAULT_SOURCE_REFRESH_SECONDS, _outdated_condition
 from yafr.search import SOURCE_FILTERS, SearchParser, SourceSearchQueryBuilder
 
 from linkarchivetools.model.definitions import (
@@ -23,7 +24,6 @@ from linkarchivetools.model.definitions import (
 from linkarchivetools.model.sources import Sources
 
 sources_bp = Blueprint("sources", __name__)
-default_source_refresh = 3600
 
 
 @sources_bp.route("/sources")
@@ -46,6 +46,7 @@ def sources_list():
     config = config_repo.get_config()
     _, dead_alpha = config_repo.get_alphas()
     per_page = int(config.sources_per_page or 25)
+    default_period = int(config.sources_refresh_period or DEFAULT_SOURCE_REFRESH_SECONDS)
     offset = (page - 1) * per_page
 
     parsed_query = SearchParser.parse(query)
@@ -55,6 +56,7 @@ def sources_list():
         filter_id=active_filter,
         limit=per_page,
         offset=offset,
+        default_period=default_period,
     )
 
     total_pages = (
@@ -62,8 +64,7 @@ def sources_list():
     )
 
     # Calculate outdated and error source IDs for red dot and error badges
-    cutoff = datetime.now(timezone.utc) - timedelta(seconds=3600)
-    outdated_count = source_repo.count_outdated_sources(max_age_seconds=3600)
+    outdated_count = source_repo.count_outdated_sources(max_age_seconds=default_period)
     error_count = source_repo.count_error_sources()
 
     # Check whether any sources exist at all (to skip the search UI when empty)
@@ -71,7 +72,7 @@ def sources_list():
         select(func.count(SourcesTable.id))
     ).scalar_one()
 
-    # Get set of all currently outdated source IDs
+    # Get set of all currently outdated source IDs (per-source fetch_period)
     outdated_stmt = (
         select(SourcesTable.id)
         .outerjoin(
@@ -79,10 +80,7 @@ def sources_list():
             SourcesTable.id == SourceOperationalData.source_id,
         )
         .where(SourcesTable.enabled == True)
-        .where(
-            (SourceOperationalData.date_fetched == None)
-            | (SourceOperationalData.date_fetched < cutoff)
-        )
+        .where(_outdated_condition(default_period))
     )
     outdated_ids = set(session.execute(outdated_stmt).scalars().all())
 
@@ -191,6 +189,8 @@ def source_detail(id: int):
     body_hash_hex = op_data.body_hash.hex() if op_data and op_data.body_hash else None
 
     # Check if outdated
+    config = ConfigRepository(session).get_config()
+    default_period = int(config.sources_refresh_period or DEFAULT_SOURCE_REFRESH_SECONDS)
     is_outdated = False
     if source.enabled:
         if op_data is None or op_data.date_fetched is None:
@@ -208,7 +208,7 @@ def source_detail(id: int):
                 fetch_seconds = (
                     source.fetch_period
                     if (source.fetch_period and source.fetch_period > 0)
-                    else default_source_refresh
+                    else default_period
                 )
                 cutoff_naive = datetime.now(timezone.utc).replace(
                     tzinfo=None
@@ -228,6 +228,7 @@ def source_detail(id: int):
         body_hash_hex=body_hash_hex,
         is_outdated=is_outdated,
         fetch_period=source.fetch_period,
+        default_period=default_period,
     )
 
 

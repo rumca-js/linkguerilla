@@ -5,7 +5,7 @@ Can be run with Python's standard library test runner:
     poetry run python -m unittest tests/test_repositories.py
 """
 
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 import unittest
 from sqlalchemy import select
 from linkarchivetools.model.definitions import (
@@ -249,6 +249,42 @@ class TestRepositories(unittest.TestCase):
         # Error tracking
         repo.update_operational_data(source.id, consecutive_errors=2)
         self.assertEqual(repo.count_error_sources(), 1)
+
+    def test_outdated_sources_per_source_fetch_period(self):
+        """Verifies that outdated status respects each source's fetch_period rather than a global 3600s."""
+        repo = SourceRepository()
+        now = datetime.now(timezone.utc)
+
+        # Source A: fetch_period = 7200 (2h), fetched 1.5h ago (5400s) -> NOT outdated
+        src_long = repo.add_source(
+            url="https://example.com/long_feed.xml",
+            title="Long Feed",
+            source_type="rss",
+            fetch_period=7200,
+        )
+        repo.update_operational_data(
+            src_long.id,
+            date_fetched=now - timedelta(seconds=5400),
+            date_successful_fetch=now - timedelta(seconds=5400),
+        )
+
+        # Source B: fetch_period = 1800 (30m), fetched 45m ago (2700s) -> OUTDATED
+        src_short = repo.add_source(
+            url="https://example.com/short_feed.xml",
+            title="Short Feed",
+            source_type="rss",
+            fetch_period=1800,
+        )
+        repo.update_operational_data(
+            src_short.id,
+            date_fetched=now - timedelta(seconds=2700),
+            date_successful_fetch=now - timedelta(seconds=2700),
+        )
+
+        outdated = repo.get_outdated_sources()
+        outdated_ids = [s.id for s in outdated]
+        self.assertNotIn(src_long.id, outdated_ids, "Source with fetch_period=7200 fetched 1.5h ago must not be outdated")
+        self.assertIn(src_short.id, outdated_ids, "Source with fetch_period=1800 fetched 45m ago must be outdated")
 
     def test_job_repository(self):
         """Verifies job enqueueing, priority dispatch, retry disablement, and archiving."""

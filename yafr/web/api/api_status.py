@@ -15,6 +15,7 @@ from yafr.db import (
     SourceRepository,
     get_session,
 )
+from yafr.db.source_repository import DEFAULT_SOURCE_REFRESH_SECONDS
 from yafr.db.system_operation_repository import (
     DEFAULT_WORKER_TIMEOUT_SECONDS,
     SystemOperationRepository,
@@ -61,7 +62,9 @@ def system_status():
     sources_errors = 0
     try:
         source_repo = SourceRepository(session)
-        sources_outdated = source_repo.count_outdated_sources()
+        config = ConfigRepository(session).get_config()
+        default_period = int(config.sources_refresh_period or DEFAULT_SOURCE_REFRESH_SECONDS)
+        sources_outdated = source_repo.count_outdated_sources(max_age_seconds=default_period)
         sources_errors = source_repo.count_error_sources()
     except Exception as src_err:
         logger.debug("Source counts check failed: %s", src_err)

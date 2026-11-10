@@ -6,7 +6,6 @@ applying operators ('=', '=='), joins with SourceOperationalData,
 system filters ('url', 'title', 'fetch_time', 'errors'), explicit ordering, and pagination.
 """
 
-from datetime import datetime, timedelta, timezone
 import logging
 from typing import List, Optional, Tuple
 from sqlalchemy import func, or_, select
@@ -16,6 +15,7 @@ from linkarchivetools.model.definitions import (
     SourceOperationalData,
     SourcesTable,
 )
+from yafr.db.source_repository import DEFAULT_SOURCE_REFRESH_SECONDS, _outdated_condition
 from yafr.search.parser import ParsedQuery, SearchClause
 
 logger = logging.getLogger(__name__)
@@ -41,6 +41,7 @@ class SourceSearchQueryBuilder:
         filter_id: Optional[str] = "url",
         limit: Optional[int] = None,
         offset: Optional[int] = None,
+        default_period: int = DEFAULT_SOURCE_REFRESH_SECONDS,
     ) -> Select:
         """
         Builds the primary SELECT statement for matching SourcesTable and SourceOperationalData.
@@ -49,6 +50,7 @@ class SourceSearchQueryBuilder:
         :param filter_id: Active filter ID ('url', 'title', 'fetch_time')
         :param limit: Maximum rows to return
         :param offset: Number of rows to skip
+        :param default_period: Default period in seconds for sources without explicit fetch_period
         :return: Compiled SQLAlchemy Select statement
         """
         stmt = select(SourcesTable, SourceOperationalData).outerjoin(
@@ -56,7 +58,7 @@ class SourceSearchQueryBuilder:
             SourcesTable.id == SourceOperationalData.source_id,
         )
 
-        stmt = cls._apply_clauses(stmt, parsed_query.clauses)
+        stmt = cls._apply_clauses(stmt, parsed_query.clauses, default_period=default_period)
         stmt = cls._apply_ordering(stmt, filter_id, parsed_query.order_by)
 
         if offset is not None and offset > 0:
@@ -74,6 +76,7 @@ class SourceSearchQueryBuilder:
         filter_id: Optional[str] = "url",
         limit: Optional[int] = 25,
         offset: Optional[int] = 0,
+        default_period: int = DEFAULT_SOURCE_REFRESH_SECONDS,
     ) -> Tuple[List[Tuple[SourcesTable, Optional[SourceOperationalData]]], int]:
         """
         Executes the search query and returns matched rows and total count.
@@ -83,13 +86,14 @@ class SourceSearchQueryBuilder:
         :param filter_id: System filter identifier ('url', 'title', 'fetch_time')
         :param limit: Pagination limit
         :param offset: Pagination offset
+        :param default_period: Default period in seconds for sources without explicit fetch_period
         :return: Tuple of (list of (SourcesTable, SourceOperationalData), total_count)
         """
         count_stmt = select(func.count(SourcesTable.id)).outerjoin(
             SourceOperationalData,
             SourcesTable.id == SourceOperationalData.source_id,
         )
-        count_stmt = cls._apply_clauses(count_stmt, parsed_query.clauses)
+        count_stmt = cls._apply_clauses(count_stmt, parsed_query.clauses, default_period=default_period)
         total_count = session.execute(count_stmt).scalar() or 0
 
         query_stmt = cls.build_select(
@@ -97,23 +101,33 @@ class SourceSearchQueryBuilder:
             filter_id=filter_id,
             limit=limit,
             offset=offset,
+            default_period=default_period,
         )
         results = list(session.execute(query_stmt).all())
         return results, total_count
 
     @classmethod
-    def _apply_clauses(cls, stmt: Select, clauses: List[SearchClause]) -> Select:
+    def _apply_clauses(
+        cls,
+        stmt: Select,
+        clauses: List[SearchClause],
+        default_period: int = DEFAULT_SOURCE_REFRESH_SECONDS,
+    ) -> Select:
         """
         Applies parsed predicates from search clauses onto the statement.
         """
         for clause in clauses:
-            expr = cls._build_clause_expression(clause)
+            expr = cls._build_clause_expression(clause, default_period=default_period)
             if expr is not None:
                 stmt = stmt.where(expr)
         return stmt
 
     @classmethod
-    def _build_clause_expression(cls, clause: SearchClause):
+    def _build_clause_expression(
+        cls,
+        clause: SearchClause,
+        default_period: int = DEFAULT_SOURCE_REFRESH_SECONDS,
+    ):
         """
         Builds a boolean SQLAlchemy expression for a single SearchClause.
         """
@@ -172,10 +186,7 @@ class SourceSearchQueryBuilder:
             return SourcesTable.enabled == target_val
 
         if field_target == "outdated":
-            cutoff = datetime.now(timezone.utc) - timedelta(seconds=3600)
-            cond = (SourceOperationalData.date_fetched == None) | (
-                SourceOperationalData.date_fetched < cutoff
-            )
+            cond = _outdated_condition(default_period)
             return ~cond if negated else cond
 
         if field_target in ("error", "errors"):

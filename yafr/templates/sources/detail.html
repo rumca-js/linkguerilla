@@ -289,7 +289,7 @@
                 Every {{ "{:,}".format(source.fetch_period) }} seconds
               {% endif %}
             {% else %}
-              System default (3,600s)
+              System default ({{ "{:,}".format(default_period if default_period is defined else 3600) }}s)
             {% endif %}
           </small>
         </div>
