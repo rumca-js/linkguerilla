@@ -19,6 +19,16 @@
   <link rel="stylesheet" href="{{ url_for('static', filename='css/display-content-centric.css') }}">
   <link rel="stylesheet" href="{{ url_for('static', filename='css/display-links-only.css') }}">
 
+  <!-- Dynamic Visited and Dead Alpha Configuration -->
+  {% if config %}
+  <style>
+    :root {
+      --yafr-visit-alpha: {{ config.entries_visit_alpha if config.entries_visit_alpha is not none else 0.6 }};
+      --yafr-dead-alpha: {{ config.entries_dead_alpha if config.entries_dead_alpha is not none else 0.4 }};
+    }
+  </style>
+  {% endif %}
+
   <!-- Core Client-Side Utilities -->
   <script src="{{ url_for('static', filename='js/utils.js') }}"></script>
 </head>

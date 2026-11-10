@@ -50,13 +50,25 @@ class TestEntryRoutes(unittest.TestCase):
         close_session()
 
     def test_search_view_empty_query(self):
-        """GET / without query renders centered search input."""
+        """GET / without query renders centered search input and configured alpha."""
         response = self.client.get("/")
         self.assertEqual(response.status_code, 200)
         html = response.get_data(as_text=True)
         self.assertIn("main-search-input", html)
         self.assertIn("Search entries", html)
         self.assertIn("filter-select", html)
+        self.assertIn("--yafr-visit-alpha: 0.6", html)
+        self.assertIn("--yafr-dead-alpha: 0.4", html)
+
+    def test_search_view_custom_visit_alpha(self):
+        """Custom entries_visit_alpha in config is rendered into page CSS root."""
+        config_repo = ConfigRepository(self.session)
+        config_repo.update_config(entries_visit_alpha=0.25, entries_dead_alpha=0.15)
+        response = self.client.get("/")
+        self.assertEqual(response.status_code, 200)
+        html = response.get_data(as_text=True)
+        self.assertIn("--yafr-visit-alpha: 0.25", html)
+        self.assertIn("--yafr-dead-alpha: 0.15", html)
 
     def test_search_view_no_input_returns_all_data(self):
         """GET /?q= (search with no input text) returns all entries."""
