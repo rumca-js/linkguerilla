@@ -64,10 +64,5 @@ class ProcessSourceJobHandler(BaseJobHandler):
 
         res = SourceService.fetch_source(source.id, session=session)
         if "consume" not in res:
-            if res.get("success", False):
-                res["consume"] = True
-            else:
-                from yafr.services.webtools_service import WebToolsWrapper
-
-                res["consume"] = WebToolsWrapper.is_status_active(session)
+            res["consume"] = True
         return res

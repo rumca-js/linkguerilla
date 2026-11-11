@@ -144,7 +144,8 @@ Should be written in a such way, so it would be easily changed in code from SQli
  - Direct WebToolkit Metadata Extraction: `webtoolkit` (`BaseUrl` or `RemoteUrl`) was introduced to provide parsing and reading of titles, descriptions, date_published, author, etc. Do not fall back on response, nor use beautiful soup. Either BaseUrl/RemoteUrl works, or not.
  - Job handlers return information whether a job should be consumed (`consume: bool`).
  - If a job is not successful, it is repeated up to 3 times. After that time, if `consume` is True, the job is consumed (archived to history and removed from queue) instead of being left paused/disabled in the queue.
- - If WebToolsWrapper response fails and WebTools status is active, the job should be consumed. If WebTools status is inactive/offline, job should not be consumed.
+ - If WebToolsWrapper response is not valid (failed fetch or HTTP error status), `ConnectionError` is not raised; the job returns an error with `consume: True`. After 3 retries, the job is consumed (archived to history and removed from queue).
+ - `web_client.is_active()` does not affect job processing directly. If WebTools is not active (offline/unreachable), `JobExecutor` stops/pauses job processing until WebTools becomes active again, keeping pending jobs in the queue.
  - Outdated source enqueueing checks only enabled pending `process-source` jobs, preventing failed or disabled jobs from blocking new jobs.
  - When there are no jobs in the queue, the worker decides what should be done next:
    - Checks how many sources to fetch (outdated sources exceeding refresh period), adds `process-source` jobs into the queue, and processes them.

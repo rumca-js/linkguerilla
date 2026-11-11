@@ -497,6 +497,7 @@ class TestSourceServiceWithWrapper(unittest.TestCase):
         with patch.object(BaseUrl, "get_response", return_value=mock_resp):
             res = SourceService.fetch_source(self.source.id, session=self.session)
             self.assertFalse(res.get("success"))
+            self.assertTrue(res.get("consume"))
             self.assertEqual(res.get("status"), "error")
 
             op_data = self.session.execute(

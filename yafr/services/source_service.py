@@ -129,7 +129,9 @@ class SourceService:
         else:
             # Query enabled outdated sources using per-source fetch_period
             config = ConfigRepository(sess).get_config()
-            default_period = int(config.sources_refresh_period or DEFAULT_SOURCE_REFRESH_SECONDS)
+            default_period = int(
+                config.sources_refresh_period or DEFAULT_SOURCE_REFRESH_SECONDS
+            )
             outdated = source_repo.get_outdated_sources(max_age_seconds=default_period)
             target_ids = [s.id for s in outdated]
 
@@ -306,9 +308,17 @@ class SourceService:
             session.add(op_data)
             session.flush()
 
-        if source.source_type and source.source_type == Sources.SOURCE_TYPE_EMAIL or source.source_type.lower() == "Email":
+        if (
+            source.source_type
+            and source.source_type == Sources.SOURCE_TYPE_EMAIL
+            or source.source_type.lower() == "Email"
+        ):
             return cls._execute_fetch_email(source, op_data, session)
-        elif source.source_type and source.source_type == Sources.SOURCE_TYPE_PARSE or source.source_type.lower() == "parse":
+        elif (
+            source.source_type
+            and source.source_type == Sources.SOURCE_TYPE_PARSE
+            or source.source_type.lower() == "parse"
+        ):
             return cls._execute_fetch_parse(source, op_data, session)
         else:
             return cls._execute_fetch_rss(source, op_data, session)
@@ -338,7 +348,7 @@ class SourceService:
         op_data.date_fetched = datetime.now(timezone.utc)
         session.commit()
         if consume is None:
-            consume = WebToolsWrapper.is_status_active(session)
+            consume = True
         return {
             "success": False,
             "consume": consume,
@@ -600,8 +610,15 @@ class RssSourceExtractor:
             web_client = WebToolsWrapper(url=source.url, session=session, timeout_s=15)
             response = web_client.get_response()
             if response is None:
-                raise ConnectionError(
+                err_msg = (
                     f"Failed to fetch content from {source.url} (no response received)"
+                )
+                logger.warning(
+                    "Failed to fetch source %s (%s): %s", source.id, source.url, err_msg
+                )
+                return FetchExtractionResult(
+                    error=f"Network download error: {err_msg}",
+                    consume=True,
                 )
 
             if not response.is_valid():
@@ -611,14 +628,27 @@ class RssSourceExtractor:
                     if getattr(response, "errors", None)
                     else ""
                 )
-                raise ConnectionError(
-                    f"HTTP status {status} when fetching {source.url}"
-                    + (f": {err_detail}" if err_detail else "")
+                err_msg = f"HTTP status {status} when fetching {source.url}" + (
+                    f": {err_detail}" if err_detail else ""
+                )
+                logger.warning(
+                    "Failed to fetch source %s (%s): %s", source.id, source.url, err_msg
+                )
+                return FetchExtractionResult(
+                    error=f"Network download error: {err_msg}",
+                    consume=True,
                 )
 
             content_str = web_client.get_text()
             if content_str is None:
-                raise ValueError(f"No text content returned for source {source.url}")
+                err_msg = f"No text content returned for source {source.url}"
+                logger.warning(
+                    "Failed to fetch source %s (%s): %s", source.id, source.url, err_msg
+                )
+                return FetchExtractionResult(
+                    error=f"Network download error: {err_msg}",
+                    consume=True,
+                )
 
             content_binary = response.get_binary()
             if content_binary is not None:
@@ -630,14 +660,9 @@ class RssSourceExtractor:
             logger.warning(
                 "Failed to fetch source %s (%s): %s", source.id, source.url, err
             )
-            is_active = (
-                web_client.is_active()
-                if "web_client" in locals() and hasattr(web_client, "is_active")
-                else WebToolsWrapper.is_status_active(session)
-            )
             return FetchExtractionResult(
                 error=f"Network download error: {err}",
-                consume=is_active,
+                consume=True,
             )
 
         # Calculate hashes
@@ -674,7 +699,9 @@ class RssSourceExtractor:
                 raw_entries = filtered
         except Exception as err:
             logger.warning("Error parsing RSS feed for source %s: %s", source.id, err)
-            return FetchExtractionResult(error=f"Feed parsing error: {err}", consume=True)
+            return FetchExtractionResult(
+                error=f"Feed parsing error: {err}", consume=True
+            )
 
         return FetchExtractionResult(
             raw_entries=raw_entries,
@@ -720,7 +747,9 @@ class EmailSourceExtractor:
             logger.warning(
                 "Failed to fetch source %s (%s): %s", source.id, source.url, err
             )
-            return FetchExtractionResult(error=f"Network download error: {err}", consume=True)
+            return FetchExtractionResult(
+                error=f"Network download error: {err}", consume=True
+            )
 
         # Retrieve emails and convert to raw entry dictionaries
         try:
@@ -738,7 +767,9 @@ class EmailSourceExtractor:
                 )
         except Exception as err:
             logger.warning("Error reading emails for source %s: %s", source.id, err)
-            return FetchExtractionResult(error=f"Email reading error: {err}", consume=True)
+            return FetchExtractionResult(
+                error=f"Email reading error: {err}", consume=True
+            )
 
         return FetchExtractionResult(
             raw_entries=raw_entries,
@@ -765,8 +796,15 @@ class ParseSourceExtractor:
             web_client = WebToolsWrapper(url=source.url, session=session, timeout_s=15)
             response = web_client.get_response()
             if response is None:
-                raise ConnectionError(
+                err_msg = (
                     f"Failed to fetch content from {source.url} (no response received)"
+                )
+                logger.warning(
+                    "Failed to fetch source %s (%s): %s", source.id, source.url, err_msg
+                )
+                return FetchExtractionResult(
+                    error=f"Network download error: {err_msg}",
+                    consume=True,
                 )
 
             if not response.is_valid():
@@ -776,23 +814,24 @@ class ParseSourceExtractor:
                     if getattr(response, "errors", None)
                     else ""
                 )
-                raise ConnectionError(
-                    f"HTTP status {status} when fetching {source.url}"
-                    + (f": {err_detail}" if err_detail else "")
+                err_msg = f"HTTP status {status} when fetching {source.url}" + (
+                    f": {err_detail}" if err_detail else ""
+                )
+                logger.warning(
+                    "Failed to fetch source %s (%s): %s", source.id, source.url, err_msg
+                )
+                return FetchExtractionResult(
+                    error=f"Network download error: {err_msg}",
+                    consume=True,
                 )
 
         except Exception as err:
             logger.warning(
                 "Failed to fetch source %s (%s): %s", source.id, source.url, err
             )
-            is_active = (
-                web_client.is_active()
-                if "web_client" in locals() and hasattr(web_client, "is_active")
-                else WebToolsWrapper.is_status_active(session)
-            )
             return FetchExtractionResult(
                 error=f"Network download error: {err}",
-                consume=is_active,
+                consume=True,
             )
 
         page_hash = web_client.get_hash()
@@ -838,7 +877,9 @@ class ParseSourceExtractor:
 
         except Exception as err:
             logger.warning("Error extracting links for source %s: %s", source.id, err)
-            return FetchExtractionResult(error=f"Link extraction error: {err}", consume=True)
+            return FetchExtractionResult(
+                error=f"Link extraction error: {err}", consume=True
+            )
 
         return FetchExtractionResult(
             raw_entries=raw_entries,

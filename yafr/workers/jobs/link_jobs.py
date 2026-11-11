@@ -82,7 +82,6 @@ class LinkUpdateDataJobHandler(BaseJobHandler):
             web_client = WebToolsWrapper(url=entry.link, session=session, timeout_s=15)
 
             response = web_client.get_response()
-            is_active = web_client.is_active()
 
             if response is None or not response.is_valid():
                 # Response is not valid (failed fetch or HTTP error) — mark dead, log error
@@ -141,7 +140,7 @@ class LinkUpdateDataJobHandler(BaseJobHandler):
 
                 return {
                     "success": False,
-                    "consume": is_active,
+                    "consume": True,
                     "status": "error",
                     "error": err_msg,
                     "message": err_msg,
@@ -295,10 +294,9 @@ class LinkUpdateDataJobHandler(BaseJobHandler):
                     session.commit()
             except Exception:
                 pass
-            is_active = WebToolsWrapper.is_status_active(session)
             return {
                 "success": False,
-                "consume": is_active,
+                "consume": True,
                 "status": "error",
                 "error": f"Error updating link data: {err}",
             }
@@ -416,10 +414,9 @@ class LinkDownloadSocialJobHandler(BaseJobHandler):
                 entry.link,
                 err,
             )
-            is_active = WebToolsWrapper.is_status_active(session)
             return {
                 "success": False,
-                "consume": is_active,
+                "consume": True,
                 "status": "error",
                 "error": str(err),
             }

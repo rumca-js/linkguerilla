@@ -69,9 +69,7 @@ class JobExecutor:
         self.registry = registry or default_registry
         self.fix_schema_on_startup = fix_schema_on_startup
 
-    def fix_database_schema(
-        self, reapply_defaults: bool = True
-    ) -> Dict[str, Any]:
+    def fix_database_schema(self, reapply_defaults: bool = True) -> Dict[str, Any]:
         """
         Executes DatabaseService.fix_all_tables to reconcile SQLite schema
         and fix eventual missing columns, obsolete columns, and default constraints.
@@ -108,6 +106,15 @@ class JobExecutor:
         sess = self._get_session(session)
         job_repo = JobRepository(sess)
         log_repo = LoggingRepository(sess)
+
+        # Check if WebTools is active; if not, pause job processing
+        from yafr.services.webtools_service import WebToolsWrapper
+
+        if not WebToolsWrapper.is_status_active(sess):
+            logger.warning(
+                "WebTools is not active (offline/unreachable). Job processing paused."
+            )
+            return None
 
         # 1. Fetch next highest-priority enabled job
         job = job_repo.get_next_pending_job()
@@ -241,13 +248,10 @@ class JobExecutor:
             logger.exception(
                 "Exception executing job #%d [%s]: %s", job_id, job_type, exc
             )
-            from yafr.services.webtools_service import WebToolsWrapper
-
-            is_wt_active = WebToolsWrapper.is_status_active(sess)
             job_repo.record_job_error(
                 job_id,
                 max_retries=self.max_retries,
-                consume_on_max_retries=is_wt_active,
+                consume_on_max_retries=True,
             )
             try:
                 log_repo.log(
@@ -264,7 +268,7 @@ class JobExecutor:
                 "job_type": job_type,
                 "subject": job_subject,
                 "success": False,
-                "consume": is_wt_active,
+                "consume": True,
                 "status": "crashed",
                 "message": str(exc),
             }
@@ -305,8 +309,12 @@ class JobExecutor:
         """
         source_repo = SourceRepository(session)
         config = ConfigRepository(session).get_config()
-        default_period = int(config.sources_refresh_period or DEFAULT_SOURCE_REFRESH_SECONDS)
-        outdated_sources = source_repo.get_outdated_sources(max_age_seconds=default_period)
+        default_period = int(
+            config.sources_refresh_period or DEFAULT_SOURCE_REFRESH_SECONDS
+        )
+        outdated_sources = source_repo.get_outdated_sources(
+            max_age_seconds=default_period
+        )
 
         if not outdated_sources:
             return None
@@ -396,9 +404,7 @@ class JobExecutor:
             "message": res.get("message") or res.get("error", "Entry updated."),
         }
 
-    def enqueue_outdated_source_jobs(
-        self, session: Optional[Session] = None
-    ) -> int:
+    def enqueue_outdated_source_jobs(self, session: Optional[Session] = None) -> int:
         """
         Enqueues the next outdated source refresh job into the backgroundjob queue (1-by-1).
 
@@ -412,7 +418,9 @@ class JobExecutor:
         sess = self._get_session(session)
         source_repo = SourceRepository(sess)
         config = ConfigRepository(sess).get_config()
-        default_period = int(config.sources_refresh_period or DEFAULT_SOURCE_REFRESH_SECONDS)
+        default_period = int(
+            config.sources_refresh_period or DEFAULT_SOURCE_REFRESH_SECONDS
+        )
 
         # In 1-by-1 mode, if there is already an active/pending process-source job in queue, wait
         existing = (
@@ -599,7 +607,9 @@ class JobExecutor:
         # Fix eventual database schema issues at worker startup before processing jobs
         if self.fix_schema_on_startup:
             try:
-                logger.info("Checking and repairing database schema at worker startup...")
+                logger.info(
+                    "Checking and repairing database schema at worker startup..."
+                )
                 fix_res = self.fix_database_schema(reapply_defaults=True)
                 fixed_count = fix_res.get("fixed_count", 0)
                 if fixed_count > 0:

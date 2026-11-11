@@ -395,8 +395,8 @@ class TestJobExecutor(unittest.TestCase):
         res3 = executor.process_one(session=self.session)
         self.assertIsNone(res3)
 
-    def test_process_source_job_disabled_when_webtools_inactive(self):
-        """When WebTools is inactive and job fails, job is disabled after max_retries rather than consumed."""
+    def test_job_processing_paused_when_webtools_inactive(self):
+        """When WebTools is inactive, job_executor pauses processing and does not execute jobs."""
         from unittest.mock import patch
 
         job = self.job_repo.enqueue_job(
@@ -410,13 +410,40 @@ class TestJobExecutor(unittest.TestCase):
             session=self.session, max_retries=2, auto_refresh_sources=False
         )
 
-        # Mock WebTools status as inactive (consume=False)
-        with patch("yafr.workers.jobs.source_jobs.ProcessSourceJobHandler.execute") as mock_exec:
+        with patch(
+            "yafr.services.webtools_service.WebToolsWrapper.is_status_active",
+            return_value=False,
+        ):
+            res = executor.process_one(session=self.session)
+            self.assertIsNone(res)
+            # Job was not executed or modified
+            j = self.job_repo.get_by_id(BackgroundJob, job.id)
+            self.assertEqual(j.errors, 0)
+            self.assertTrue(j.enabled)
+
+    def test_job_disabled_after_max_retries_when_consume_false(self):
+        """When job returns consume=False, job is disabled after max_retries rather than consumed."""
+        from unittest.mock import patch
+
+        job = self.job_repo.enqueue_job(
+            job="process-source",
+            subject="99999",
+            priority=1,
+            enabled=True,
+        )
+
+        executor = JobExecutor(
+            session=self.session, max_retries=2, auto_refresh_sources=False
+        )
+
+        with patch(
+            "yafr.workers.jobs.source_jobs.ProcessSourceJobHandler.execute"
+        ) as mock_exec:
             mock_exec.return_value = {
                 "success": False,
                 "consume": False,
                 "status": "error",
-                "error": "WebTools server offline",
+                "error": "Temporary failure without consume",
             }
             # First failure
             executor.process_one(session=self.session)
