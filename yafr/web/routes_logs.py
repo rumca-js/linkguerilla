@@ -16,6 +16,7 @@ LOG_LEVEL_FILTERS = [
     {"id": "all", "name": "All Levels", "level": None, "default": True},
     {"id": "debug", "name": "Debug", "level": 10, "default": False},
     {"id": "info", "name": "Info", "level": 20, "default": False},
+    {"id": "notification", "name": "Notification", "level": 25, "default": False},
     {"id": "warning", "name": "Warning", "level": 30, "default": False},
     {"id": "error", "name": "Error", "level": 40, "default": False},
     {"id": "critical", "name": "Critical", "level": 50, "default": False},

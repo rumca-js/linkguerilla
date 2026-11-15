@@ -15,6 +15,19 @@ from yafr.db.base_repository import BaseRepository
 
 logger = logging.getLogger(__name__)
 
+NOTIFICATION = 25
+logging.addLevelName(NOTIFICATION, "NOTIFICATION")
+
+
+def _logger_notification(self: logging.Logger, message: str, *args, **kwargs) -> None:
+    """Convenience method to log events at NOTIFICATION (25) severity level."""
+    if self.isEnabledFor(NOTIFICATION):
+        self._log(NOTIFICATION, message, args, **kwargs)
+
+
+if not hasattr(logging.Logger, "notification"):
+    logging.Logger.notification = _logger_notification
+
 
 class LoggingRepository(BaseRepository[AppLogging]):
     """
@@ -24,6 +37,7 @@ class LoggingRepository(BaseRepository[AppLogging]):
     # Severity Level Constants matching standard Python logging
     DEBUG = 10
     INFO = 20
+    NOTIFICATION = 25
     WARNING = 30
     ERROR = 40
     CRITICAL = 50
@@ -121,3 +135,67 @@ class LoggingRepository(BaseRepository[AppLogging]):
         result = self.session.execute(stmt)
         self.session.commit()
         return result.rowcount or 0
+
+
+class AppLoggingHandler(logging.Handler):
+    """
+    Standard logging.Handler that persists records >= threshold (default NOTIFICATION = 25)
+    into the SQLite applogging table via LoggingRepository.
+    """
+
+    def __init__(self, level: int = NOTIFICATION, max_limit: int = 2000) -> None:
+        super().__init__(level=level)
+        self.max_limit = max_limit
+
+    def emit(self, record: logging.LogRecord) -> None:
+        # Prevent recursive logging loops from database operations or sqlalchemy
+        if record.name.startswith(
+            "yafr.db.logging_repository"
+        ) or record.name.startswith("sqlalchemy"):
+            return
+
+        try:
+            from yafr.db.session import get_engine
+
+            engine = get_engine()
+            info_text = record.getMessage()
+            detail_text = None
+
+            if record.exc_info:
+                detail_text = self.format(record)
+            elif record.levelno >= logging.ERROR:
+                detail_text = f"{record.name} ({record.filename}:{record.lineno})"
+
+            with Session(engine) as session:
+                repo = LoggingRepository(session=session)
+                repo.log(
+                    info_text=info_text,
+                    detail_text=detail_text,
+                    level=record.levelno,
+                    max_limit=self.max_limit,
+                )
+        except Exception:
+            self.handleError(record)
+
+
+def setup_app_logging(
+    logger_name: str = "yafr",
+    level: int = NOTIFICATION,
+    max_limit: int = 2000,
+) -> AppLoggingHandler:
+    """
+    Attaches AppLoggingHandler to the specified logger if not already attached.
+
+    :param logger_name: Name of logger to attach handler to (default: "yafr")
+    :param level: Minimum severity level threshold (default: NOTIFICATION = 25)
+    :param max_limit: Maximum log rows to retain in database (default: 2000)
+    :return: Attached or existing AppLoggingHandler instance
+    """
+    target_logger = logging.getLogger(logger_name)
+    for h in target_logger.handlers:
+        if isinstance(h, AppLoggingHandler):
+            return h
+
+    handler = AppLoggingHandler(level=level, max_limit=max_limit)
+    target_logger.addHandler(handler)
+    return handler

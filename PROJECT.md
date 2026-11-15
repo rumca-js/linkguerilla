@@ -47,7 +47,7 @@ Naming vs Table names
  - SearchHistory - search history
  - Read Later - readlater
  - Credentials - credentials (used for email source type)
- - AppLogging - applogging (logs). Follows logging levels
+ - AppLogging - applogging (logs). Follows logging levels: DEBUG, INFO, NOTIFICATION, WARNING, ERROR, CRITICAL. AppLoggingHandler routes NOTIFICATION and above to applogging table.
  - SearchView, or Filters - searchview
  - Block Entry Lists - blockentrylist
  - Block Entries - blockentry

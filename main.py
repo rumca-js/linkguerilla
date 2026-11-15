@@ -6,7 +6,7 @@ import sys
 
 from yafr.config import Config, set_console_title
 from yafr.app import create_app
-from yafr.db.session import init_db, close_session
+from yafr.db import init_db, close_session, setup_app_logging
 from yafr.workers.job_executor import JobExecutor
 
 
@@ -14,6 +14,7 @@ def _start_job_executor(db_path: str, interval: float = 5.0) -> None:
     """Initialise the DB session for this thread and run the job loop forever."""
     try:
         init_db(db_path, sync_schema=False)
+        setup_app_logging()
     except Exception as err:
         logging.getLogger(__name__).error(
             "Job-executor thread: DB init failed: %s", err

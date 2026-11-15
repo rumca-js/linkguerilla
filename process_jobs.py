@@ -20,7 +20,7 @@ import threading
 from typing import Dict, Any
 
 from yafr.config import Config, set_console_title
-from yafr.db.session import close_session, init_db
+from yafr.db import close_session, init_db, setup_app_logging
 from yafr.workers.job_executor import JobExecutor
 
 
@@ -85,6 +85,8 @@ def main():
     except Exception as err:
         print(f"Error initializing database at {args.db}: {err}", file=sys.stderr)
         sys.exit(1)
+
+    setup_app_logging()
 
     stop_event = threading.Event()
 

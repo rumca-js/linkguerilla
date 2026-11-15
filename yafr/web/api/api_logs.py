@@ -112,5 +112,12 @@ def _level_name(level: int) -> str:
     :param level: Integer severity level
     :return: Human-readable level name
     """
-    names = {10: "DEBUG", 20: "INFO", 30: "WARNING", 40: "ERROR", 50: "CRITICAL"}
+    names = {
+        10: "DEBUG",
+        20: "INFO",
+        25: "NOTIFICATION",
+        30: "WARNING",
+        40: "ERROR",
+        50: "CRITICAL",
+    }
     return names.get(level, f"LEVEL-{level}")

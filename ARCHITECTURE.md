@@ -187,8 +187,11 @@ To avoid duplicating database access logic, all raw SQLAlchemy operations are en
 6. **ConfigRepository (`configurationentry`)**:
    - Reads and caches application settings (active display style, display type, alpha values, storage limits).
 
-7. **LoggingRepository (`applogging`)**:
-   - Implements structured logging into the `applogging` SQLite table with standard severity levels (`DEBUG`, `INFO`, `WARNING`, `ERROR`, `CRITICAL`).
+7. **LoggingRepository (`applogging`) & AppLoggingHandler**:
+   - Implements structured logging into the `applogging` SQLite table with standard severity levels (`DEBUG = 10`, `INFO = 20`, `NOTIFICATION = 25`, `WARNING = 30`, `ERROR = 40`, `CRITICAL = 50`).
+   - `AppLoggingHandler`: Standard Python `logging.Handler` attached to the `yafr` logger hierarchy with threshold `NOTIFICATION (25)`.
+   - Routine `DEBUG` and `INFO` stream only to terminal stdout, while `NOTIFICATION` (source refresh milestones, DB downloads), `WARNING`, `ERROR`, and `CRITICAL` events are automatically captured and persisted to the SQLite `applogging` table for inspection via `LogsView` (`/logs`).
+   - Safe isolation: Handler uses dedicated database sessions and `handleError` recursion guard to prevent cascading loops if the database is locked or rolling back.
 
 ---
 

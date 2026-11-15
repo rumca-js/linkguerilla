@@ -16,7 +16,12 @@ from yafr.db.credentials_repository import CredentialsRepository
 from yafr.db.entry_repository import EntryRepository
 from yafr.db.history_repository import HistoryRepository
 from yafr.db.job_repository import JobRepository
-from yafr.db.logging_repository import LoggingRepository
+from yafr.db.logging_repository import (
+    AppLoggingHandler,
+    LoggingRepository,
+    NOTIFICATION,
+    setup_app_logging,
+)
 from yafr.db.rules_repository import RulesRepository
 from yafr.db.search_view_repository import SearchViewRepository
 from yafr.db.session import (
@@ -51,5 +56,8 @@ __all__ = [
     "RulesRepository",
     "SearchViewRepository",
     "LoggingRepository",
+    "AppLoggingHandler",
+    "setup_app_logging",
+    "NOTIFICATION",
     "SystemOperationRepository",
 ]

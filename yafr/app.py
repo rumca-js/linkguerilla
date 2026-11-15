@@ -6,7 +6,7 @@ import logging
 from flask import Flask, jsonify, render_template, request
 from sqlalchemy.exc import SQLAlchemyError
 from yafr.config import Config
-from yafr.db import close_session, init_db
+from yafr.db import close_session, init_db, setup_app_logging
 from yafr.web import register_blueprints
 
 logger = logging.getLogger(__name__)
@@ -38,6 +38,9 @@ def create_app(config_object=None) -> Flask:
         init_db(db_path)
     except Exception as err:
         logger.error("Failed to initialize database at %s: %s", db_path, err)
+
+    # Attach AppLoggingHandler to yafr logger hierarchy (threshold NOTIFICATION 25)
+    setup_app_logging()
 
     # Teardown context hook to close scoped session
     @app.teardown_appcontext

@@ -126,6 +126,8 @@
                       <span class="badge bg-danger bg-opacity-75">ERROR</span>
                     {% elif log.level >= 30 %}
                       <span class="badge bg-warning text-dark">WARNING</span>
+                    {% elif log.level >= 25 %}
+                      <span class="badge bg-primary">NOTIFICATION</span>
                     {% elif log.level >= 20 %}
                       <span class="badge bg-info text-dark">INFO</span>
                     {% else %}

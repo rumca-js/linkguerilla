@@ -389,10 +389,17 @@ class TestRepositories(unittest.TestCase):
 
         repo.log(info_text="Debug message", level=LoggingRepository.DEBUG)
         repo.log(info_text="Info message", level=LoggingRepository.INFO)
+        repo.log(
+            info_text="Notification message",
+            level=LoggingRepository.NOTIFICATION,
+        )
         repo.log(info_text="Error message", level=LoggingRepository.ERROR)
 
         all_logs = repo.list_logs()
-        self.assertEqual(len(all_logs), 3)
+        self.assertEqual(len(all_logs), 4)
+
+        notif_logs = repo.list_logs(min_level=LoggingRepository.NOTIFICATION)
+        self.assertEqual(len(notif_logs), 2)  # NOTIFICATION and ERROR
 
         error_logs = repo.list_logs(min_level=LoggingRepository.ERROR)
         self.assertEqual(len(error_logs), 1)
