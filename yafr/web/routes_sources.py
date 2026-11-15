@@ -11,7 +11,10 @@ from typing import Any, Optional
 from flask import Blueprint, abort, flash, redirect, render_template, request, url_for
 from sqlalchemy import func, select
 from yafr.db import ConfigRepository, SourceRepository, get_session
-from yafr.db.source_repository import DEFAULT_SOURCE_REFRESH_SECONDS, _outdated_condition
+from yafr.db.source_repository import (
+    DEFAULT_SOURCE_REFRESH_SECONDS,
+    _outdated_condition,
+)
 from yafr.search import SOURCE_FILTERS, SearchParser, SourceSearchQueryBuilder
 
 from linkarchivetools.model.definitions import (
@@ -46,7 +49,9 @@ def sources_list():
     config = config_repo.get_config()
     _, dead_alpha = config_repo.get_alphas()
     per_page = int(config.sources_per_page or 25)
-    default_period = int(config.sources_refresh_period or DEFAULT_SOURCE_REFRESH_SECONDS)
+    default_period = int(
+        config.sources_refresh_period or DEFAULT_SOURCE_REFRESH_SECONDS
+    )
     offset = (page - 1) * per_page
 
     parsed_query = SearchParser.parse(query)
@@ -190,7 +195,9 @@ def source_detail(id: int):
 
     # Check if outdated
     config = ConfigRepository(session).get_config()
-    default_period = int(config.sources_refresh_period or DEFAULT_SOURCE_REFRESH_SECONDS)
+    default_period = int(
+        config.sources_refresh_period or DEFAULT_SOURCE_REFRESH_SECONDS
+    )
     is_outdated = False
     if source.enabled:
         if op_data is None or op_data.date_fetched is None:
@@ -579,7 +586,10 @@ def source_convert(id: int):
         return redirect(url_for("sources.source_detail", id=id))
 
     if target_type not in (Sources.SOURCE_TYPE_PARSE, Sources.SOURCE_TYPE_RSS):
-        flash(f"Invalid target source type '{target_type}'. Allowed types: RSS, PARSE.", "danger")
+        flash(
+            f"Invalid target source type '{target_type}'. Allowed types: RSS, PARSE.",
+            "danger",
+        )
         return redirect(url_for("sources.source_detail", id=id))
 
     if current_type == target_type:

@@ -15,6 +15,7 @@ from linkarchivetools.model.definitions import (
     SourceOperationalData,
     SourcesTable,
 )
+from linkarchivetools.model.sources import Sources
 from yafr.db.base_repository import BaseRepository
 
 logger = logging.getLogger(__name__)
@@ -112,7 +113,7 @@ class SourceRepository(BaseRepository[SourcesTable]):
         self,
         url: str,
         title: Optional[str] = None,
-        source_type: Optional[str] = "rss",
+        source_type: Optional[str] = Sources.SOURCE_TYPE_RSS,
         enabled: bool = True,
         auto_add_to_read_later: bool = False,
         favicon: Optional[str] = None,
@@ -308,7 +309,9 @@ class SourceRepository(BaseRepository[SourcesTable]):
             self.session.flush()
 
     def get_outdated_sources(
-        self, max_age_seconds: int = DEFAULT_SOURCE_REFRESH_SECONDS, limit: Optional[int] = None
+        self,
+        max_age_seconds: int = DEFAULT_SOURCE_REFRESH_SECONDS,
+        limit: Optional[int] = None,
     ) -> List[SourcesTable]:
         """
         Returns enabled sources whose next scheduled fetch is overdue.
@@ -334,7 +337,9 @@ class SourceRepository(BaseRepository[SourcesTable]):
             stmt = stmt.limit(limit)
         return list(self.session.execute(stmt).scalars().all())
 
-    def count_outdated_sources(self, max_age_seconds: int = DEFAULT_SOURCE_REFRESH_SECONDS) -> int:
+    def count_outdated_sources(
+        self, max_age_seconds: int = DEFAULT_SOURCE_REFRESH_SECONDS
+    ) -> int:
         """
         Counts enabled sources whose next scheduled fetch is overdue.
 

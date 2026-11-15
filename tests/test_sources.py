@@ -323,7 +323,10 @@ class TestSourceRoutes(unittest.TestCase):
         # Verify GET edit page shows checkbox checked
         res_get = self.client.get(f"/sources/{self.s1.id}/edit-rss")
         self.assertEqual(res_get.status_code, 200)
-        self.assertIn('name="auto_add_to_read_later" \n            checked', res_get.get_data(as_text=True))
+        self.assertIn(
+            'name="auto_add_to_read_later" \n            checked',
+            res_get.get_data(as_text=True),
+        )
 
         # Disable auto_add_to_read_later
         res_post_disable = self.client.post(
@@ -548,6 +551,7 @@ class TestSourceApi(unittest.TestCase):
 
         # Verify process-source background job was enqueued in DB
         from yafr.db.job_repository import JobRepository
+
         job_repo = JobRepository(get_session())
         jobs = job_repo.list_jobs(job_type="process-source")
         self.assertTrue(any(j.subject == str(self.s1.id) for j in jobs))
@@ -721,3 +725,151 @@ class TestSourceApi(unittest.TestCase):
         self.assertIn(f"/sources/{parse_upper.id}/edit-parse", html_list)
         self.assertIn("bi-code-slash fs-5 text-success", html_list)
 
+
+class TestSourceServiceTypeFixing(unittest.TestCase):
+    """
+    Unit and integration tests for source_type normalization and fixing in SourceService.
+    """
+
+    def setUp(self):
+        self.app = create_app(
+            {
+                "TESTING": True,
+                "DATABASE_PATH": ":memory:",
+                "SECRET_KEY": "test-key-source-service",
+            }
+        )
+        self.session = get_session()
+        self.repo = SourceRepository(self.session)
+
+    def tearDown(self):
+        close_session()
+
+    def test_normalize_source_type_values(self):
+        """Test normalize_source_type method normalizes various inputs to canonical types."""
+        from linkarchivetools.model.sources import Sources
+        from yafr.services.source_service import SourceService
+
+        self.assertEqual(
+            SourceService.normalize_source_type(None), Sources.SOURCE_TYPE_RSS
+        )
+        self.assertEqual(
+            SourceService.normalize_source_type(""), Sources.SOURCE_TYPE_RSS
+        )
+        self.assertEqual(
+            SourceService.normalize_source_type("   "), Sources.SOURCE_TYPE_RSS
+        )
+        self.assertEqual(
+            SourceService.normalize_source_type("email"), Sources.SOURCE_TYPE_EMAIL
+        )
+        self.assertEqual(
+            SourceService.normalize_source_type("Email"), Sources.SOURCE_TYPE_EMAIL
+        )
+        self.assertEqual(
+            SourceService.normalize_source_type("EMAIL"), Sources.SOURCE_TYPE_EMAIL
+        )
+        self.assertEqual(
+            SourceService.normalize_source_type("  email  "), Sources.SOURCE_TYPE_EMAIL
+        )
+        self.assertEqual(
+            SourceService.normalize_source_type("parse"), Sources.SOURCE_TYPE_PARSE
+        )
+        self.assertEqual(
+            SourceService.normalize_source_type("Parse"), Sources.SOURCE_TYPE_PARSE
+        )
+        self.assertEqual(
+            SourceService.normalize_source_type("PARSE"), Sources.SOURCE_TYPE_PARSE
+        )
+        self.assertEqual(
+            SourceService.normalize_source_type("rss"), Sources.SOURCE_TYPE_RSS
+        )
+        self.assertEqual(
+            SourceService.normalize_source_type("RSS"), Sources.SOURCE_TYPE_RSS
+        )
+        self.assertEqual(
+            SourceService.normalize_source_type("invalid_type"), Sources.SOURCE_TYPE_RSS
+        )
+
+    def test_fix_source_type_on_model_and_db(self):
+        """Test fix_source_type updates source.source_type on the model instance and persists."""
+        from linkarchivetools.model.sources import Sources
+        from yafr.services.source_service import SourceService
+
+        source = self.repo.add_source(
+            url="https://example.com/feed-raw",
+            title="Raw Feed",
+            source_type="email",
+        )
+        self.assertEqual(source.source_type, "email")
+
+        fixed_type = SourceService.fix_source_type(source, session=self.session)
+        self.assertEqual(fixed_type, Sources.SOURCE_TYPE_EMAIL)
+        self.assertEqual(source.source_type, Sources.SOURCE_TYPE_EMAIL)
+
+        # Verify DB value
+        refreshed = self.session.get(SourcesTable, source.id)
+        self.assertEqual(refreshed.source_type, Sources.SOURCE_TYPE_EMAIL)
+
+    def test_execute_fetch_fixes_lowercase_email_type_before_processing(self):
+        """Verify _execute_fetch fixes 'email' to 'EMAIL' and routes to email fetch pipeline."""
+        from linkarchivetools.model.sources import Sources
+        from yafr.services.source_service import SourceService
+
+        source = self.repo.add_source(
+            url="imap.example.com",
+            title="Email Source",
+            source_type="email",
+        )
+
+        with patch.object(
+            SourceService, "_execute_fetch_email", return_value={"success": True}
+        ) as mock_email_fetch:
+            res = SourceService.fetch_source(source.id, session=self.session)
+            self.assertTrue(res.get("success"))
+            mock_email_fetch.assert_called_once()
+            # Verify source type was corrected in database
+            self.session.expire_all()
+            db_source = self.session.get(SourcesTable, source.id)
+            self.assertEqual(db_source.source_type, Sources.SOURCE_TYPE_EMAIL)
+
+    def test_execute_fetch_fixes_unset_type_to_rss_before_processing(self):
+        """Verify _execute_fetch fixes unset/None source_type to SOURCE_TYPE_RSS."""
+        from linkarchivetools.model.sources import Sources
+        from yafr.services.source_service import SourceService
+
+        source = self.repo.add_source(
+            url="https://example.com/rss-unset",
+            title="Unset Source",
+            source_type=None,
+        )
+
+        with patch.object(
+            SourceService, "_execute_fetch_rss", return_value={"success": True}
+        ) as mock_rss_fetch:
+            res = SourceService.fetch_source(source.id, session=self.session)
+            self.assertTrue(res.get("success"))
+            mock_rss_fetch.assert_called_once()
+            self.session.expire_all()
+            db_source = self.session.get(SourcesTable, source.id)
+            self.assertEqual(db_source.source_type, Sources.SOURCE_TYPE_RSS)
+
+    def test_execute_fetch_fixes_lowercase_parse_type_before_processing(self):
+        """Verify _execute_fetch fixes 'parse' to 'PARSE' and routes to parse fetch pipeline."""
+        from linkarchivetools.model.sources import Sources
+        from yafr.services.source_service import SourceService
+
+        source = self.repo.add_source(
+            url="https://example.com/parse-lower",
+            title="Parse Source",
+            source_type="parse",
+        )
+
+        with patch.object(
+            SourceService, "_execute_fetch_parse", return_value={"success": True}
+        ) as mock_parse_fetch:
+            res = SourceService.fetch_source(source.id, session=self.session)
+            self.assertTrue(res.get("success"))
+            mock_parse_fetch.assert_called_once()
+            self.session.expire_all()
+            db_source = self.session.get(SourcesTable, source.id)
+            self.assertEqual(db_source.source_type, Sources.SOURCE_TYPE_PARSE)

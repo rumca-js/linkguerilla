@@ -119,6 +119,7 @@ Should be written in a such way, so it would be easily changed in code from SQli
  - should use order of sources by last fetched (or that never have been fetched)
  - should change date\_fetch, but only after attempt to read source has been made
  - if database is change, the worker should not process any older data for previous database
+ - source type normalization: before actual processing of a source, its source_type is validated and corrected (e.g. 'email' to 'EMAIL', 'parse' to 'PARSE'). If source_type is not set, empty, or invalid, it is set to SOURCE_TYPE_RSS ('RSS'). The corrected type is saved to the database.
  - source.SourceOperationalDataRepository has page_hash (entire source hash), and body_hash (body, or entries hash). If it is not different than previous one, you can skip refresh, and mark as read
  - SourceOperationalDataRepository stores the amount of source entries, consecutive_errors contain the amount of consecutive errors. Is cleared when valid response is received.
  - source is marked as read when it's response is valid, if it is not consecutive errors counter is incremented

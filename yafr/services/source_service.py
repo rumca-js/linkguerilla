@@ -240,6 +240,47 @@ class SourceService:
         return False, None
 
     @classmethod
+    def normalize_source_type(cls, source_type: Optional[str]) -> str:
+        """
+        Normalizes source type strings to official uppercase constants.
+        Defaults to Sources.SOURCE_TYPE_RSS if empty, whitespace, or invalid.
+        """
+        if not source_type or not str(source_type).strip():
+            return Sources.SOURCE_TYPE_RSS
+
+        cleaned = str(source_type).strip().upper()
+        if cleaned in (
+            Sources.SOURCE_TYPE_RSS,
+            Sources.SOURCE_TYPE_EMAIL,
+            Sources.SOURCE_TYPE_PARSE,
+        ):
+            return cleaned
+        return Sources.SOURCE_TYPE_RSS
+
+    @classmethod
+    def fix_source_type(
+        cls,
+        source: SourcesTable,
+        session: Optional[Session] = None,
+    ) -> str:
+        """
+        Validates and fixes source.source_type on the model instance and in the session.
+        If source_type is unset or invalid, sets it to Sources.SOURCE_TYPE_RSS.
+        """
+        normalized = cls.normalize_source_type(source.source_type)
+        if source.source_type != normalized:
+            logger.info(
+                "Fixing invalid source_type '%s' for source #%s to '%s'",
+                source.source_type,
+                getattr(source, "id", None),
+                normalized,
+            )
+            source.source_type = normalized
+            if session is not None:
+                session.flush()
+        return normalized
+
+    @classmethod
     def _execute_fetch(cls, source_id: int, session: Session) -> Dict[str, Any]:
         source = session.get(SourcesTable, source_id)
         if not source:
@@ -250,6 +291,9 @@ class SourceService:
                 "error": "Source not found",
                 "status": "error",
             }
+
+        # Fix invalid/unset source_type before actual processing
+        cls.fix_source_type(source, session=session)
 
         # Check if source.url matches entry rules (block), or blockentry
         blocked, reason = cls.is_source_blocked(source, session)
@@ -308,17 +352,9 @@ class SourceService:
             session.add(op_data)
             session.flush()
 
-        if (
-            source.source_type
-            and source.source_type == Sources.SOURCE_TYPE_EMAIL
-            or source.source_type.lower() == "Email"
-        ):
+        if source.source_type == Sources.SOURCE_TYPE_EMAIL:
             return cls._execute_fetch_email(source, op_data, session)
-        elif (
-            source.source_type
-            and source.source_type == Sources.SOURCE_TYPE_PARSE
-            or source.source_type.lower() == "parse"
-        ):
+        elif source.source_type == Sources.SOURCE_TYPE_PARSE:
             return cls._execute_fetch_parse(source, op_data, session)
         else:
             return cls._execute_fetch_rss(source, op_data, session)

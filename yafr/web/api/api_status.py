@@ -63,8 +63,12 @@ def system_status():
     try:
         source_repo = SourceRepository(session)
         config = ConfigRepository(session).get_config()
-        default_period = int(config.sources_refresh_period or DEFAULT_SOURCE_REFRESH_SECONDS)
-        sources_outdated = source_repo.count_outdated_sources(max_age_seconds=default_period)
+        default_period = int(
+            config.sources_refresh_period or DEFAULT_SOURCE_REFRESH_SECONDS
+        )
+        sources_outdated = source_repo.count_outdated_sources(
+            max_age_seconds=default_period
+        )
         sources_errors = source_repo.count_error_sources()
     except Exception as src_err:
         logger.debug("Source counts check failed: %s", src_err)

@@ -15,7 +15,10 @@ from linkarchivetools.model.definitions import (
     SourceOperationalData,
     SourcesTable,
 )
-from yafr.db.source_repository import DEFAULT_SOURCE_REFRESH_SECONDS, _outdated_condition
+from yafr.db.source_repository import (
+    DEFAULT_SOURCE_REFRESH_SECONDS,
+    _outdated_condition,
+)
 from yafr.search.parser import ParsedQuery, SearchClause
 
 logger = logging.getLogger(__name__)
@@ -58,7 +61,9 @@ class SourceSearchQueryBuilder:
             SourcesTable.id == SourceOperationalData.source_id,
         )
 
-        stmt = cls._apply_clauses(stmt, parsed_query.clauses, default_period=default_period)
+        stmt = cls._apply_clauses(
+            stmt, parsed_query.clauses, default_period=default_period
+        )
         stmt = cls._apply_ordering(stmt, filter_id, parsed_query.order_by)
 
         if offset is not None and offset > 0:
@@ -93,7 +98,9 @@ class SourceSearchQueryBuilder:
             SourceOperationalData,
             SourcesTable.id == SourceOperationalData.source_id,
         )
-        count_stmt = cls._apply_clauses(count_stmt, parsed_query.clauses, default_period=default_period)
+        count_stmt = cls._apply_clauses(
+            count_stmt, parsed_query.clauses, default_period=default_period
+        )
         total_count = session.execute(count_stmt).scalar() or 0
 
         query_stmt = cls.build_select(

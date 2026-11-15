@@ -133,8 +133,12 @@ def get_shared_context() -> Dict[str, Any]:
         ).strip() or Config.INSTANCE_DESCRIPTION
 
         source_repo = SourceRepository()
-        default_period = int(config.sources_refresh_period or DEFAULT_SOURCE_REFRESH_SECONDS)
-        sources_outdated = source_repo.count_outdated_sources(max_age_seconds=default_period)
+        default_period = int(
+            config.sources_refresh_period or DEFAULT_SOURCE_REFRESH_SECONDS
+        )
+        sources_outdated = source_repo.count_outdated_sources(
+            max_age_seconds=default_period
+        )
         sources_errors = source_repo.count_error_sources()
 
         job_repo = JobRepository()

@@ -283,8 +283,16 @@ class TestRepositories(unittest.TestCase):
 
         outdated = repo.get_outdated_sources()
         outdated_ids = [s.id for s in outdated]
-        self.assertNotIn(src_long.id, outdated_ids, "Source with fetch_period=7200 fetched 1.5h ago must not be outdated")
-        self.assertIn(src_short.id, outdated_ids, "Source with fetch_period=1800 fetched 45m ago must be outdated")
+        self.assertNotIn(
+            src_long.id,
+            outdated_ids,
+            "Source with fetch_period=7200 fetched 1.5h ago must not be outdated",
+        )
+        self.assertIn(
+            src_short.id,
+            outdated_ids,
+            "Source with fetch_period=1800 fetched 45m ago must be outdated",
+        )
 
     def test_job_repository(self):
         """Verifies job enqueueing, priority dispatch, retry disablement, and archiving."""
@@ -421,13 +429,19 @@ class TestRepositories(unittest.TestCase):
         self.assertEqual(deleted_count, 2)
         self.assertEqual(repo.count_logs(), 2)
 
-        remaining_debug = [l for l in repo.list_logs() if l.level == LoggingRepository.DEBUG]
+        remaining_debug = [
+            l for l in repo.list_logs() if l.level == LoggingRepository.DEBUG
+        ]
         self.assertEqual(len(remaining_debug), 0)
 
         # Info and Error logs should remain intact
-        remaining_info = [l for l in repo.list_logs() if l.level == LoggingRepository.INFO]
+        remaining_info = [
+            l for l in repo.list_logs() if l.level == LoggingRepository.INFO
+        ]
         self.assertEqual(len(remaining_info), 1)
-        remaining_error = [l for l in repo.list_logs() if l.level == LoggingRepository.ERROR]
+        remaining_error = [
+            l for l in repo.list_logs() if l.level == LoggingRepository.ERROR
+        ]
         self.assertEqual(len(remaining_error), 1)
 
         # Clear only ERROR logs (level=40)
@@ -471,12 +485,25 @@ class TestRepositories(unittest.TestCase):
         self.assertEqual(LoggingRepository.CRITICAL, 50)
 
         # get_level_name
-        self.assertEqual(LoggingRepository.get_level_name(LoggingRepository.DEBUG), "DEBUG")
-        self.assertEqual(LoggingRepository.get_level_name(LoggingRepository.INFO), "INFO")
-        self.assertEqual(LoggingRepository.get_level_name(LoggingRepository.NOTIFICATION), "NOTIFICATION")
-        self.assertEqual(LoggingRepository.get_level_name(LoggingRepository.WARNING), "WARNING")
-        self.assertEqual(LoggingRepository.get_level_name(LoggingRepository.ERROR), "ERROR")
-        self.assertEqual(LoggingRepository.get_level_name(LoggingRepository.CRITICAL), "CRITICAL")
+        self.assertEqual(
+            LoggingRepository.get_level_name(LoggingRepository.DEBUG), "DEBUG"
+        )
+        self.assertEqual(
+            LoggingRepository.get_level_name(LoggingRepository.INFO), "INFO"
+        )
+        self.assertEqual(
+            LoggingRepository.get_level_name(LoggingRepository.NOTIFICATION),
+            "NOTIFICATION",
+        )
+        self.assertEqual(
+            LoggingRepository.get_level_name(LoggingRepository.WARNING), "WARNING"
+        )
+        self.assertEqual(
+            LoggingRepository.get_level_name(LoggingRepository.ERROR), "ERROR"
+        )
+        self.assertEqual(
+            LoggingRepository.get_level_name(LoggingRepository.CRITICAL), "CRITICAL"
+        )
         self.assertEqual(LoggingRepository.get_level_name(99), "LEVEL-99")
 
         # parse_level - none / all
