@@ -24,7 +24,22 @@ $(document).ready(function () {
     handleUrlValidation($(this));
   });
 
-  // 2. Paste from Clipboard Button
+  // 2. Sync Preview button href with URL input
+  function updatePreviewHref() {
+    const url = $('#quick-add-url').val().trim();
+    const btn = $('#quick-add-preview-btn');
+    if (url) {
+      btn.attr('href', '/preview?url=' + encodeURIComponent(url));
+    } else {
+      btn.attr('href', '/preview');
+    }
+  }
+
+  $('#quick-add-url').on('input paste change', function () {
+    updatePreviewHref();
+  });
+
+  // 2b. Paste from Clipboard Button
   $('#quick-add-paste-btn').on('click', async function () {
     try {
       if (navigator.clipboard && navigator.clipboard.readText) {
@@ -32,6 +47,7 @@ $(document).ready(function () {
         if (text) {
           $('#quick-add-url').val(text.trim());
           handleUrlValidation($('#quick-add-url'));
+          updatePreviewHref();
         }
       }
     } catch (err) {

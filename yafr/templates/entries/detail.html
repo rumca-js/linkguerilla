@@ -134,6 +134,17 @@
           >
             <i class="bi bi-clipboard me-1"></i><span class="copy-text">Copy Link</span>
           </button>
+
+          <!-- Inspect URL in Preview -->
+          <a
+            href="{{ url_for('preview.preview_view', url=entry.link) }}"
+            target="_blank"
+            rel="noopener noreferrer"
+            class="btn btn-sm btn-outline-primary rounded-pill px-3"
+            title="Inspect URL metadata in URL Preview"
+          >
+            <i class="bi bi-eye me-1"></i>Inspect URL
+          </a>
         </div>
       </div>
 

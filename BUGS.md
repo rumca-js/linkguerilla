@@ -61,6 +61,8 @@
 
 ## Resolved Bugs
 
+- **`tests/test_preview.py` mock `status_code` comparison failure**: `get_status_code()` mock returns a `MagicMock` object; Jinja template does `preview_data.status_code < 400` which raises `TypeError`. Tests `test_route_get_preview_screen_with_url` and `test_api_preview_inspect` fail. Fix: set `mock_wrapper.get_status_code.return_value = 200` in test setup.
+
 - **Logs View Main Checkbox (`#select-all-logs`) Not Selecting All Logs**:
   In `yafr/static/js/logs.js`, the AJAX call and click handler for `#confirm-clear-logs-btn` were missing closing `});` statements, causing a JavaScript syntax error that prevented `logs.js` from executing and registering the `#select-all-logs` change event handler.
 
