@@ -8,8 +8,9 @@ This project has the following files:
  - TODO.md - todos
 
 Order of work:
+ - Do not run tests until changes were performed
  - Start with updating .md files (PROJECT, URLS, etc)
- - write unit tests. Remember do not run tests before writing unit tests
+ - write unit tests
  - proceed with updating code
  - after implementation double check if there are similar places in code that should be refactored into a function, or if values were hardcoded in two or more places, but should be in one only
 

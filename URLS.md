@@ -423,6 +423,34 @@ Following the project requirement to **"prefer having small server functions tha
   ```
 - **Offline Capable**: Yes.
 
+#### `POST /api/sources/batch-add`
+- **Purpose**: Batch ingestion of up to 100 source URLs from the **Add Multiple URLs** modal on `SourcesListView`. Each entry may include an optional `source_type`; if omitted, `source_type` is stored as `NULL` for later auto-resolution.
+- **Request Body**:
+  ```json
+  {
+    "sources": [
+      { "url": "https://example.com/feed.xml", "source_type": "RSS" },
+      { "url": "https://example.com/page",     "source_type": "PARSE" },
+      { "url": "https://another.com/atom" }
+    ]
+  }
+  ```
+- **Response**:
+  ```json
+  {
+    "success": true,
+    "added_count": 2,
+    "duplicate_count": 1,
+    "invalid_count": 0,
+    "added": [
+      { "id": 10, "url": "https://example.com/feed.xml", "source_type": "RSS" },
+      { "id": 11, "url": "https://another.com/atom",     "source_type": null }
+    ],
+    "message": "Added 2 sources, 1 duplicates skipped."
+  }
+  ```
+- **Offline Capable**: Yes.
+
 ---
 
 ### 2.3 Job API (`/api/jobs`)

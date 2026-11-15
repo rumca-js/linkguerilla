@@ -304,6 +304,88 @@ $(document).ready(function() {
     }, 1000);
   }
 
+  // -------------------------------------------------------------
+  // 5. Batch Add Sources Modal
+  // -------------------------------------------------------------
+  const batchAddModal = document.getElementById('batchAddSourcesModal');
+
+  // Live URL counter
+  $('#batch-add-sources-urls').on('input', function() {
+    const lines = $(this).val().split('\n').filter(l => l.trim().length > 0);
+    const count = Math.min(lines.length, 100);
+    $('#batch-add-sources-counter').text(`${count} / 100 URLs`);
+  });
+
+  // Reset modal on close
+  if (batchAddModal) {
+    batchAddModal.addEventListener('hidden.bs.modal', function() {
+      $('#batch-add-sources-form')[0].reset();
+      $('#batch-add-sources-counter').text('0 / 100 URLs');
+      $('#batch-add-sources-alert').addClass('d-none').text('');
+    });
+  }
+
+  // Submit batch add
+  $('#batch-add-sources-form').on('submit', function(e) {
+    e.preventDefault();
+
+    const rawText = $('#batch-add-sources-urls').val();
+    const sourceType = $('#batch-add-sources-type').val().trim();
+
+    const urls = rawText.split('\n')
+      .map(l => l.trim())
+      .filter(l => l.length > 0)
+      .slice(0, 100);
+
+    if (!urls.length) return;
+
+    const sources = urls.map(url => {
+      const item = { url };
+      if (sourceType) item.source_type = sourceType;
+      return item;
+    });
+
+    const submitBtn = $('#batch-add-sources-submit-btn');
+    const spinner = submitBtn.find('.spinner-border');
+    submitBtn.prop('disabled', true);
+    spinner.removeClass('d-none');
+
+    const alertBox = $('#batch-add-sources-alert');
+    alertBox.addClass('d-none').removeClass('alert-success alert-danger alert-warning').text('');
+
+    $.ajax({
+      url: '/api/sources/batch-add',
+      method: 'POST',
+      contentType: 'application/json',
+      data: JSON.stringify({ sources }),
+      success: function(resp) {
+        submitBtn.prop('disabled', false);
+        spinner.addClass('d-none');
+
+        if (resp.success) {
+          let cls = 'alert-success';
+          if (resp.added_count === 0) cls = 'alert-warning';
+          alertBox.removeClass('d-none').addClass(cls).text(resp.message);
+          if (resp.added_count > 0) {
+            setTimeout(function() {
+              const modal = bootstrap.Modal.getInstance(batchAddModal);
+              if (modal) modal.hide();
+              location.reload();
+            }, 1500);
+          }
+        } else {
+          alertBox.removeClass('d-none').addClass('alert-danger').text(resp.error || 'Failed to add sources.');
+        }
+      },
+      error: function(xhr) {
+        submitBtn.prop('disabled', false);
+        spinner.addClass('d-none');
+        const msg = xhr.responseJSON?.error || xhr.statusText || 'Request failed';
+        alertBox.removeClass('d-none').addClass('alert-danger').text(msg);
+      }
+    });
+  });
+
   // Check if a background refresh is already running on page load
   $.ajax({
     url: '/api/sources/refresh-status',

@@ -213,6 +213,95 @@ def delete_source(source_id: int):
     return jsonify({"success": True, "deleted_source_id": source_id})
 
 
+@api_sources_bp.route("/batch-add", methods=["POST"])
+def batch_add():
+    """
+    Batch ingestion of up to 100 source URLs.
+
+    Accepts a list of raw URLs and an optional source_type per entry (or a global
+    default). If source_type is omitted or empty it is stored as NULL so it can be
+    resolved later (e.g. auto-detected on first fetch).
+
+    Request body:
+        {
+            "sources": [
+                {"url": "https://example.com/feed.xml", "source_type": "RSS"},
+                {"url": "https://example.com/page",     "source_type": "PARSE"},
+                {"url": "https://example.com/other"}     // source_type omitted → NULL
+            ]
+        }
+    """
+    payload = request.get_json(silent=True) or {}
+    raw_sources = payload.get("sources", [])
+
+    if not isinstance(raw_sources, list) or not raw_sources:
+        return api_response(
+            success=False, error="Empty or invalid 'sources' list", status_code=400
+        )
+
+    candidates = raw_sources[:100]  # hard cap
+
+    session = get_session()
+    repo = SourceRepository(session)
+
+    added = []
+    skipped_duplicate = []
+    skipped_invalid = []
+
+    allowed_types = {
+        Sources.SOURCE_TYPE_RSS,
+        Sources.SOURCE_TYPE_PARSE,
+        Sources.SOURCE_TYPE_EMAIL,
+    }
+
+    for item in candidates:
+        url = (item.get("url") or "").strip() if isinstance(item, dict) else str(item).strip()
+        if not url:
+            continue
+
+        raw_type = (item.get("source_type") or "").strip().upper() if isinstance(item, dict) else ""
+        source_type = raw_type if raw_type in allowed_types else None
+
+        # Duplicate check
+        from sqlalchemy import select as sa_select
+        from linkarchivetools.model.definitions import SourcesTable as ST
+        exists = session.execute(
+            sa_select(ST.id).where(ST.url == url).limit(1)
+        ).scalar()
+        if exists:
+            skipped_duplicate.append(url)
+            continue
+
+        try:
+            source = repo.add_source(
+                url=url,
+                title=url,
+                source_type=source_type,
+                enabled=True,
+            )
+            added.append({"id": source.id, "url": source.url, "source_type": source.source_type})
+        except Exception as exc:
+            logger.warning("batch-add: failed to add %s: %s", url, exc)
+            session.rollback()
+            skipped_invalid.append(url)
+
+    return jsonify(
+        {
+            "success": True,
+            "added_count": len(added),
+            "duplicate_count": len(skipped_duplicate),
+            "invalid_count": len(skipped_invalid),
+            "added": added,
+            "message": (
+                f"Added {len(added)} sources"
+                + (f", {len(skipped_duplicate)} duplicates skipped" if skipped_duplicate else "")
+                + (f", {len(skipped_invalid)} invalid" if skipped_invalid else "")
+                + "."
+            ),
+        }
+    )
+
+
 @api_sources_bp.route("/batch-delete", methods=["POST"])
 def batch_delete():
     """

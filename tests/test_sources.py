@@ -873,3 +873,132 @@ class TestSourceServiceTypeFixing(unittest.TestCase):
             self.session.expire_all()
             db_source = self.session.get(SourcesTable, source.id)
             self.assertEqual(db_source.source_type, Sources.SOURCE_TYPE_PARSE)
+
+
+class TestSourceApiBatchAdd(unittest.TestCase):
+    """
+    Test suite for POST /api/sources/batch-add endpoint.
+    """
+
+    def setUp(self):
+        self.app = create_app(
+            {
+                "TESTING": True,
+                "DATABASE_PATH": ":memory:",
+                "SECRET_KEY": "test-key-batch-add",
+            }
+        )
+        self.client = self.app.test_client()
+        self.session = get_session()
+        self.repo = SourceRepository(self.session)
+
+    def tearDown(self):
+        close_session()
+
+    def _post(self, payload):
+        return self.client.post(
+            "/api/sources/batch-add",
+            data=json.dumps(payload),
+            content_type="application/json",
+        )
+
+    def test_batch_add_rss_sources(self):
+        """Adds two RSS URLs, returns added_count=2."""
+        resp = self._post({
+            "sources": [
+                {"url": "https://example.com/feed1.xml", "source_type": "RSS"},
+                {"url": "https://example.com/feed2.xml", "source_type": "RSS"},
+            ]
+        })
+        self.assertEqual(resp.status_code, 200)
+        data = resp.get_json()
+        self.assertTrue(data["success"])
+        self.assertEqual(data["added_count"], 2)
+        self.assertEqual(data["duplicate_count"], 0)
+        # Both sources persisted
+        self.assertIsNotNone(
+            self.session.execute(
+                __import__("sqlalchemy", fromlist=["select"]).select(SourcesTable).where(
+                    SourcesTable.url == "https://example.com/feed1.xml"
+                )
+            ).scalar()
+        )
+
+    def test_batch_add_no_source_type(self):
+        """When source_type is omitted the stored type is None (auto-resolve later)."""
+        resp = self._post({
+            "sources": [
+                {"url": "https://nodetype.example.com/feed"}
+            ]
+        })
+        self.assertEqual(resp.status_code, 200)
+        data = resp.get_json()
+        self.assertTrue(data["success"])
+        self.assertEqual(data["added_count"], 1)
+        added_type = data["added"][0]["source_type"]
+        self.assertIsNone(added_type)
+
+    def test_batch_add_explicit_parse_type(self):
+        """PARSE source_type is stored correctly."""
+        resp = self._post({
+            "sources": [
+                {"url": "https://parse.example.com/", "source_type": "PARSE"}
+            ]
+        })
+        self.assertEqual(resp.status_code, 200)
+        data = resp.get_json()
+        self.assertTrue(data["success"])
+        self.assertEqual(data["added"][0]["source_type"], "PARSE")
+
+    def test_batch_add_duplicate_skipped(self):
+        """Pre-existing URL is counted as duplicate, not re-added."""
+        self.repo.add_source(url="https://dup.example.com/rss", title="Existing")
+        resp = self._post({
+            "sources": [
+                {"url": "https://dup.example.com/rss", "source_type": "RSS"},
+                {"url": "https://new.example.com/rss"},
+            ]
+        })
+        self.assertEqual(resp.status_code, 200)
+        data = resp.get_json()
+        self.assertTrue(data["success"])
+        self.assertEqual(data["added_count"], 1)
+        self.assertEqual(data["duplicate_count"], 1)
+
+    def test_batch_add_empty_body_returns_400(self):
+        """Missing or empty 'sources' list returns 400."""
+        resp = self._post({})
+        self.assertEqual(resp.status_code, 400)
+        data = resp.get_json()
+        self.assertFalse(data["success"])
+
+    def test_batch_add_respects_100_limit(self):
+        """Only the first 100 entries are processed regardless of input size."""
+        sources = [{"url": f"https://flood.example.com/feed{i}"} for i in range(150)]
+        resp = self._post({"sources": sources})
+        self.assertEqual(resp.status_code, 200)
+        data = resp.get_json()
+        self.assertTrue(data["success"])
+        self.assertLessEqual(data["added_count"], 100)
+
+    def test_batch_add_invalid_source_type_stored_as_none(self):
+        """An unrecognised source_type value is treated as NULL (not rejected)."""
+        resp = self._post({
+            "sources": [
+                {"url": "https://weirdtype.example.com/", "source_type": "PODCAST"}
+            ]
+        })
+        self.assertEqual(resp.status_code, 200)
+        data = resp.get_json()
+        self.assertTrue(data["success"])
+        self.assertEqual(data["added_count"], 1)
+        self.assertIsNone(data["added"][0]["source_type"])
+
+    def test_batch_add_modal_button_present_in_sources_list(self):
+        """The 'Add Multiple URLs' button appears in the sources list page."""
+        self.repo.add_source(url="https://seed.example.com/rss", title="Seed")
+        resp = self.client.get("/sources")
+        self.assertEqual(resp.status_code, 200)
+        html = resp.get_data(as_text=True)
+        self.assertIn("batchAddSourcesModal", html)
+        self.assertIn("Add Multiple URLs", html)
