@@ -1,0 +1,309 @@
+{% extends "base.html" %}
+
+{% block title %}{{ app_name }} - URL Preview{% endblock %}
+
+{% block content %}
+<div class="container-fluid px-4 py-4">
+  <div class="row justify-content-center">
+    <div class="col-12 col-xl-10">
+
+      <!-- Header -->
+      <div class="d-flex align-items-center justify-content-between mb-3 gap-2 flex-wrap">
+        <div class="d-flex align-items-center gap-2">
+          <i class="bi bi-eye-fill text-primary fs-3"></i>
+          <h4 class="mb-0">URL Preview</h4>
+          <span class="badge bg-secondary-subtle text-secondary-emphasis border ms-1">Dynamic Inspection</span>
+        </div>
+        <div class="d-flex align-items-center gap-2">
+          <a href="{{ url_for('rules.rules_list') }}" class="btn btn-outline-secondary btn-sm rounded-pill px-3 shadow-sm" title="View Entry Rules">
+            <i class="bi bi-shield-check me-1"></i>Entry Rules
+          </a>
+          <button class="btn btn-primary btn-sm rounded-pill px-3 shadow-sm" type="button" data-bs-toggle="modal" data-bs-target="#quickAddLinkModal">
+            <i class="bi bi-plus-lg me-1"></i>Add Link
+          </button>
+        </div>
+      </div>
+
+      <!-- URL Input Form -->
+      <div class="card border-0 shadow-sm mb-4">
+        <div class="card-body p-3">
+          <form method="GET" action="{{ url_for('preview.preview_view') }}">
+            <div class="input-group input-group-lg">
+              <span class="input-group-text bg-transparent border-end-0 text-muted">
+                <i class="bi bi-link-45deg fs-4"></i>
+              </span>
+              <input type="url"
+                     name="url"
+                     id="preview-url-input"
+                     class="form-control border-start-0 ps-1"
+                     placeholder="Enter any URL to dynamically fetch metadata, feed entries, or player embed..."
+                     value="{{ url or '' }}"
+                     required
+                     autofocus>
+              <button class="btn btn-primary px-4 fw-semibold" type="submit">
+                <i class="bi bi-eye me-1"></i>Inspect Preview
+              </button>
+            </div>
+            <div class="form-text mt-2 small text-muted">
+              Live metadata (title, author, description, feed child entries, and media embeds) is fetched dynamically via <code>WebToolsService</code>.
+            </div>
+          </form>
+        </div>
+      </div>
+
+      <!-- Error Alert -->
+      {% if error %}
+        <div class="alert alert-danger d-flex align-items-center gap-2 shadow-sm mb-4" role="alert">
+          <i class="bi bi-exclamation-triangle-fill fs-5"></i>
+          <div>{{ error }}</div>
+        </div>
+      {% endif %}
+
+      <!-- Initial / Empty State -->
+      {% if not preview_data and not error %}
+        <div class="text-center py-5 my-4 text-muted">
+          <div class="mb-3">
+            <i class="bi bi-compass display-3 text-secondary opacity-50"></i>
+          </div>
+          <h5>No URL selected for preview</h5>
+          <p class="text-secondary small mb-4" style="max-width: 540px; margin: 0 auto;">
+            Enter a web link, YouTube video, RSS feed, or article above to inspect live metadata,
+            render media players, evaluate blocking rules, and extract feed entries.
+          </p>
+          <div class="d-flex justify-content-center gap-2 flex-wrap">
+            <a href="{{ url_for('preview.preview_view', url='https://www.youtube.com/watch?v=dQw4w9WgXcQ') }}" class="btn btn-outline-primary btn-sm rounded-pill px-3">
+              <i class="bi bi-play-circle me-1"></i>Sample: YouTube Video
+            </a>
+            <a href="{{ url_for('preview.preview_view', url='https://news.ycombinator.com/rss') }}" class="btn btn-outline-secondary btn-sm rounded-pill px-3">
+              <i class="bi bi-rss me-1"></i>Sample: RSS Feed
+            </a>
+          </div>
+        </div>
+      {% endif %}
+
+      <!-- Preview Data Card -->
+      {% if preview_data and preview_data.success %}
+
+        <!-- Rule Verdict Alert Banner -->
+        {% if preview_data.is_blocked %}
+          <div class="alert alert-danger d-flex align-items-center gap-3 py-3 mb-4 shadow-sm border-0">
+            <i class="bi bi-slash-circle-fill fs-2 text-danger"></i>
+            <div>
+              <h6 class="alert-heading mb-1 fw-bold">LINK IS BLOCKED BY RULES</h6>
+              <div class="small">
+                {% if preview_data.is_blocked_by_rule and preview_data.is_blocked_by_block_entry %}
+                  Blocked by Entry Rule <strong>"{{ preview_data.blocking_rule }}"</strong> AND Block Entry pattern <strong>"{{ preview_data.blocking_block_entry }}"</strong>.
+                {% elif preview_data.is_blocked_by_rule %}
+                  Blocked by Entry Rule <strong>"{{ preview_data.blocking_rule }}"</strong>.
+                {% else %}
+                  Blocked by Block Entry record <strong>"{{ preview_data.blocking_block_entry }}"</strong>.
+                {% endif %}
+                Candidate links matching this pattern will be rejected or discarded during ingestion.
+              </div>
+            </div>
+          </div>
+        {% else %}
+          <div class="alert alert-success d-flex align-items-center gap-2 py-2 mb-4 shadow-sm border-0 small">
+            <i class="bi bi-check-circle-fill text-success fs-5"></i>
+            <div><strong>Permissible Link:</strong> This URL is not blocked by any Entry Rules or BlockEntry records.</div>
+          </div>
+        {% endif %}
+
+        <!-- Main Content Card -->
+        <div class="card border-0 shadow-sm mb-4">
+          <div class="card-body p-4">
+
+            <!-- Video Embed Player (if video) -->
+            {% if preview_data.media_type == 'video' and preview_data.embed_url %}
+              <div class="ratio ratio-16x9 mb-4 rounded overflow-hidden shadow-sm bg-black">
+                <iframe src="{{ preview_data.embed_url }}"
+                        title="{{ preview_data.title or 'Media Preview' }}"
+                        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                        allowfullscreen></iframe>
+              </div>
+            {% endif %}
+
+            <div class="row g-4 align-items-start">
+              <!-- Thumbnail (if available and not video embed) -->
+              {% if preview_data.thumbnail and (preview_data.media_type != 'video' or not preview_data.embed_url) %}
+                <div class="col-12 col-md-4 col-lg-3 text-center">
+                  <img src="{{ preview_data.thumbnail }}"
+                       alt="{{ preview_data.title or 'Preview thumbnail' }}"
+                       class="img-fluid rounded shadow-sm border"
+                       style="max-height: 220px; object-fit: cover;"
+                       loading="lazy">
+                </div>
+              {% endif %}
+
+              <div class="col">
+                <!-- Title -->
+                <h4 class="fw-bold mb-2 text-break">
+                  <a href="{{ preview_data.cleaned_url }}" target="_blank" rel="noopener noreferrer" class="text-decoration-none text-body">
+                    {{ preview_data.title or preview_data.cleaned_url }}
+                  </a>
+                </h4>
+
+                <!-- Canonical URL -->
+                <p class="small text-muted mb-3 text-break">
+                  <i class="bi bi-link-45deg me-1"></i>
+                  <code>{{ preview_data.canonical_url or preview_data.cleaned_url }}</code>
+                </p>
+
+                <!-- Metadata Badges -->
+                <div class="d-flex flex-wrap gap-2 mb-3 align-items-center">
+                  {% if preview_data.status_code %}
+                    <span class="badge {% if preview_data.status_code < 400 %}bg-success-subtle text-success border border-success-subtle{% else %}bg-danger-subtle text-danger border border-danger-subtle{% endif %}">
+                      HTTP {{ preview_data.status_code }}
+                    </span>
+                  {% endif %}
+
+                  <span class="badge bg-secondary-subtle text-secondary-emphasis border">
+                    {{ preview_data.media_type | upper }}
+                  </span>
+
+                  {% if preview_data.author %}
+                    <span class="badge bg-info-subtle text-info-emphasis border border-info-subtle">
+                      <i class="bi bi-person me-1"></i>{{ preview_data.author }}
+                    </span>
+                  {% endif %}
+
+                  {% if preview_data.language %}
+                    <span class="badge bg-light text-muted border">
+                      <i class="bi bi-translate me-1"></i>{{ preview_data.language | upper }}
+                    </span>
+                  {% endif %}
+
+                  {% if preview_data.album %}
+                    <span class="badge bg-light text-muted border">
+                      <i class="bi bi-disc me-1"></i>{{ preview_data.album }}
+                    </span>
+                  {% endif %}
+
+                  {% if preview_data.date_published %}
+                    <span class="badge bg-light text-muted border">
+                      <i class="bi bi-calendar me-1"></i>{{ preview_data.date_published[:10] }}
+                    </span>
+                  {% endif %}
+                </div>
+
+                <!-- Description -->
+                {% if preview_data.description %}
+                  <div class="text-secondary small mb-4 text-break" style="white-space: pre-line; max-height: 200px; overflow-y: auto;">
+                    {{ preview_data.description }}
+                  </div>
+                {% endif %}
+
+                <!-- Action Toolbar -->
+                <div class="d-flex flex-wrap gap-2 pt-2 border-top">
+                  <a href="{{ preview_data.cleaned_url }}" target="_blank" rel="noopener noreferrer" class="btn btn-outline-secondary btn-sm rounded-pill px-3 shadow-sm">
+                    <i class="bi bi-box-arrow-up-right me-1"></i>Open Link
+                  </a>
+                  <button type="button"
+                          class="btn btn-primary btn-sm rounded-pill px-3 shadow-sm"
+                          data-bs-toggle="modal"
+                          data-bs-target="#quickAddLinkModal"
+                          onclick="$('#quick-add-url').val('{{ preview_data.cleaned_url }}');">
+                    <i class="bi bi-plus-lg me-1"></i>Add Link
+                  </button>
+                  {% if preview_data.entries and preview_data.entries|length > 0 %}
+                    <a href="{{ url_for('sources.source_rss_add') }}?url={{ preview_data.cleaned_url|urlencode }}" class="btn btn-outline-success btn-sm rounded-pill px-3 shadow-sm">
+                      <i class="bi bi-rss me-1"></i>Add as Source
+                    </a>
+                  {% endif %}
+                  <a href="{{ url_for('rules.rules_list') }}" class="btn btn-outline-info btn-sm rounded-pill px-3 shadow-sm">
+                    <i class="bi bi-shield-check me-1"></i>Rules
+                  </a>
+                </div>
+
+              </div>
+            </div>
+
+          </div>
+        </div>
+
+        <!-- Child Feed Entries (if RSS / Feed) -->
+        {% if preview_data.entries and preview_data.entries|length > 0 %}
+          <div class="card border-0 shadow-sm mb-4">
+            <div class="card-header bg-white py-3 d-flex justify-content-between align-items-center">
+              <h6 class="mb-0 fw-bold d-flex align-items-center gap-2">
+                <i class="bi bi-rss text-warning fs-5"></i>
+                <span>Extracted Feed / Page Entries</span>
+                <span class="badge bg-secondary-subtle text-secondary-emphasis border">{{ preview_data.entries|length }}</span>
+              </h6>
+            </div>
+            <div class="table-responsive">
+              <table class="table table-hover align-middle mb-0 small">
+                <thead class="table-light">
+                  <tr>
+                    <th style="width: 45%;">Entry Title</th>
+                    <th style="width: 25%;">Published</th>
+                    <th style="width: 15%;">Author</th>
+                    <th style="width: 15%;" class="text-center">Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {% for entry in preview_data.entries %}
+                    <tr>
+                      <td>
+                        <span class="fw-semibold d-block text-break">{{ entry.title }}</span>
+                        {% if entry.description %}
+                          <small class="text-muted text-truncate d-block" style="max-width: 400px;">{{ entry.description }}</small>
+                        {% endif %}
+                      </td>
+                      <td class="text-muted text-nowrap">{{ entry.date or '—' }}</td>
+                      <td class="text-muted text-nowrap">{{ entry.author or '—' }}</td>
+                      <td class="text-center text-nowrap">
+                        {% if entry.link %}
+                          <a href="{{ url_for('preview.preview_view', url=entry.link) }}" class="btn btn-outline-primary btn-sm rounded-pill" title="Inspect this child entry">
+                            <i class="bi bi-eye"></i>
+                          </a>
+                          <a href="{{ entry.link }}" target="_blank" rel="noopener noreferrer" class="btn btn-outline-secondary btn-sm rounded-pill ms-1" title="Open directly">
+                            <i class="bi bi-box-arrow-up-right"></i>
+                          </a>
+                        {% endif %}
+                      </td>
+                    </tr>
+                  {% endfor %}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        {% endif %}
+
+        <!-- Content Links (if discovered) -->
+        {% if preview_data.content_links and preview_data.content_links|length > 0 %}
+          <div class="card border-0 shadow-sm mb-4">
+            <div class="card-header bg-white py-2">
+              <a class="text-decoration-none text-body fw-semibold small d-flex justify-content-between align-items-center" data-bs-toggle="collapse" href="#collapseContentLinks" role="button" aria-expanded="false" aria-controls="collapseContentLinks">
+                <span><i class="bi bi-link-45deg me-1 text-primary"></i>Discovered Content Links ({{ preview_data.content_links|length }})</span>
+                <i class="bi bi-chevron-down"></i>
+              </a>
+            </div>
+            <div class="collapse" id="collapseContentLinks">
+              <div class="card-body p-0">
+                <ul class="list-group list-group-flush small">
+                  {% for link in preview_data.content_links[:50] %}
+                    <li class="list-group-item d-flex justify-content-between align-items-center py-2 px-3">
+                      <code class="text-break">{{ link }}</code>
+                      <a href="{{ url_for('preview.preview_view', url=link) }}" class="btn btn-outline-secondary btn-sm rounded-pill py-0 px-2" title="Preview link">
+                        <i class="bi bi-eye"></i>
+                      </a>
+                    </li>
+                  {% endfor %}
+                  {% if preview_data.content_links|length > 50 %}
+                    <li class="list-group-item text-center text-muted small py-2">
+                      Showing first 50 of {{ preview_data.content_links|length }} content links.
+                    </li>
+                  {% endif %}
+                </ul>
+              </div>
+            </div>
+          </div>
+        {% endif %}
+
+      {% endif %}
+
+    </div>
+  </div>
+</div>
+{% endblock %}
