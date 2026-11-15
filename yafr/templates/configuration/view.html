@@ -404,6 +404,22 @@
                 </div>
 
                 <h6 class="fw-bold mb-3 text-secondary d-flex align-items-center gap-2">
+                  <i class="bi bi-trash3"></i>Entry Retention & Daily Cleanup
+                </h6>
+                <div class="row g-3 mb-4">
+                  <div class="col-12 col-md-6">
+                    <label for="days_to_remove_links" class="form-label fw-semibold">Days to Remove Links</label>
+                    <input type="number" class="form-control shadow-sm" id="days_to_remove_links" name="days_to_remove_links" min="0" max="3650" value="{{ config.days_to_remove_links if config.days_to_remove_links is not none else 0 }}">
+                    <div class="form-text">Retention age in days before link entries are deleted by daily cleanup (0 = disabled, entries never removed).</div>
+                  </div>
+                  <div class="col-12 col-md-6">
+                    <label for="days_to_remove_stale_entries" class="form-label fw-semibold">Days to Remove Stale Dead Entries</label>
+                    <input type="number" class="form-control shadow-sm" id="days_to_remove_stale_entries" name="days_to_remove_stale_entries" min="0" max="3650" value="{{ config.days_to_remove_stale_entries if config.days_to_remove_stale_entries is not none else 0 }}">
+                    <div class="form-text">Days elapsed since link was marked dead (date_dead_since) before being deleted by daily cleanup (0 = disabled).</div>
+                  </div>
+                </div>
+
+                <h6 class="fw-bold mb-3 text-secondary d-flex align-items-center gap-2">
                   <i class="bi bi-cpu"></i>Background Services & Feature Toggles
                 </h6>
                 <div class="row g-3 mb-4">

@@ -262,6 +262,7 @@ It should be possible to download a new database .db file from the internet, or 
 
  - Configuration view should contain presets for type of initialization
  - should provide means to configure and view credentials
+ - provides configuration controls for days_to_remove_links and days_to_remove_stale_entries (entry retention thresholds for daily cleanup)
 
 ## EntriesListView
  - if user did not input anything the input text should be quite big, and in the middle. If user enters anything the search should be above

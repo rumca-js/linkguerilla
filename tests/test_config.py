@@ -142,6 +142,33 @@ class TestConfigurationWebAndApi(unittest.TestCase):
         self.assertTrue(config.enable_social_data)
         self.assertTrue(config.accept_non_domain_links)
 
+    def test_configuration_view_renders_retention_fields(self):
+        """GET /configuration renders inputs for days_to_remove_links and days_to_remove_stale_entries."""
+        res = self.client.get("/configuration")
+        self.assertEqual(res.status_code, 200)
+        html = res.get_data(as_text=True)
+
+        self.assertIn("days_to_remove_links", html)
+        self.assertIn("days_to_remove_stale_entries", html)
+        self.assertIn("Days to Remove Links", html)
+        self.assertIn("Days to Remove Stale Dead Entries", html)
+
+    def test_post_configuration_updates_retention_fields(self):
+        """POST /configuration persists updated days_to_remove_links and days_to_remove_stale_entries values."""
+        res = self.client.post(
+            "/configuration",
+            data={
+                "days_to_remove_links": "45",
+                "days_to_remove_stale_entries": "14",
+            },
+            follow_redirects=True,
+        )
+        self.assertEqual(res.status_code, 200)
+
+        config = self.config_repo.get_config()
+        self.assertEqual(config.days_to_remove_links, 45)
+        self.assertEqual(config.days_to_remove_stale_entries, 14)
+
     def test_api_get_features(self):
         """GET /api/config/features returns full dictionary of feature flags."""
         res = self.client.get("/api/config/features")
