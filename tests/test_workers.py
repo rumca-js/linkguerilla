@@ -860,5 +860,173 @@ class TestModularJobHandlersAndRegistry(unittest.TestCase):
         self.assertEqual(result["message"], "Exported data.json")
 
 
+class TestCleanupJobRetention(unittest.TestCase):
+    """
+    Tests for CleanupJobHandler entry removal logic and daily scheduling.
+    """
+
+    def setUp(self):
+        self.app = create_app(
+            {
+                "TESTING": True,
+                "DATABASE_PATH": ":memory:",
+                "SECRET_KEY": "test-key-cleanup-retention",
+            }
+        )
+        self.session = get_session()
+        self.job_repo = JobRepository(self.session)
+        self.entry_repo = EntryRepository(self.session)
+        self.config_repo = ConfigRepository(self.session)
+
+    def tearDown(self):
+        close_session()
+
+    def _add_entry(
+        self,
+        link: str,
+        date_published=None,
+        date_created=None,
+        date_dead_since=None,
+    ) -> LinkDataModel:
+        """Helper to insert a minimal LinkDataModel entry."""
+        entry = LinkDataModel(
+            link=link,
+            title="Test",
+            date_published=date_published,
+            date_created=date_created or datetime.now(timezone.utc),
+            date_dead_since=date_dead_since,
+        )
+        self.session.add(entry)
+        self.session.commit()
+        return entry
+
+    def test_cleanup_removes_old_links(self):
+        """CleanupJobHandler removes entries older than days_to_remove_links."""
+        config = self.config_repo.get_config()
+        config.days_to_remove_links = 30
+        config.days_to_remove_stale_entries = 0
+        self.session.commit()
+
+        old_date = datetime.now(timezone.utc) - timedelta(days=31)
+        new_date = datetime.now(timezone.utc) - timedelta(days=1)
+
+        old_entry = self._add_entry("https://old.example.com", date_published=old_date)
+        new_entry = self._add_entry(
+            "https://recent.example.com", date_published=new_date
+        )
+
+        job = self.job_repo.enqueue_job(
+            job="cleanup", subject="system", priority=1, enabled=True
+        )
+        executor = JobExecutor(session=self.session, auto_refresh_sources=False)
+        result = executor.process_one(session=self.session)
+
+        self.assertTrue(result["success"])
+        # Old entry should be gone, new entry should remain
+        self.assertIsNone(self.entry_repo.get_by_id(old_entry.id))
+        self.assertIsNotNone(self.entry_repo.get_by_id(new_entry.id))
+
+    def test_cleanup_removes_stale_dead_entries(self):
+        """CleanupJobHandler removes entries dead longer than days_to_remove_stale_entries."""
+        config = self.config_repo.get_config()
+        config.days_to_remove_links = 0
+        config.days_to_remove_stale_entries = 14
+        self.session.commit()
+
+        old_dead = datetime.now(timezone.utc) - timedelta(days=15)
+        recent_dead = datetime.now(timezone.utc) - timedelta(days=1)
+
+        dead_old = self._add_entry(
+            "https://dead-old.example.com", date_dead_since=old_dead
+        )
+        dead_recent = self._add_entry(
+            "https://dead-recent.example.com", date_dead_since=recent_dead
+        )
+        alive = self._add_entry("https://alive.example.com")
+
+        job = self.job_repo.enqueue_job(
+            job="cleanup", subject="system", priority=1, enabled=True
+        )
+        executor = JobExecutor(session=self.session, auto_refresh_sources=False)
+        executor.process_one(session=self.session)
+
+        self.assertIsNone(self.entry_repo.get_by_id(dead_old.id))
+        self.assertIsNotNone(self.entry_repo.get_by_id(dead_recent.id))
+        self.assertIsNotNone(self.entry_repo.get_by_id(alive.id))
+
+    def test_cleanup_skips_removal_when_days_zero(self):
+        """CleanupJobHandler does not remove entries when days_ fields are 0."""
+        config = self.config_repo.get_config()
+        config.days_to_remove_links = 0
+        config.days_to_remove_stale_entries = 0
+        self.session.commit()
+
+        old_date = datetime.now(timezone.utc) - timedelta(days=3650)
+        old_dead = datetime.now(timezone.utc) - timedelta(days=3650)
+
+        e1 = self._add_entry("https://very-old.example.com", date_published=old_date)
+        e2 = self._add_entry(
+            "https://very-old-dead.example.com", date_dead_since=old_dead
+        )
+
+        job = self.job_repo.enqueue_job(
+            job="cleanup", subject="system", priority=1, enabled=True
+        )
+        executor = JobExecutor(session=self.session, auto_refresh_sources=False)
+        executor.process_one(session=self.session)
+
+        self.assertIsNotNone(self.entry_repo.get_by_id(e1.id))
+        self.assertIsNotNone(self.entry_repo.get_by_id(e2.id))
+
+    def test_enqueue_cleanup_if_needed_enqueues_when_not_done_today(self):
+        """enqueue_cleanup_if_needed enqueues cleanup job when retention is configured and none ran today."""
+        config = self.config_repo.get_config()
+        config.days_to_remove_links = 30
+        self.session.commit()
+
+        executor = JobExecutor(session=self.session, auto_refresh_sources=False)
+        enqueued = executor.enqueue_cleanup_if_needed(session=self.session)
+
+        self.assertTrue(enqueued)
+        jobs = self.job_repo.list_jobs(job_type="cleanup")
+        self.assertEqual(len(jobs), 1)
+
+    def test_enqueue_cleanup_if_needed_skips_when_done_today(self):
+        """enqueue_cleanup_if_needed does not enqueue if cleanup history entry exists for today."""
+        config = self.config_repo.get_config()
+        config.days_to_remove_links = 30
+        self.session.commit()
+
+        today = datetime.now(timezone.utc)
+        history = BackgroundJobHistory(
+            job="cleanup",
+            subject="system",
+            date_created=today,
+        )
+        self.session.add(history)
+        self.session.commit()
+
+        executor = JobExecutor(session=self.session, auto_refresh_sources=False)
+        enqueued = executor.enqueue_cleanup_if_needed(session=self.session)
+
+        self.assertFalse(enqueued)
+        jobs = self.job_repo.list_jobs(job_type="cleanup")
+        self.assertEqual(len(jobs), 0)
+
+    def test_enqueue_cleanup_if_needed_skips_when_days_zero(self):
+        """enqueue_cleanup_if_needed skips enqueuing if both retention days are 0."""
+        config = self.config_repo.get_config()
+        config.days_to_remove_links = 0
+        config.days_to_remove_stale_entries = 0
+        self.session.commit()
+
+        executor = JobExecutor(session=self.session, auto_refresh_sources=False)
+        enqueued = executor.enqueue_cleanup_if_needed(session=self.session)
+
+        self.assertFalse(enqueued)
+        jobs = self.job_repo.list_jobs(job_type="cleanup")
+        self.assertEqual(len(jobs), 0)
+
+
 if __name__ == "__main__":
     unittest.main()

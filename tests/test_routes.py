@@ -133,7 +133,6 @@ class TestEntryRoutes(unittest.TestCase):
         self.assertNotIn("compact-table", html)
         self.assertNotIn("btn-set-vote", html)
 
-
     def test_search_view_copy_links_button(self):
         """GET /?q=Python renders copy links to clipboard button and entries have data-entry-url."""
         response = self.client.get("/?q=Python")

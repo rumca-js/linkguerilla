@@ -263,6 +263,12 @@ stateDiagram-v2
      - Obtains URL handler like in `webtools_service.py` (`BaseUrl` or `RemoteUrl` based on active configuration).
      - Executes network request and invokes BaseUrl/RemoteUrl metadata extractors directly (get_title, get_description, date_published, author, etc.). No fallback to raw response or BeautifulSoup HTML parsing; either BaseUrl/RemoteUrl works, or not.
      - Updates entry (`linkdatamodel`) with title, description, date_published, author, album, language, thumbnail, HTTP `status_code`, and `date_dead_since`. Enqueues `JOB_LINK_DOWNLOAD_SOCIAL`.
+   - **`JOB_CLEANUP = "cleanup"` Execution**:
+     - Enforces storage retention limits for search history (`apply_storage_limit`).
+     - Removes link entries older than `days_to_remove_links` (based on `date_published` or `date_created`).
+     - Removes stale dead entries where `date_dead_since` exceeds `days_to_remove_stale_entries`.
+     - Skips removal when the respective `days_` configuration is 0.
+     - Scheduled once per day via worker checking `BackgroundJobHistory`.
    - Executes jobs sequentially based on priority.
    - Records errors in `backgroundjob.errors`. If consecutive failures exceed max retries (3), disables the job (`enabled = False`) and creates an entry in `applogging`.
 2. **Outdated Jobs Handling (Sources & Entries)**:

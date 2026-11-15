@@ -423,7 +423,9 @@ class TestSearchQueryBuilder(unittest.TestCase):
         pq = SearchParser.parse("order:+date_dead_since")
         entries, count = SearchQueryBuilder.execute_search(self.session, pq)
         self.assertEqual(count, 3)
-        self.assertEqual(entries[0].id, self.e2.id)  # Dead 2026-01-15 (oldest dead first)
+        self.assertEqual(
+            entries[0].id, self.e2.id
+        )  # Dead 2026-01-15 (oldest dead first)
         self.assertEqual(entries[1].id, self.e3.id)  # Dead 2026-11-10
         self.assertEqual(entries[2].id, self.e1.id)  # Alive entries last (NULLS LAST)
 

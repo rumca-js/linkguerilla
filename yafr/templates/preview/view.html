@@ -206,7 +206,7 @@
                     <i class="bi bi-plus-lg me-1"></i>Add Link
                   </button>
                   {% if preview_data.entries and preview_data.entries|length > 0 %}
-                    <a href="{{ url_for('sources.source_rss_add') }}?url={{ preview_data.cleaned_url|urlencode }}" class="btn btn-outline-success btn-sm rounded-pill px-3 shadow-sm">
+                    <a href="{{ url_for('sources.source_add_rss') }}?url={{ preview_data.cleaned_url|urlencode }}" class="btn btn-outline-success btn-sm rounded-pill px-3 shadow-sm">
                       <i class="bi bi-rss me-1"></i>Add as Source
                     </a>
                   {% endif %}

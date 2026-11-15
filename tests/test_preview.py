@@ -75,7 +75,9 @@ class TestPreviewService(unittest.TestCase):
         mock_wrapper.get_social_properties.return_value = {"likes": 42}
         mock_wrapper_cls.return_value = mock_wrapper
 
-        data = PreviewService.inspect_url("https://example.com/feed", session=self.session)
+        data = PreviewService.inspect_url(
+            "https://example.com/feed", session=self.session
+        )
 
         self.assertTrue(data["success"])
         self.assertEqual(data["title"], "Sample Feed Title")
@@ -163,7 +165,18 @@ class TestPreviewService(unittest.TestCase):
         """GET /preview?url=... displays dynamically extracted metadata."""
         mock_wrapper = MagicMock()
         mock_wrapper.get_title.return_value = "Dynamically Discovered Title"
-        mock_wrapper.get_description.return_value = "Dynamic preview description content"
+        mock_wrapper.get_description.return_value = (
+            "Dynamic preview description content"
+        )
+        mock_wrapper.get_author.return_value = "Test Author"
+        mock_wrapper.get_language.return_value = "en"
+        mock_wrapper.get_album.return_value = None
+        mock_wrapper.get_thumbnail.return_value = None
+        mock_wrapper.get_status_code.return_value = 200
+        mock_wrapper.is_valid.return_value = True
+        mock_wrapper.get_canonical_url.return_value = "https://example.com/news"
+        mock_wrapper.get_social_properties.return_value = {}
+        mock_wrapper.get_date_published.return_value = None
         mock_wrapper.get_entries.return_value = [
             {"title": "Child Feed Item", "link": "https://example.com/child-1"}
         ]
@@ -183,7 +196,15 @@ class TestPreviewService(unittest.TestCase):
         mock_wrapper = MagicMock()
         mock_wrapper.get_title.return_value = "API Inspect Title"
         mock_wrapper.get_description.return_value = "API inspect summary"
+        mock_wrapper.get_author.return_value = "Author"
+        mock_wrapper.get_language.return_value = "en"
+        mock_wrapper.get_album.return_value = None
+        mock_wrapper.get_thumbnail.return_value = None
         mock_wrapper.get_status_code.return_value = 200
+        mock_wrapper.is_valid.return_value = True
+        mock_wrapper.get_canonical_url.return_value = "https://example.com/page"
+        mock_wrapper.get_social_properties.return_value = {}
+        mock_wrapper.get_date_published.return_value = None
         mock_wrapper.get_entries.return_value = []
         mock_wrapper.get_content_links.return_value = ["https://example.com/item"]
         mock_wrapper_cls.return_value = mock_wrapper

@@ -24,10 +24,7 @@ def preview_view():
     Displays dynamic metadata, media player embed, feed child entries,
     and rule evaluation for a candidate link passed via query param or form.
     """
-    url = (
-        request.args.get("url", "").strip()
-        or request.form.get("url", "").strip()
-    )
+    url = request.args.get("url", "").strip() or request.form.get("url", "").strip()
     preview_data = None
     error = None
 

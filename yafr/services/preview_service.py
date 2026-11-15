@@ -128,7 +128,9 @@ class PreviewService:
         # 2. Media Type & Embed Player Detection
         media_type = "webpage"
         embed_url = None
-        video_id = cls.extract_youtube_video_id(cleaned_url) or cls.extract_youtube_video_id(raw)
+        video_id = cls.extract_youtube_video_id(
+            cleaned_url
+        ) or cls.extract_youtube_video_id(raw)
 
         if video_id:
             media_type = "video"
@@ -154,7 +156,9 @@ class PreviewService:
         social: Dict[str, Any] = {}
 
         try:
-            wrapper = WebToolsWrapper(url=cleaned_url, session=sess, timeout_s=timeout_s)
+            wrapper = WebToolsWrapper(
+                url=cleaned_url, session=sess, timeout_s=timeout_s
+            )
             title = wrapper.get_title()
             description = wrapper.get_description()
             author = wrapper.get_author()
@@ -175,7 +179,9 @@ class PreviewService:
                 date_published = str(raw_date)
 
         except Exception as exc:
-            logger.warning("WebTools dynamic metadata fetch failed for '%s': %s", cleaned_url, exc)
+            logger.warning(
+                "WebTools dynamic metadata fetch failed for '%s': %s", cleaned_url, exc
+            )
 
         # Fallback thumbnail for YouTube
         if not thumbnail and video_id:
@@ -187,7 +193,11 @@ class PreviewService:
             if isinstance(item, dict):
                 e_title = item.get("title") or item.get("name")
                 e_link = item.get("link") or item.get("url")
-                e_date = item.get("date") or item.get("date_published") or item.get("pubDate")
+                e_date = (
+                    item.get("date")
+                    or item.get("date_published")
+                    or item.get("pubDate")
+                )
                 e_desc = item.get("description") or item.get("summary")
                 e_author = item.get("author")
                 normalized_entries.append(
@@ -202,7 +212,9 @@ class PreviewService:
             elif hasattr(item, "title") or hasattr(item, "link"):
                 e_title = getattr(item, "title", None)
                 e_link = getattr(item, "link", None)
-                e_date = getattr(item, "date", None) or getattr(item, "date_published", None)
+                e_date = getattr(item, "date", None) or getattr(
+                    item, "date_published", None
+                )
                 e_desc = getattr(item, "description", None)
                 normalized_entries.append(
                     {

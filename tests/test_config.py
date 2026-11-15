@@ -295,7 +295,8 @@ class TestInstanceConfigAndConsoleTitles(unittest.TestCase):
 
         # Display Types
         self.assertEqual(
-            shared.DISPLAY_TYPE_STANDARD, ConfigurationEntryService.DISPLAY_TYPE_STANDARD
+            shared.DISPLAY_TYPE_STANDARD,
+            ConfigurationEntryService.DISPLAY_TYPE_STANDARD,
         )
         self.assertEqual(
             shared.DISPLAY_TYPE_GALLERY, ConfigurationEntryService.DISPLAY_TYPE_GALLERY
@@ -317,7 +318,8 @@ class TestInstanceConfigAndConsoleTitles(unittest.TestCase):
             ConfigurationEntryService.DISPLAY_TYPE_LINKS_ONLY,
         )
         self.assertIs(
-            shared.DISPLAY_TYPE_STANDARD, ConfigurationEntryService.DISPLAY_TYPE_STANDARD
+            shared.DISPLAY_TYPE_STANDARD,
+            ConfigurationEntryService.DISPLAY_TYPE_STANDARD,
         )
         self.assertIs(
             shared.DISPLAY_TYPE_GALLERY, ConfigurationEntryService.DISPLAY_TYPE_GALLERY
@@ -344,7 +346,6 @@ class TestInstanceConfigAndConsoleTitles(unittest.TestCase):
         self.assertIn("compact", display_type_ids)
         self.assertIn("links-only", display_type_ids)
 
-
         # Display Presets
         self.assertEqual(
             shared.CONFIGURATION_SEARCH_ENGINE,
@@ -368,7 +369,6 @@ class TestInstanceConfigAndConsoleTitles(unittest.TestCase):
         self.assertIs(
             shared.CONFIGURATION_NEWS, ConfigurationEntryService.CONFIGURATION_NEWS
         )
-
 
 
 if __name__ == "__main__":

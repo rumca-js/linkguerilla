@@ -14,9 +14,13 @@ import threading
 import time
 import gc
 from typing import Any, Callable, Dict, Optional
-from sqlalchemy import or_, select
+from sqlalchemy import func, or_, select
 from sqlalchemy.orm import Session
-from linkarchivetools.model.definitions import BackgroundJob, LinkDataModel
+from linkarchivetools.model.definitions import (
+    BackgroundJob,
+    BackgroundJobHistory,
+    LinkDataModel,
+)
 from yafr.db.config_repository import ConfigRepository
 from yafr.db.job_repository import JobRepository
 from yafr.db.logging_repository import LoggingRepository
@@ -555,6 +559,63 @@ class JobExecutor:
 
         return enqueued_count
 
+    def enqueue_cleanup_if_needed(self, session: Optional[Session] = None) -> bool:
+        """
+        Checks BackgroundJobHistory to see if a cleanup job ran today (since midnight UTC).
+        If not, enqueues a cleanup job into the background job queue.
+        If days_to_remove_links and days_to_remove_stale_entries are both 0, removing should
+        not take place and no daily cleanup job is enqueued.
+
+        :param session: Optional active database session
+        :return: True if a cleanup job was enqueued, False if already done today or skipped
+        """
+        sess = self._get_session(session)
+
+        config_repo = ConfigRepository(sess)
+        config = config_repo.get_config()
+        has_retention = (config.days_to_remove_links or 0) > 0 or (
+            config.days_to_remove_stale_entries or 0
+        ) > 0
+        if not has_retention:
+            return False
+
+        # Check if cleanup is already pending in the active queue
+        existing_job = sess.execute(
+            select(BackgroundJob.id).where(
+                BackgroundJob.job.in_((JOB_CLEANUP, "JOB_CLEANUP")),
+                BackgroundJob.enabled == True,
+            )
+        ).scalar()
+        if existing_job:
+            return False
+
+        today_start = datetime.now(timezone.utc).replace(
+            hour=0, minute=0, second=0, microsecond=0
+        )
+
+        cleanup_done_today = (
+            sess.execute(
+                select(func.count(BackgroundJobHistory.id)).where(
+                    BackgroundJobHistory.job.in_((JOB_CLEANUP, "JOB_CLEANUP")),
+                    BackgroundJobHistory.date_created >= today_start,
+                )
+            ).scalar()
+            or 0
+        )
+
+        if cleanup_done_today > 0:
+            return False
+
+        job_repo = JobRepository(sess)
+        job_repo.enqueue_job(
+            job=JOB_CLEANUP,
+            subject="system",
+            priority=20,
+            enabled=True,
+        )
+        logger.info("Enqueued daily cleanup job (not yet run today).")
+        return True
+
     def enqueue_outdated_jobs(
         self,
         session: Optional[Session] = None,
@@ -562,10 +623,11 @@ class JobExecutor:
     ) -> int:
         """
         When idle, checks what should be done next:
-        - Checks how many sources to fetch (outdated sources) and enqueues them.
+        - Checks how many sources to fetch (outdated sources) and enqueues them 1-by-1.
         - Checks how many entries to update (ConfigurationEntry.number_of_update_entries)
           based on date_update_last (exceeding ConfigurationEntry.days_to_check_std_entries)
           and enqueues link-update-data jobs.
+        - Enqueues a daily cleanup job if it has not run today and retention is configured.
 
         :param session: Optional active database session
         :param days_to_check: Optional override for days elapsed before entry is considered outdated
@@ -574,10 +636,22 @@ class JobExecutor:
         sources_enqueued = self.enqueue_outdated_source_jobs(
             session=session,
         )
+        if sources_enqueued > 0:
+            return sources_enqueued
+
         entries_enqueued = self.enqueue_outdated_entry_jobs(
             session=session, days_to_check=days_to_check
         )
-        return sources_enqueued + entries_enqueued
+        if entries_enqueued > 0:
+            return entries_enqueued
+
+        try:
+            if self.enqueue_cleanup_if_needed(session=session):
+                return 1
+        except Exception as err:
+            logger.debug("Failed checking daily cleanup job: %s", err)
+
+        return 0
 
     def run_loop(
         self,

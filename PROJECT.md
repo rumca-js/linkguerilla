@@ -141,7 +141,7 @@ Should be written in a such way, so it would be easily changed in code from SQli
       if user clicks fetch / update, the source should be fetched, 
    - `JOB_LINK_UPDATE_DATA = "link-update-data"`: Refreshes properties from `BaseUrl`/`RemoteUrl` via `WebToolsWrapper`: title, description, thumbnail, date_published, author, album, language, HTTP status_code. Only updates properties when valid. Updates `date_update_last` to 'now'. If link is not valid, sets `date_dead_since`; if valid, clears it. If link is blocked by entry rules, it is removed. Automatically enqueues `JOB_LINK_DOWNLOAD_SOCIAL`.
    - `JOB_LINK_DOWNLOAD_SOCIAL = "link-download-social"`: Downloads social metadata (`url.get_social_properties`) and updates ratings and visit counters.
-   - `JOB_CLEANUP = "cleanup"`: Enforces storage quotas and retention limits.
+   - `JOB_CLEANUP = "cleanup"`: Enforces storage quotas and retention limits. Removes entries older than `days_to_remove_links` or dead longer than `days_to_remove_stale_entries` (skips removal when the respective property is 0). Once a day checked via `BackgroundJobHistory`; if not performed today, enqueues cleanup job.
  - Direct WebToolkit Metadata Extraction: `webtoolkit` (`BaseUrl` or `RemoteUrl`) was introduced to provide parsing and reading of titles, descriptions, date_published, author, etc. Do not fall back on response, nor use beautiful soup. Either BaseUrl/RemoteUrl works, or not.
  - Job handlers return information whether a job should be consumed (`consume: bool`).
  - If a job is not successful, it is repeated up to 3 times. After that time, if `consume` is True, the job is consumed (archived to history and removed from queue) instead of being left paused/disabled in the queue.

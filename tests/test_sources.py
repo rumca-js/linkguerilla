@@ -904,12 +904,14 @@ class TestSourceApiBatchAdd(unittest.TestCase):
 
     def test_batch_add_rss_sources(self):
         """Adds two RSS URLs, returns added_count=2."""
-        resp = self._post({
-            "sources": [
-                {"url": "https://example.com/feed1.xml", "source_type": "RSS"},
-                {"url": "https://example.com/feed2.xml", "source_type": "RSS"},
-            ]
-        })
+        resp = self._post(
+            {
+                "sources": [
+                    {"url": "https://example.com/feed1.xml", "source_type": "RSS"},
+                    {"url": "https://example.com/feed2.xml", "source_type": "RSS"},
+                ]
+            }
+        )
         self.assertEqual(resp.status_code, 200)
         data = resp.get_json()
         self.assertTrue(data["success"])
@@ -918,19 +920,15 @@ class TestSourceApiBatchAdd(unittest.TestCase):
         # Both sources persisted
         self.assertIsNotNone(
             self.session.execute(
-                __import__("sqlalchemy", fromlist=["select"]).select(SourcesTable).where(
-                    SourcesTable.url == "https://example.com/feed1.xml"
-                )
+                __import__("sqlalchemy", fromlist=["select"])
+                .select(SourcesTable)
+                .where(SourcesTable.url == "https://example.com/feed1.xml")
             ).scalar()
         )
 
     def test_batch_add_no_source_type(self):
         """When source_type is omitted the stored type is None (auto-resolve later)."""
-        resp = self._post({
-            "sources": [
-                {"url": "https://nodetype.example.com/feed"}
-            ]
-        })
+        resp = self._post({"sources": [{"url": "https://nodetype.example.com/feed"}]})
         self.assertEqual(resp.status_code, 200)
         data = resp.get_json()
         self.assertTrue(data["success"])
@@ -940,11 +938,9 @@ class TestSourceApiBatchAdd(unittest.TestCase):
 
     def test_batch_add_explicit_parse_type(self):
         """PARSE source_type is stored correctly."""
-        resp = self._post({
-            "sources": [
-                {"url": "https://parse.example.com/", "source_type": "PARSE"}
-            ]
-        })
+        resp = self._post(
+            {"sources": [{"url": "https://parse.example.com/", "source_type": "PARSE"}]}
+        )
         self.assertEqual(resp.status_code, 200)
         data = resp.get_json()
         self.assertTrue(data["success"])
@@ -953,12 +949,14 @@ class TestSourceApiBatchAdd(unittest.TestCase):
     def test_batch_add_duplicate_skipped(self):
         """Pre-existing URL is counted as duplicate, not re-added."""
         self.repo.add_source(url="https://dup.example.com/rss", title="Existing")
-        resp = self._post({
-            "sources": [
-                {"url": "https://dup.example.com/rss", "source_type": "RSS"},
-                {"url": "https://new.example.com/rss"},
-            ]
-        })
+        resp = self._post(
+            {
+                "sources": [
+                    {"url": "https://dup.example.com/rss", "source_type": "RSS"},
+                    {"url": "https://new.example.com/rss"},
+                ]
+            }
+        )
         self.assertEqual(resp.status_code, 200)
         data = resp.get_json()
         self.assertTrue(data["success"])
@@ -983,11 +981,13 @@ class TestSourceApiBatchAdd(unittest.TestCase):
 
     def test_batch_add_invalid_source_type_stored_as_none(self):
         """An unrecognised source_type value is treated as NULL (not rejected)."""
-        resp = self._post({
-            "sources": [
-                {"url": "https://weirdtype.example.com/", "source_type": "PODCAST"}
-            ]
-        })
+        resp = self._post(
+            {
+                "sources": [
+                    {"url": "https://weirdtype.example.com/", "source_type": "PODCAST"}
+                ]
+            }
+        )
         self.assertEqual(resp.status_code, 200)
         data = resp.get_json()
         self.assertTrue(data["success"])
@@ -1112,4 +1112,3 @@ class TestRelatedUrlsDiscovery(unittest.TestCase):
         html = resp.get_data(as_text=True)
         self.assertNotIn("related-urls-card", html)
         self.assertNotIn('id="btn-discover-urls"', html)
-
