@@ -7,7 +7,7 @@
  - [x] database screen
  - [x] configuration screen
  - [x] jobs screen
- - [x] logs screen (includes Clear All and clear logs of particular level: DEBUG, INFO, WARNING, ERROR, CRITICAL)
+ - [x] logs screen (includes Clear All, clear logs of particular level, and row checkboxes with batch delete)
  - [x] **AppLoggingHandler & NOTIFICATION log level**: Introduce NOTIFICATION (25) severity level, AppLoggingHandler routing NOTIFICATION/WARNING/ERROR/CRITICAL to applogging table, and UI level filter.
  - [x] search views - ability to add / edit search views (SearchView editor in Configuration: name, default, priority, filter_statement, order_by)
  - [x] **Entry Detail & Edit Screens**: Implement `EntryDetailView` (`/entries/<id>`) with media preview, voting, tags editing, read-later toggle, status controls, and `EntryEditScreen` (`/entries/new`, `/entries/<id>/edit`).

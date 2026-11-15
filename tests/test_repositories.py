@@ -440,6 +440,27 @@ class TestRepositories(unittest.TestCase):
         self.assertEqual(deleted_all, 1)
         self.assertEqual(repo.count_logs(), 0)
 
+    def test_logging_repository_delete_logs(self):
+        """Verifies batch deletion of multiple log entries by ID."""
+        repo = LoggingRepository()
+
+        l1 = repo.log(info_text="Msg 1")
+        l2 = repo.log(info_text="Msg 2")
+        l3 = repo.log(info_text="Msg 3")
+        self.assertEqual(repo.count_logs(), 3)
+
+        # Batch delete l1 and l3
+        deleted_count = repo.delete_logs([l1.id, l3.id])
+        self.assertEqual(deleted_count, 2)
+        self.assertEqual(repo.count_logs(), 1)
+
+        remaining = repo.list_logs()
+        self.assertEqual(len(remaining), 1)
+        self.assertEqual(remaining[0].id, l2.id)
+
+        # Empty list returns 0
+        self.assertEqual(repo.delete_logs([]), 0)
+
     def test_logging_repository_centralized_levels(self):
         """Verifies centralized level constants, name mapping, and parsing in LoggingRepository."""
         self.assertEqual(LoggingRepository.DEBUG, 10)

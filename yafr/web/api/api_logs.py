@@ -82,6 +82,44 @@ def api_delete_log(log_id: int):
         return api_response(success=False, error=str(err), status_code=500)
 
 
+@api_logs_bp.route("/api/logs/batch-delete", methods=["POST"])
+def api_batch_delete_logs():
+    """
+    Deletes multiple log entries by list of IDs.
+
+    Request JSON payload:
+        { "ids": [1, 2, 3] }
+
+    :return: JSON response with count of deleted rows
+    """
+    try:
+        payload = request.get_json(silent=True) or {}
+        ids = payload.get("ids", [])
+        if not isinstance(ids, list) or not ids:
+            return api_response(
+                success=False, error="Invalid or empty ID list", status_code=400
+            )
+
+        try:
+            int_ids = [int(i) for i in ids]
+        except (ValueError, TypeError):
+            return api_response(
+                success=False, error="All IDs must be integers", status_code=400
+            )
+
+        session = get_session()
+        log_repo = LoggingRepository(session)
+        count = log_repo.delete_logs(int_ids)
+        return api_response(
+            success=True,
+            message=f"Deleted {count} log entries",
+            data={"deleted_count": count},
+        )
+    except Exception as err:
+        logger.error("Failed to batch delete logs: %s", err)
+        return api_response(success=False, error=str(err), status_code=500)
+
+
 @api_logs_bp.route("/api/logs/clear", methods=["POST"])
 def api_clear_logs():
     """

@@ -194,6 +194,20 @@ class LoggingRepository(BaseRepository[AppLogging]):
         self.session.commit()
         return True
 
+    def delete_logs(self, log_ids: List[int]) -> int:
+        """
+        Deletes multiple log entries by primary key IDs in a single batch operation.
+
+        :param log_ids: List of log entry IDs to delete
+        :return: Count of deleted rows
+        """
+        if not log_ids:
+            return 0
+        stmt = delete(AppLogging).where(AppLogging.id.in_(log_ids))
+        result = self.session.execute(stmt)
+        self.session.commit()
+        return result.rowcount or 0
+
     def clear_logs(self, level: Optional[int] = None) -> int:
         """
         Truncates entries in the applogging table, optionally filtered by exact level.

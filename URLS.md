@@ -23,7 +23,7 @@ This document details the complete routing matrix for YAFR, encompassing both **
 | `/sources/<int:id>/convert`   | `POST`        | **SourceDetailScreen** | Converts source type between RSS and Parse (or unfilled to RSS/Parse). | **Yes** |
 | `/credentials` | `GET` | **CredentialsScreen** | Displays and manages stored email/IMAP credentials. | **Yes** |
 | `/jobs` | `GET` | **JobsView** | Displays table of background jobs, orderable by priority, date created, or error count, with type filters and pause/resume/delete actions. | **Yes** |
-| `/logs` | `GET` | **LogsView** | Displays entries from `applogging` table, filterable by severity level (DEBUG, INFO, NOTIFICATION, WARNING, ERROR, CRITICAL). Supports clearing all logs or clearing logs of a specific severity level. | **Yes** |
+| `/logs` | `GET` | **LogsView** | Displays entries from `applogging` table, filterable by severity level (DEBUG, INFO, NOTIFICATION, WARNING, ERROR, CRITICAL). Provides row selection checkboxes with batch delete, single delete, and clearing all or level-filtered logs. | **Yes** |
 | `/rules` | `GET`, `POST` | **EntryRulesScreen** | Displays and configures URL regex rules (`trigger_rule_url`), actions (block, trust, auto-tag), and age limits. | **Yes** |
 | `/rules/blocked-urls` | `GET` | **BlockEntriesScreen** | Displays and manages individual BlockEntry records (blocked URLs/domains) with search, pagination, and deletion controls. | **Yes** |
 | `/rules/block-lists` | `GET` | **BlockListsScreen** | Displays and manages plain text block lists with ingestion and parsing controls. | **Yes** |
@@ -1052,6 +1052,26 @@ Following the project requirement to **"prefer having small server functions tha
   {
     "success": true,
     "message": "Log entry deleted"
+  }
+  ```
+- **Offline Capable**: Yes.
+
+#### `POST /api/logs/batch-delete`
+- **Purpose**: Deletes multiple log entries by list of IDs.
+- **Request Body**:
+  ```json
+  {
+    "ids": [1, 2, 3]
+  }
+  ```
+- **Response**:
+  ```json
+  {
+    "success": true,
+    "message": "Deleted 3 log entries",
+    "data": {
+      "deleted_count": 3
+    }
   }
   ```
 - **Offline Capable**: Yes.

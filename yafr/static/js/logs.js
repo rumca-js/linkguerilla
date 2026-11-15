@@ -20,6 +20,7 @@ document.addEventListener("DOMContentLoaded", function () {
         if (resp.success) {
           $("#log-row-" + logId).fadeOut(300, function () {
             $(this).remove();
+            updateBatchDeleteBar();
             // If table is now empty, reload to show empty state
             if ($("#logs-table-body tr").length === 0) {
               window.location.reload();
@@ -110,6 +111,102 @@ document.addEventListener("DOMContentLoaded", function () {
       error: function () {
         btn.prop("disabled", false).html(originalHtml);
         alert("Network error while clearing logs.");
+      }
+  // 4. Multi-Select Checkbox Handling & Batch Delete
+  function updateBatchDeleteBar() {
+    var checkedBoxes = $(".log-select-checkbox:checked");
+    var count = checkedBoxes.length;
+    var totalBoxes = $(".log-select-checkbox").length;
+
+    $("#batch-logs-selected-count").text(count);
+    $("#batch-delete-logs-count").text(count);
+
+    if (count > 0) {
+      $("#btn-batch-delete-logs").removeClass("d-none");
+    } else {
+      $("#btn-batch-delete-logs").addClass("d-none");
+    }
+
+    var selectAllEl = $("#select-all-logs")[0];
+    if (selectAllEl) {
+      selectAllEl.checked = totalBoxes > 0 && count === totalBoxes;
+      selectAllEl.indeterminate = count > 0 && count < totalBoxes;
+    }
+  }
+
+  // Toggle all checkboxes on the current page
+  $(document).on("change", "#select-all-logs", function () {
+    var isChecked = $(this).prop("checked");
+    $(".log-select-checkbox").prop("checked", isChecked);
+    updateBatchDeleteBar();
+  });
+
+  // Individual checkbox state change
+  $(document).on("change", ".log-select-checkbox", function () {
+    updateBatchDeleteBar();
+  });
+
+  // 5. Confirm Batch Delete Logs (AJAX)
+  $("#confirm-batch-delete-logs-btn").on("click", function () {
+    var btn = $(this);
+    var selectedIds = [];
+    $(".log-select-checkbox:checked").each(function () {
+      var val = parseInt($(this).val(), 10);
+      if (!isNaN(val)) {
+        selectedIds.push(val);
+      }
+    });
+
+    if (selectedIds.length === 0) {
+      alert("No log entries selected.");
+      return;
+    }
+
+    var originalHtml = btn.html();
+    btn.prop("disabled", true).html(
+      '<span class="spinner-border spinner-border-sm me-1" role="status"></span>Deleting...'
+    );
+
+    $.ajax({
+      url: "/api/logs/batch-delete",
+      type: "POST",
+      contentType: "application/json",
+      data: JSON.stringify({ ids: selectedIds }),
+      dataType: "json",
+      success: function (resp) {
+        if (resp.success) {
+          var modalEl = document.getElementById("batchDeleteLogsModal");
+          if (modalEl) {
+            var modalInstance = bootstrap.Modal.getInstance(modalEl);
+            if (modalInstance) {
+              modalInstance.hide();
+            }
+          }
+          btn.prop("disabled", false).html(originalHtml);
+
+          selectedIds.forEach(function (id) {
+            $("#log-row-" + id).remove();
+          });
+
+          if ($("#logs-table-body tr").length === 0) {
+            var currentUrl = new URL(window.location.href);
+            if (currentUrl.searchParams.has("page")) {
+              currentUrl.searchParams.delete("page");
+              window.location.href = currentUrl.toString();
+            } else {
+              window.location.reload();
+            }
+          } else {
+            updateBatchDeleteBar();
+          }
+        } else {
+          btn.prop("disabled", false).html(originalHtml);
+          alert("Failed to delete selected logs: " + (resp.error || "Unknown error"));
+        }
+      },
+      error: function () {
+        btn.prop("disabled", false).html(originalHtml);
+        alert("Network error while batch deleting logs.");
       }
     });
   });

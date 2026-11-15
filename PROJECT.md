@@ -211,7 +211,7 @@ It should be possible to download a new database .db file from the internet, or 
  - SourceParseEditScreen - Edits source
  - CredentialsScreen - displays credentials information
  - JobsView - view showing jobs
- - LogsView - view showing AppLogging entries. There should be a limit to number of logs. Maybe up to 2000? Supports clearing all logs or selectively clearing logs of a particular severity level (e.g. DEBUG, INFO, NOTIFICATION, WARNING, ERROR, CRITICAL).
+ - LogsView - view showing AppLogging entries. There should be a limit to number of logs. Maybe up to 2000? Provides checkboxes on each log entry with ability to batch delete selected entries, as well as clearing all logs or selectively clearing logs of a particular severity level (e.g. DEBUG, INFO, NOTIFICATION, WARNING, ERROR, CRITICAL).
  - EntryRulesScreen - Displays and configures entry rules.
  - BlockEntriesScreen - Displays and manages individual BlockEntry records with pagination and search (keeps EntryRulesScreen responsive with large block lists).
  - BlockListsScreen - Displays and manages BlockEntryList plain text block lists.
