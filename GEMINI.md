@@ -9,8 +9,8 @@ This project has the following files:
 
 Order of work:
  - Do not run tests until changes were performed
- - Start with updating .md files (PROJECT, URLS, etc)
- - write unit tests
+ - Start with updating .md files if they should be updated (PROJECT, URLS, etc)
+ - write unit tests if a case is missing
  - proceed with updating code
  - after implementation double check if there are similar places in code that should be refactored into a function, or if values were hardcoded in two or more places, but should be in one only
 

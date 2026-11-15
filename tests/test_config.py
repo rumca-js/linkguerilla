@@ -260,6 +260,88 @@ class TestInstanceConfigAndConsoleTitles(unittest.TestCase):
             self.assertEqual(context["app_name"], Config.INSTANCE_TITLE)
             self.assertEqual(context["app_tagline"], Config.INSTANCE_DESCRIPTION)
 
+    def test_display_constants_match_linkarchivetools(self):
+        """Verifies DISPLAY_TYPE and DISPLAY_STYLE in yafr.web.shared match linkarchivetools."""
+        from linkarchivetools.model.configurationentry import ConfigurationEntryService
+        import yafr.web.shared as shared
+
+        # Display Styles
+        self.assertEqual(
+            shared.DISPLAY_STYLE_LIGHT, ConfigurationEntryService.DISPLAY_STYLE_LIGHT
+        )
+        self.assertEqual(
+            shared.DISPLAY_STYLE_DARK, ConfigurationEntryService.DISPLAY_STYLE_DARK
+        )
+        self.assertIs(
+            shared.DISPLAY_STYLE_LIGHT, ConfigurationEntryService.DISPLAY_STYLE_LIGHT
+        )
+        self.assertIs(
+            shared.DISPLAY_STYLE_DARK, ConfigurationEntryService.DISPLAY_STYLE_DARK
+        )
+
+        # Display Types
+        self.assertEqual(
+            shared.DISPLAY_TYPE_STANDARD, ConfigurationEntryService.DISPLAY_TYPE_STANDARD
+        )
+        self.assertEqual(
+            shared.DISPLAY_TYPE_GALLERY, ConfigurationEntryService.DISPLAY_TYPE_GALLERY
+        )
+        self.assertEqual(
+            shared.DISPLAY_TYPE_SEARCH_ENGINE,
+            ConfigurationEntryService.DISPLAY_TYPE_SEARCH_ENGINE,
+        )
+        self.assertEqual(
+            shared.DISPLAY_TYPE_CONTENT_CENTRIC,
+            ConfigurationEntryService.DISPLAY_TYPE_CONTENT_CENTRIC,
+        )
+        self.assertEqual(
+            shared.DISPLAY_TYPE_LINKS_ONLY,
+            ConfigurationEntryService.DISPLAY_TYPE_LINKS_ONLY,
+        )
+        self.assertIs(
+            shared.DISPLAY_TYPE_STANDARD, ConfigurationEntryService.DISPLAY_TYPE_STANDARD
+        )
+        self.assertIs(
+            shared.DISPLAY_TYPE_GALLERY, ConfigurationEntryService.DISPLAY_TYPE_GALLERY
+        )
+        self.assertIs(
+            shared.DISPLAY_TYPE_SEARCH_ENGINE,
+            ConfigurationEntryService.DISPLAY_TYPE_SEARCH_ENGINE,
+        )
+        self.assertIs(
+            shared.DISPLAY_TYPE_CONTENT_CENTRIC,
+            ConfigurationEntryService.DISPLAY_TYPE_CONTENT_CENTRIC,
+        )
+        self.assertIs(
+            shared.DISPLAY_TYPE_LINKS_ONLY,
+            ConfigurationEntryService.DISPLAY_TYPE_LINKS_ONLY,
+        )
+
+        # Display Presets
+        self.assertEqual(
+            shared.CONFIGURATION_SEARCH_ENGINE,
+            ConfigurationEntryService.CONFIGURATION_SEARCH_ENGINE,
+        )
+        self.assertEqual(
+            shared.CONFIGURATION_GALLERY,
+            ConfigurationEntryService.CONFIGURATION_GALLERY,
+        )
+        self.assertEqual(
+            shared.CONFIGURATION_NEWS, ConfigurationEntryService.CONFIGURATION_NEWS
+        )
+        self.assertIs(
+            shared.CONFIGURATION_SEARCH_ENGINE,
+            ConfigurationEntryService.CONFIGURATION_SEARCH_ENGINE,
+        )
+        self.assertIs(
+            shared.CONFIGURATION_GALLERY,
+            ConfigurationEntryService.CONFIGURATION_GALLERY,
+        )
+        self.assertIs(
+            shared.CONFIGURATION_NEWS, ConfigurationEntryService.CONFIGURATION_NEWS
+        )
+
+
 
 if __name__ == "__main__":
     unittest.main()

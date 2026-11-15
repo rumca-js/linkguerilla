@@ -8,6 +8,7 @@ applying UI presets, and modifying display preferences.
 import logging
 from typing import Any, Dict, Optional, Tuple
 from sqlalchemy.orm import Session
+from linkarchivetools.model.configurationentry import ConfigurationEntryService
 from linkarchivetools.model.definitions import ConfigurationEntry
 from yafr.db import ConfigRepository, get_session
 
@@ -57,7 +58,11 @@ class ConfigService:
         """
         Sets the active display style theme ('style-dark' or 'style-light').
         """
-        if style not in ("style-dark", "style-light"):
+        valid_styles = (
+            ConfigurationEntryService.DISPLAY_STYLE_DARK,
+            ConfigurationEntryService.DISPLAY_STYLE_LIGHT,
+        )
+        if style not in valid_styles:
             raise ValueError(f"Invalid display style: '{style}'")
         repo = ConfigRepository(session=session)
         return repo.update_config(display_style=style)
@@ -70,11 +75,13 @@ class ConfigService:
         Sets the active card layout type (gallery, standard, search-engine, etc.).
         """
         valid_types = (
-            "gallery",
-            "standard",
-            "search-engine",
-            "content-centric",
-            "links-only",
+            ConfigurationEntryService.DISPLAY_TYPE_GALLERY,
+            ConfigurationEntryService.DISPLAY_TYPE_STANDARD,
+            ConfigurationEntryService.DISPLAY_TYPE_SEARCH_ENGINE,
+            ConfigurationEntryService.DISPLAY_TYPE_CONTENT_CENTRIC,
+            ConfigurationEntryService.DISPLAY_TYPE_LINKS_ONLY,
+            ConfigurationEntryService.DISPLAY_TYPE_ACCORDION,
+            ConfigurationEntryService.DISPLAY_TYPE_COMPACT,
         )
         if display_type not in valid_types:
             raise ValueError(f"Invalid display type: '{display_type}'")

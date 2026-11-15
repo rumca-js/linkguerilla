@@ -9,6 +9,7 @@ import logging
 from typing import Optional, Tuple
 from sqlalchemy import select
 from sqlalchemy.orm import Session
+from linkarchivetools.model.configurationentry import ConfigurationEntryService
 from linkarchivetools.model.definitions import ConfigurationEntry
 from yafr.config import Config
 from yafr.db.base_repository import BaseRepository
@@ -45,8 +46,8 @@ class ConfigRepository(BaseRepository[ConfigurationEntry]):
             config = ConfigurationEntry(
                 instance_title=DEFAULT_TITLE,
                 instance_description=DEFAULT_DESCRIPTION,
-                display_style="style-dark",
-                display_type="gallery",
+                display_style=ConfigurationEntryService.DISPLAY_STYLE_DARK,
+                display_type=ConfigurationEntryService.DISPLAY_TYPE_GALLERY,
                 show_icons=True,
                 thumbnails_as_icons=True,
                 entries_visit_alpha=0.6,
@@ -130,7 +131,7 @@ class ConfigRepository(BaseRepository[ConfigurationEntry]):
         preset_key = preset_name.lower().replace(" ", "-").replace("_", "-")
         if preset_key in ("search-engine", "search"):
             return self.update_config(
-                display_type="search-engine",
+                display_type=ConfigurationEntryService.DISPLAY_TYPE_SEARCH_ENGINE,
                 show_icons=False,
                 thumbnails_as_icons=False,
                 small_icons=True,
@@ -138,7 +139,7 @@ class ConfigRepository(BaseRepository[ConfigurationEntry]):
             )
         elif preset_key in ("gallery",):
             return self.update_config(
-                display_type="gallery",
+                display_type=ConfigurationEntryService.DISPLAY_TYPE_GALLERY,
                 show_icons=True,
                 thumbnails_as_icons=True,
                 small_icons=False,
@@ -146,7 +147,7 @@ class ConfigRepository(BaseRepository[ConfigurationEntry]):
             )
         elif preset_key in ("news", "content-centric"):
             return self.update_config(
-                display_type="content-centric",
+                display_type=ConfigurationEntryService.DISPLAY_TYPE_CONTENT_CENTRIC,
                 show_icons=True,
                 thumbnails_as_icons=True,
                 small_icons=True,
@@ -164,8 +165,8 @@ class ConfigRepository(BaseRepository[ConfigurationEntry]):
         defaults = {
             "instance_title": DEFAULT_TITLE,
             "instance_description": DEFAULT_DESCRIPTION,
-            "display_style": "style-dark",
-            "display_type": "gallery",
+            "display_style": ConfigurationEntryService.DISPLAY_STYLE_DARK,
+            "display_type": ConfigurationEntryService.DISPLAY_TYPE_GALLERY,
             "show_icons": True,
             "thumbnails_as_icons": True,
             "small_icons": False,
@@ -208,14 +209,14 @@ class ConfigRepository(BaseRepository[ConfigurationEntry]):
         Returns the active display theme style (e.g., 'style-dark', 'style-light').
         """
         config = self.get_config()
-        return config.display_style or "style-dark"
+        return config.display_style or ConfigurationEntryService.DISPLAY_STYLE_DARK
 
     def get_display_type(self) -> str:
         """
         Returns the active layout card type (e.g., 'gallery', 'standard', 'search-engine').
         """
         config = self.get_config()
-        return config.display_type or "gallery"
+        return config.display_type or ConfigurationEntryService.DISPLAY_TYPE_GALLERY
 
     def get_alphas(self) -> Tuple[float, float]:
         """

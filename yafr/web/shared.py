@@ -5,6 +5,7 @@ Shared helpers, constants, and utilities for YAFR web views.
 import logging
 from typing import Any, Dict, Optional
 from flask import jsonify, Response
+from linkarchivetools.model.configurationentry import ConfigurationEntryService
 from yafr.config import Config
 from yafr.db import ConfigRepository, JobRepository, SourceRepository
 from yafr.db.source_repository import DEFAULT_SOURCE_REFRESH_SECONDS
@@ -12,20 +13,22 @@ from yafr.db.source_repository import DEFAULT_SOURCE_REFRESH_SECONDS
 logger = logging.getLogger(__name__)
 
 # Display Styles
-DISPLAY_STYLE_LIGHT = "style-light"
-DISPLAY_STYLE_DARK = "style-dark"
+DISPLAY_STYLE_LIGHT = ConfigurationEntryService.DISPLAY_STYLE_LIGHT
+DISPLAY_STYLE_DARK = ConfigurationEntryService.DISPLAY_STYLE_DARK
 
 # Display Types (Layouts)
-DISPLAY_TYPE_STANDARD = "standard"
-DISPLAY_TYPE_GALLERY = "gallery"
-DISPLAY_TYPE_SEARCH_ENGINE = "search-engine"
-DISPLAY_TYPE_CONTENT_CENTRIC = "content-centric"
-DISPLAY_TYPE_LINKS_ONLY = "links-only"
+DISPLAY_TYPE_STANDARD = ConfigurationEntryService.DISPLAY_TYPE_STANDARD
+DISPLAY_TYPE_GALLERY = ConfigurationEntryService.DISPLAY_TYPE_GALLERY
+DISPLAY_TYPE_SEARCH_ENGINE = ConfigurationEntryService.DISPLAY_TYPE_SEARCH_ENGINE
+DISPLAY_TYPE_CONTENT_CENTRIC = ConfigurationEntryService.DISPLAY_TYPE_CONTENT_CENTRIC
+DISPLAY_TYPE_LINKS_ONLY = ConfigurationEntryService.DISPLAY_TYPE_LINKS_ONLY
+DISPLAY_TYPE_ACCORDION = ConfigurationEntryService.DISPLAY_TYPE_ACCORDION
+DISPLAY_TYPE_COMPACT = ConfigurationEntryService.DISPLAY_TYPE_COMPACT
 
 # Display Presets
-CONFIGURATION_SEARCH_ENGINE = "Search Engine"
-CONFIGURATION_GALLERY = "Gallery"
-CONFIGURATION_NEWS = "News"
+CONFIGURATION_SEARCH_ENGINE = ConfigurationEntryService.CONFIGURATION_SEARCH_ENGINE
+CONFIGURATION_GALLERY = ConfigurationEntryService.CONFIGURATION_GALLERY
+CONFIGURATION_NEWS = ConfigurationEntryService.CONFIGURATION_NEWS
 
 DISPLAY_TYPES = [
     {

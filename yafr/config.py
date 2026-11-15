@@ -6,6 +6,7 @@ import os
 import re
 import sys
 from pathlib import Path
+from linkarchivetools.model.configurationentry import ConfigurationEntryService
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 DEFAULT_DB_PATH = BASE_DIR / "data" / "table.db"
@@ -91,8 +92,8 @@ class Config:
     DATABASE_PATH = os.environ.get("YAFR_DATABASE_PATH", str(DEFAULT_DB_PATH))
 
     # UI Configurations (Defaults loaded from or synced with configurationentry in database)
-    DEFAULT_DISPLAY_STYLE = "style-dark"  # "style-light" or "style-dark"
-    DEFAULT_DISPLAY_TYPE = "gallery"  # "standard", "gallery", "search-engine", "content-centric", "links-only"
+    DEFAULT_DISPLAY_STYLE = ConfigurationEntryService.DISPLAY_STYLE_DARK
+    DEFAULT_DISPLAY_TYPE = ConfigurationEntryService.DISPLAY_TYPE_GALLERY
 
     # Default limits
     MAX_SEARCH_HISTORY = 300

@@ -241,18 +241,19 @@ It should be possible to download a new database .db file from the internet, or 
  - There might be additional /api/status endpoints/routes that provide additional data if required.
 
 # ConfigurationView
- - DISPLAY_STYLE_LIGHT = "style-light"
- - DISPLAY_STYLE_DARK = "style-dark"
-
- - DISPLAY_TYPE_STANDARD = "standard"
- - DISPLAY_TYPE_GALLERY = "gallery"
- - DISPLAY_TYPE_SEARCH_ENGINE = "search-engine"
- - DISPLAY_TYPE_CONTENT_CENTRIC = "content-centric"
- - DISPLAY_TYPE_LINKS_ONLY = "links-only"
-
- - CONFIGURATION_SEARCH_ENGINE = "Search Engine"
- - CONFIGURATION_GALLERY = "Gallery"
- - CONFIGURATION_NEWS = "News"
+ - Display constants (DISPLAY_STYLE and DISPLAY_TYPE) and presets are defined by `linkarchivetools.model.configurationentry.ConfigurationEntryService`:
+   - DISPLAY_STYLE_LIGHT = "style-light"
+   - DISPLAY_STYLE_DARK = "style-dark"
+   - DISPLAY_TYPE_STANDARD = "standard"
+   - DISPLAY_TYPE_GALLERY = "gallery"
+   - DISPLAY_TYPE_SEARCH_ENGINE = "search-engine"
+   - DISPLAY_TYPE_CONTENT_CENTRIC = "content-centric"
+   - DISPLAY_TYPE_ACCORDION = "accordion"
+   - DISPLAY_TYPE_LINKS_ONLY = "links-only"
+   - DISPLAY_TYPE_COMPACT = "compact"
+   - CONFIGURATION_SEARCH_ENGINE = "Search Engine"
+   - CONFIGURATION_GALLERY = "Gallery"
+   - CONFIGURATION_NEWS = "News"
 
  click_behavior_modal_window is used to load a modal windoww for preview (for youtube etc.)
 
