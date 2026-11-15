@@ -79,29 +79,7 @@ class CleanupJobHandler(BaseJobHandler):
         - allow_remove_bookmarked_entries: protects bookmarked entries when False
         - allow_remove_votes_entries: protects voted entries (or capped by remove_entry_vote_threshold)
         """
-        if not config.allow_remove_permanent_entries:
-            stmt = stmt.where(
-                (LinkDataModel.permanent == False) | (LinkDataModel.permanent == None)
-            )
-
-        if not config.allow_remove_bookmarked_entries:
-            stmt = stmt.where(
-                (LinkDataModel.bookmarked == False) | (LinkDataModel.bookmarked == None)
-            )
-
-        threshold = config.remove_entry_vote_threshold or 0
-        if not config.allow_remove_votes_entries:
-            stmt = stmt.where(
-                (LinkDataModel.page_rating_votes == None)
-                | (LinkDataModel.page_rating_votes <= threshold)
-            )
-        elif threshold > 0:
-            stmt = stmt.where(
-                (LinkDataModel.page_rating_votes == None)
-                | (LinkDataModel.page_rating_votes <= threshold)
-            )
-
-        return stmt
+        return EntryRepository.apply_retention_filters(stmt, config)
 
     def _remove_old_links(
         self,

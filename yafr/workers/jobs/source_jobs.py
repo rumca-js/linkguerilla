@@ -21,7 +21,8 @@ class ProcessSourceJobHandler(BaseJobHandler):
     """
     Handler for JOB_PROCESS_SOURCE ('process-source').
 
-    Fetches, parses, and ingests RSS/email feed entries for a configured source.
+    Fetches, parses, and ingests RSS/email feed entries for a configured source,
+    and removes unlisted entries if remove_unlisted_entries is enabled in configuration.
     """
 
     job_types = (JOB_PROCESS_SOURCE, "JOB_PROCESS_SOURCE")

@@ -449,6 +449,15 @@
                     <input type="number" class="form-control shadow-sm" id="remove_entry_vote_threshold" name="remove_entry_vote_threshold" min="0" value="{{ config.remove_entry_vote_threshold if config.remove_entry_vote_threshold is not none else 0 }}">
                     <div class="form-text">When vote removal is permitted, entries with votes exceeding this threshold are preserved (0 = no threshold cap).</div>
                   </div>
+                  <div class="col-12 col-md-6">
+                    <div class="form-check form-switch card p-3 border shadow-sm h-100">
+                      <input class="form-check-input ms-0 me-3" type="checkbox" role="switch" id="remove_unlisted_entries" name="remove_unlisted_entries" {% if config.remove_unlisted_entries %}checked{% endif %}>
+                      <label class="form-check-label fw-semibold" for="remove_unlisted_entries">
+                        Remove Unlisted Source Entries
+                        <div class="text-muted small fw-normal">Remove entries associated with a source when no longer present in its feed</div>
+                      </label>
+                    </div>
+                  </div>
                 </div>
 
                 <h6 class="fw-bold mb-3 text-secondary d-flex align-items-center gap-2">

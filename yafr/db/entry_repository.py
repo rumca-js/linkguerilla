@@ -12,6 +12,7 @@ from sqlalchemy import delete, func, select, text, update
 from sqlalchemy.orm import Session
 from linkarchivetools.model.definitions import (
     CompactedTags,
+    ConfigurationEntry,
     EntryCompactedTags,
     EntryTransitionHistory,
     EntryVisitHistory,
@@ -37,6 +38,45 @@ class EntryRepository(BaseRepository[LinkDataModel]):
 
     def __init__(self, session: Optional[Session] = None) -> None:
         super().__init__(session=session)
+
+    @staticmethod
+    def apply_retention_filters(stmt: Any, config: Optional[ConfigurationEntry]) -> Any:
+        """
+        Applies exclusion filters on entry queries based on ConfigurationEntry switches:
+        - allow_remove_permanent_entries: protects permanent entries when False
+        - allow_remove_bookmarked_entries: protects bookmarked entries when False
+        - allow_remove_votes_entries: protects voted entries (or capped by remove_entry_vote_threshold)
+
+        :param stmt: SQLAlchemy select or query statement targeting LinkDataModel
+        :param config: ConfigurationEntry instance with retention policies
+        :return: Modified statement with retention filters applied
+        """
+        if config is None:
+            return stmt
+
+        if not getattr(config, "allow_remove_permanent_entries", False):
+            stmt = stmt.where(
+                (LinkDataModel.permanent == False) | (LinkDataModel.permanent == None)
+            )
+
+        if not getattr(config, "allow_remove_bookmarked_entries", False):
+            stmt = stmt.where(
+                (LinkDataModel.bookmarked == False) | (LinkDataModel.bookmarked == None)
+            )
+
+        threshold = getattr(config, "remove_entry_vote_threshold", 0) or 0
+        if not getattr(config, "allow_remove_votes_entries", False):
+            stmt = stmt.where(
+                (LinkDataModel.page_rating_votes == None)
+                | (LinkDataModel.page_rating_votes <= threshold)
+            )
+        elif threshold > 0:
+            stmt = stmt.where(
+                (LinkDataModel.page_rating_votes == None)
+                | (LinkDataModel.page_rating_votes <= threshold)
+            )
+
+        return stmt
 
     def get_by_id(self, entry_id: int) -> Optional[LinkDataModel]:
         """
@@ -86,6 +126,7 @@ class EntryRepository(BaseRepository[LinkDataModel]):
         """
         now = datetime.now(timezone.utc)
         bookmarked = kwargs.pop("bookmarked", False)
+        permanent = kwargs.pop("permanent", False)
         entry = LinkDataModel(
             link=link,
             title=title,
@@ -96,6 +137,7 @@ class EntryRepository(BaseRepository[LinkDataModel]):
             author=author,
             language=language,
             bookmarked=bookmarked,
+            permanent=permanent,
             date_created=now,
             date_published=date_published or now,
             **kwargs,

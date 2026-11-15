@@ -51,6 +51,7 @@ BOOLEAN_CONFIG_FIELDS = [
     "allow_remove_permanent_entries",
     "allow_remove_bookmarked_entries",
     "allow_remove_votes_entries",
+    "remove_unlisted_entries",
     "debug_mode",
 ]
 

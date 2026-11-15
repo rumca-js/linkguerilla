@@ -64,6 +64,7 @@ class ConfigRepository(BaseRepository[ConfigurationEntry]):
                 enable_background_jobs=True,
                 enable_social_data=True,
                 enable_crawling=False,
+                remove_unlisted_entries=True,
             )
             self.session.add(config)
             self.session.commit()
@@ -204,6 +205,7 @@ class ConfigRepository(BaseRepository[ConfigurationEntry]):
             "allow_remove_bookmarked_entries": False,
             "allow_remove_votes_entries": False,
             "remove_entry_vote_threshold": 0,
+            "remove_unlisted_entries": True,
             "debug_mode": False,
         }
         return self.update_config(**defaults)

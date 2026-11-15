@@ -287,6 +287,9 @@ stateDiagram-v2
      - If hashes match `sourceoperationaldata`, payload parsing is skipped, saving compute and disk I/O.
    - **EntryBuilder Ingestion**:
      - All parsed feed items are processed through `EntryBuilder` to enforce link acceptance rules, sanitize URLs, match `EntryRules` regexes, and inherit source properties.
+   - **Unlisted Feed Entries Removal (`remove_unlisted_entries`)**:
+     - When `ConfigurationEntry.remove_unlisted_entries` is True, after ingesting fetched feed entries for a source (`source_id`), existing entries in `linkdatamodel` associated with that `source_id` that are no longer present in the fetched feed entries are removed via `EntryRepository.delete_entries`.
+     - Respects `ConfigurationEntry` retention protection switches (`allow_remove_permanent_entries`, `allow_remove_bookmarked_entries`, `allow_remove_votes_entries`).
    - **Error Tracking**:
      - If fetch succeeds: `consecutive_errors` reset to `0`, `date_successful_fetch` updated.
      - If fetch fails: `consecutive_errors` incremented by `1`.

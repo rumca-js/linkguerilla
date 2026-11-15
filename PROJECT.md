@@ -126,6 +126,7 @@ Should be written in a such way, so it would be easily changed in code from SQli
  - source is marked as read when it's response is valid, if it is not consecutive errors counter is incremented
  - all links from sources (or from jobs) should pass through some EntryLinkBuilder
  - each entry inherits some properties of source (if source property is defined). language, age. if source.auto_tag is defined it should also add said tags
+ - when `ConfigurationEntry.remove_unlisted_entries` is enabled, source processing (`JOB_PROCESS_SOURCE` in `source_jobs.py` / `SourceService`) removes existing entries associated with the source (`LinkDataModel.source_id`) that are no longer present in the fetched feed entries, respecting protection switches (`allow_remove_permanent_entries`, `allow_remove_bookmarked_entries`, `allow_remove_votes_entries`).
 
 ## Entry creation
  - it shall check ConfigurationEntry if link of this type is accepted or not. ConfigurationEntry has fields to accept_domain_links, etc. It should also check entry rules, if are blocking entries
@@ -262,7 +263,7 @@ It should be possible to download a new database .db file from the internet, or 
 
  - Configuration view should contain presets for type of initialization
  - should provide means to configure and view credentials
- - provides configuration controls for days_to_remove_links and days_to_remove_stale_entries (entry retention thresholds for daily cleanup), as well as switches for allow_remove_permanent_entries, allow_remove_bookmarked_entries, allow_remove_votes_entries, and remove_entry_vote_threshold
+ - provides configuration controls for days_to_remove_links and days_to_remove_stale_entries (entry retention thresholds for daily cleanup), as well as switches for allow_remove_permanent_entries, allow_remove_bookmarked_entries, allow_remove_votes_entries, remove_entry_vote_threshold, and remove_unlisted_entries (removes source entries absent from latest feed fetch)
 
 ## EntriesListView
  - if user did not input anything the input text should be quite big, and in the middle. If user enters anything the search should be above

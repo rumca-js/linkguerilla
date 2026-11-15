@@ -29,6 +29,7 @@ from linkarchivetools.model.sources import Sources
 from yafr.db.block_repository import BlockEntryRepository
 from yafr.db.config_repository import ConfigRepository
 from yafr.db.credentials_repository import CredentialsRepository
+from yafr.db.entry_repository import EntryRepository
 from yafr.db.job_repository import JobRepository
 from yafr.db.logging_repository import LoggingRepository
 from yafr.db.rules_repository import RulesRepository
@@ -487,6 +488,73 @@ class SourceService:
         return entries_added
 
     @classmethod
+    def _remove_unlisted_entries(
+        cls,
+        source: SourcesTable,
+        raw_entries: List[Dict[str, Any]],
+        session: Session,
+    ) -> int:
+        """
+        Removes entries associated with this source (matching source_id) that are no longer
+        present in the latest fetched feed entries, if remove_unlisted_entries is enabled.
+        Respects protection switches on ConfigurationEntry (permanent, bookmarked, votes).
+
+        :param source: SourcesTable instance
+        :param raw_entries: List of dictionaries containing currently fetched entry metadata
+        :param session: Active database session
+        :return: Count of deleted unlisted entries
+        """
+        config = ConfigRepository(session).get_config()
+        if not getattr(config, "remove_unlisted_entries", False):
+            return 0
+
+        builder = EntryBuilder(session=session, config=config)
+        active_links = set()
+        for item in raw_entries:
+            link = (item.get("link") or "").strip()
+            if not link:
+                continue
+            active_links.add(link)
+            active_links.add(link.rstrip("/"))
+            cleaned = builder.sanitize_url(link)
+            if cleaned:
+                active_links.add(cleaned)
+                active_links.add(cleaned.rstrip("/"))
+
+        stmt = select(LinkDataModel).where(LinkDataModel.source_id == source.id)
+        stmt = EntryRepository.apply_retention_filters(stmt, config)
+        existing_entries = list(session.execute(stmt).scalars().all())
+
+        to_remove_ids: List[int] = []
+        for entry in existing_entries:
+            entry_link = (entry.link or "").strip()
+            if not entry_link:
+                to_remove_ids.append(entry.id)
+                continue
+
+            cleaned_entry_link = builder.sanitize_url(entry_link)
+            if (
+                entry_link not in active_links
+                and entry_link.rstrip("/") not in active_links
+                and cleaned_entry_link not in active_links
+                and cleaned_entry_link.rstrip("/") not in active_links
+            ):
+                to_remove_ids.append(entry.id)
+
+        if not to_remove_ids:
+            return 0
+
+        entry_repo = EntryRepository(session=session)
+        removed_count = entry_repo.delete_entries(to_remove_ids)
+        logger.info(
+            "Removed %d unlisted entries for source #%d (%s).",
+            removed_count,
+            source.id,
+            source.title,
+        )
+        return removed_count
+
+    @classmethod
     def _update_operational_success(
         cls,
         source: SourcesTable,
@@ -495,6 +563,7 @@ class SourceService:
         page_hash: Optional[bytes] = None,
         body_hash: Optional[bytes] = None,
         entries_added: int = 0,
+        entries_removed: int = 0,
     ) -> Dict[str, Any]:
         """
         Updates source operational tracking data after a successful fetch cycle.
@@ -505,6 +574,7 @@ class SourceService:
         :param page_hash: Optional SHA-256 payload hash (bytes)
         :param body_hash: Optional SHA-256 body hash (bytes)
         :param entries_added: Number of newly inserted entries
+        :param entries_removed: Number of unlisted entries deleted
         :return: Standard success result dictionary
         """
         total_source_entries = (
@@ -526,13 +596,20 @@ class SourceService:
 
         session.commit()
 
+        msg = (
+            f"Successfully refreshed {source.title}: {entries_added} new entries added."
+        )
+        if entries_removed:
+            msg = f"Successfully refreshed {source.title}: {entries_added} new entries added, {entries_removed} unlisted entries removed."
+
         return {
             "success": True,
             "consume": True,
             "source_id": source.id,
             "status": "completed",
-            "message": f"Successfully refreshed {source.title}: {entries_added} new entries added.",
+            "message": msg,
             "entries_added": entries_added,
+            "entries_removed": entries_removed,
         }
 
     @classmethod
@@ -563,6 +640,9 @@ class SourceService:
             return cls._record_operational_unchanged(source, op_data, session)
 
         entries_added = cls._save_entries(result.raw_entries, source, session)
+        entries_removed = cls._remove_unlisted_entries(
+            source, result.raw_entries, session
+        )
         return cls._update_operational_success(
             source=source,
             op_data=op_data,
@@ -570,6 +650,7 @@ class SourceService:
             page_hash=result.page_hash,
             body_hash=result.body_hash,
             entries_added=entries_added,
+            entries_removed=entries_removed,
         )
 
     @classmethod
