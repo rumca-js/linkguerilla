@@ -193,21 +193,10 @@ class EntryBuilder:
 
             # URL regex matching (supports comma-separated regex patterns)
             if rule.trigger_rule_url:
-                patterns = [
-                    p.strip() for p in rule.trigger_rule_url.split(",") if p.strip()
-                ]
-                for pattern in patterns:
-                    try:
-                        if re.search(pattern, url, re.IGNORECASE):
-                            rule_matched = True
-                            break
-                    except re.error as err:
-                        logger.warning(
-                            "Invalid regex pattern '%s' in rule #%s: %s",
-                            pattern,
-                            rule.id,
-                            err,
-                        )
+                from yafr.services.rule_service import RuleService
+
+                if RuleService.match_url_patterns(rule.trigger_rule_url, url):
+                    rule_matched = True
 
             # Optional trigger_text matching (supports comma-separated terms)
             if not rule_matched and rule.trigger_text:

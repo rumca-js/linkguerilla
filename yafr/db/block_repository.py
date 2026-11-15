@@ -362,6 +362,70 @@ class BlockEntryRepository(BaseRepository[BlockEntry]):
         stmt = select(BlockEntry).where(BlockEntry.url == url.strip()).limit(1)
         return self.session.execute(stmt).scalar_one_or_none()
 
+    def get_matching_entries(
+        self,
+        url: str,
+        raw_url: Optional[str] = None,
+        limit: Optional[int] = None,
+    ) -> List[BlockEntry]:
+        """
+        Retrieves all BlockEntry items whose url matches any part of the given candidate URL.
+
+        Performs a case-insensitive substring search: if any BlockEntry.url matches
+        any part of url (or raw_url), returns matching BlockEntry records.
+
+        :param url: Candidate URL string
+        :param raw_url: Optional raw URL string before sanitization
+        :param limit: Optional maximum number of matching entries to return
+        :return: List of matching BlockEntry instances
+        """
+        cleaned = (url or "").strip()
+        raw = (raw_url or "").strip()
+        if not cleaned and not raw:
+            return []
+
+        cleaned_lower = cleaned.lower()
+        raw_lower = raw.lower()
+
+        conditions = []
+        if cleaned_lower:
+            conditions.append(func.instr(cleaned_lower, func.lower(BlockEntry.url)) > 0)
+        if raw_lower and raw_lower != cleaned_lower:
+            conditions.append(func.instr(raw_lower, func.lower(BlockEntry.url)) > 0)
+
+        if not conditions:
+            return []
+
+        stmt = select(BlockEntry).where(
+            func.length(func.trim(BlockEntry.url)) > 0,
+            or_(*conditions) if len(conditions) > 1 else conditions[0],
+        )
+        if limit is not None:
+            stmt = stmt.limit(limit)
+
+        try:
+            return list(self.session.execute(stmt).scalars().all())
+        except Exception as err:
+            logger.debug(
+                "Database instr query failed (%s); falling back to iteration", err
+            )
+            stmt_all = select(BlockEntry).where(
+                func.length(func.trim(BlockEntry.url)) > 0
+            )
+            entries = self.session.execute(stmt_all).scalars().all()
+            matched: List[BlockEntry] = []
+            for entry in entries:
+                pattern = (entry.url or "").strip().lower()
+                if not pattern:
+                    continue
+                if (cleaned_lower and pattern in cleaned_lower) or (
+                    raw_lower and pattern in raw_lower
+                ):
+                    matched.append(entry)
+                    if limit is not None and len(matched) >= limit:
+                        break
+            return matched
+
     def get_matching_entry(
         self,
         url: str,
@@ -377,51 +441,8 @@ class BlockEntryRepository(BaseRepository[BlockEntry]):
         :param raw_url: Optional raw URL string before sanitization
         :return: Matching BlockEntry instance or None
         """
-        cleaned = (url or "").strip()
-        raw = (raw_url or "").strip()
-        if not cleaned and not raw:
-            return None
-
-        cleaned_lower = cleaned.lower()
-        raw_lower = raw.lower()
-
-        conditions = []
-        if cleaned_lower:
-            conditions.append(func.instr(cleaned_lower, func.lower(BlockEntry.url)) > 0)
-        if raw_lower and raw_lower != cleaned_lower:
-            conditions.append(func.instr(raw_lower, func.lower(BlockEntry.url)) > 0)
-
-        if not conditions:
-            return None
-
-        stmt = (
-            select(BlockEntry)
-            .where(
-                func.length(func.trim(BlockEntry.url)) > 0,
-                or_(*conditions) if len(conditions) > 1 else conditions[0],
-            )
-            .limit(1)
-        )
-
-        try:
-            return self.session.execute(stmt).scalar_one_or_none()
-        except Exception as err:
-            logger.debug(
-                "Database instr query failed (%s); falling back to iteration", err
-            )
-            stmt_all = select(BlockEntry).where(
-                func.length(func.trim(BlockEntry.url)) > 0
-            )
-            entries = self.session.execute(stmt_all).scalars().all()
-            for entry in entries:
-                pattern = (entry.url or "").strip().lower()
-                if not pattern:
-                    continue
-                if (cleaned_lower and pattern in cleaned_lower) or (
-                    raw_lower and pattern in raw_lower
-                ):
-                    return entry
-            return None
+        entries = self.get_matching_entries(url, raw_url=raw_url, limit=1)
+        return entries[0] if entries else None
 
     def is_blocked(self, url: str) -> bool:
         """

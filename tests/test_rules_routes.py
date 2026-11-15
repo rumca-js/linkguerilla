@@ -37,10 +37,12 @@ class TestRulesRoutes(unittest.TestCase):
         close_session()
 
     def test_rules_list_contains_add_rule_and_block_url_buttons(self):
-        """GET /rules renders the page with 'Add Rule', 'Block Url', 'Blocked Urls', and 'Block Lists' buttons."""
+        """GET /rules renders the page with 'Test Link', 'Add Rule', 'Block Url', 'Blocked Urls', and 'Block Lists' buttons."""
         response = self.client.get("/rules")
         self.assertEqual(response.status_code, 200)
         html = response.get_data(as_text=True)
+        self.assertIn("Test Link", html)
+        self.assertIn("testLinkModal", html)
         self.assertIn("Add Rule", html)
         self.assertIn("Block Url", html)
         self.assertIn("Blocked Urls", html)
@@ -232,6 +234,53 @@ class TestRulesRoutes(unittest.TestCase):
             follow_redirects=True,
         )
         self.assertEqual(response.status_code, 200)
+
+    def test_api_rules_test_endpoint_json(self):
+        """POST /api/rules/test with JSON payload evaluates the link against rules and block entries."""
+        self.rules_repo.add_rule(
+            rule_name="YouTube Auto-Tag",
+            trigger_rule_url=r".*youtube\.com/watch.*",
+            enabled=True,
+            trust=True,
+            auto_tag="video, youtube",
+            apply_age_limit=0,
+        )
+        self.block_repo.add_entry("bad-site.com")
+
+        res = self.client.post(
+            "/api/rules/test",
+            json={"url": "https://www.youtube.com/watch?v=12345"},
+        )
+        self.assertEqual(res.status_code, 200)
+        data = res.get_json()
+        self.assertTrue(data["success"])
+        self.assertFalse(data["is_blocked"])
+        self.assertTrue(data["is_trusted"])
+        self.assertIn("video", data["auto_tags"])
+        self.assertEqual(len(data["matching_rules"]), 1)
+        self.assertEqual(data["rule_name"], "YouTube Auto-Tag")
+
+    def test_api_rules_test_endpoint_blocked(self):
+        """POST /api/rules/test identifies blocked links from block entries and rules."""
+        self.block_repo.add_entry("adserver.xyz")
+        res = self.client.post(
+            "/api/rules/test",
+            json={"url": "https://adserver.xyz/banner.js"},
+        )
+        self.assertEqual(res.status_code, 200)
+        data = res.get_json()
+        self.assertTrue(data["success"])
+        self.assertTrue(data["is_blocked"])
+        self.assertTrue(data["is_blocked_by_block_entry"])
+        self.assertEqual(len(data["matching_block_entries"]), 1)
+
+    def test_api_rules_test_endpoint_empty_url(self):
+        """POST /api/rules/test with missing URL returns an error."""
+        res = self.client.post("/api/rules/test", json={"url": "  "})
+        self.assertEqual(res.status_code, 400)
+        data = res.get_json()
+        self.assertFalse(data["success"])
+        self.assertIn("error", data)
 
 
 if __name__ == "__main__":

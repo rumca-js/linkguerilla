@@ -24,14 +24,14 @@ This document details the complete routing matrix for YAFR, encompassing both **
 | `/credentials` | `GET` | **CredentialsScreen** | Displays and manages stored email/IMAP credentials. | **Yes** |
 | `/jobs` | `GET` | **JobsView** | Displays table of background jobs, orderable by priority, date created, or error count, with type filters and pause/resume/delete actions. | **Yes** |
 | `/logs` | `GET` | **LogsView** | Displays entries from `applogging` table, filterable by severity level (DEBUG, INFO, NOTIFICATION, WARNING, ERROR, CRITICAL). Provides row selection checkboxes with batch delete, single delete, and clearing all or level-filtered logs. | **Yes** |
-| `/rules` | `GET`, `POST` | **EntryRulesScreen** | Displays and configures URL regex rules (`trigger_rule_url`), actions (block, trust, auto-tag), and age limits. | **Yes** |
+| `/rules` | `GET`, `POST` | **EntryRulesScreen** | Displays and configures URL regex rules (`trigger_rule_url`), actions (block, trust, auto-tag), and age limits. Provides an interactive "Test Link" tool to evaluate how rules and block entries affect candidate URLs. | **Yes** |
 | `/rules/blocked-urls` | `GET` | **BlockEntriesScreen** | Displays and manages individual BlockEntry records (blocked URLs/domains) with search, pagination, and deletion controls. | **Yes** |
 | `/rules/block-lists` | `GET` | **BlockListsScreen** | Displays and manages plain text block lists with ingestion and parsing controls. | **Yes** |
 | `/database` | `GET` | **DatabaseView** | Displays database path, creation date, last refresh, row counts, cache clear buttons, and remote DB download form. | **Yes** |
 | `/status` | `GET` | **StatusView** | Displays health of the application, background task runner status, active worker loops, and network connectivity state. | **Yes** |
 | `/configuration` | `GET`, `POST` | **ConfigurationView** | Allows user to modify display styles (`style-light`, `style-dark`), display types (`standard`, `gallery`, etc.), alphas, and quotas. | **Yes** |
 | `/about` | `GET` | **AboutScreen** | Displays application version, project links, and system environment info. | **Yes** |
-| `/preview` | `GET` | **UrlPreview** | Dedicated link preview screen displaying metadata, embed player, and indicating if the URL is blocked by an entry rule. | **Yes** (embeds require internet) |
+| `/preview` | `GET` | **UrlPreview** | Dedicated link preview screen displaying dynamic metadata obtained via `webtools_service.py` (title, description, author, thumbnail, status code, embed player, feed entries, and content links) and indicating whether the URL is blocked by an entry rule or block entry. | **Yes** (embeds/metadata require internet) |
 
 ---
 
@@ -555,7 +555,7 @@ Following the project requirement to **"prefer having small server functions tha
 ### 2.4 Entry Rules & URL Preview API (`/api/rules`, `/api/preview`)
 
 #### `POST /api/rules/test`
-- **Purpose**: Evaluates a given URL against all registered regex rules (`trigger_rule_url`) to check matching actions.
+- **Purpose**: Evaluates a given URL against registered EntryRules (`trigger_rule_url` regexes) and BlockEntry patterns to report blocking, trusting, auto-tagging, age limits, and the exact rules/block entries that affect the link.
 - **Request Body**:
   ```json
   { "url": "https://old.reddit.com/r/python" }
@@ -564,18 +564,38 @@ Following the project requirement to **"prefer having small server functions tha
   ```json
   {
     "success": true,
-    "matched_rule_id": 4,
-    "rule_name": "Reddit Community Rule",
+    "url": "https://old.reddit.com/r/python",
+    "cleaned_url": "https://old.reddit.com/r/python",
     "is_blocked": false,
+    "is_blocked_by_rule": false,
+    "is_blocked_by_block_entry": false,
     "is_trusted": true,
     "auto_tags": ["reddit", "social"],
-    "age_limit": 0
+    "age_limit": 0,
+    "matched_rule_id": 4,
+    "rule_name": "Reddit Community Rule",
+    "matching_rules": [
+      {
+        "id": 4,
+        "rule_name": "Reddit Community Rule",
+        "priority": 1,
+        "enabled": true,
+        "block": false,
+        "trust": true,
+        "auto_tag": "reddit, social",
+        "apply_age_limit": 0,
+        "matched_pattern": ".*reddit\\.com.*",
+        "actions_summary": "Trust link; Add tags: reddit, social"
+      }
+    ],
+    "matching_block_entries": [],
+    "verdict": "Allowed (trusted; tags: reddit, social)"
   }
   ```
 - **Offline Capable**: Yes.
 
 #### `POST /api/preview/inspect`
-- **Purpose**: Resolves preview metadata for a URL (extracts title, favicon, checks if blocked, detects YouTube player embed).
+- **Purpose**: Dynamically resolves preview metadata for a URL via `webtools_service.py` (`WebToolsWrapper`: title, description, thumbnail, author, language, publication date, status code, feed entries, and content links), checks if blocked by entry rules or block entries, and detects YouTube/media embeds.
 - **Request Body**:
   ```json
   { "url": "https://www.youtube.com/watch?v=dQw4w9WgXcQ" }
@@ -585,15 +605,28 @@ Following the project requirement to **"prefer having small server functions tha
   {
     "success": true,
     "url": "https://www.youtube.com/watch?v=dQw4w9WgXcQ",
+    "canonical_url": "https://www.youtube.com/watch?v=dQw4w9WgXcQ",
     "is_blocked": false,
+    "is_blocked_by_rule": false,
+    "is_blocked_by_block_entry": false,
     "blocking_rule": null,
+    "blocking_block_entry": null,
     "media_type": "video",
     "embed_url": "https://www.youtube-nocookie.com/embed/dQw4w9WgXcQ",
     "title": "Rick Astley - Never Gonna Give You Up",
-    "thumbnail": "https://i.ytimg.com/vi/dQw4w9WgXcQ/hqdefault.jpg"
+    "description": "The official video for Never Gonna Give You Up...",
+    "author": "RickAstleyVEVO",
+    "language": "en",
+    "album": null,
+    "thumbnail": "https://i.ytimg.com/vi/dQw4w9WgXcQ/hqdefault.jpg",
+    "status_code": 200,
+    "date_published": "2009-10-25T06:57:33Z",
+    "entries": [],
+    "content_links": [],
+    "social": {}
   }
   ```
-- **Offline Capable**: Partially (local rule check works offline; metadata extraction requires internet).
+- **Offline Capable**: Partially (local rule check works offline; metadata extraction requires internet or local BaseUrl reachability).
 
 ---
 

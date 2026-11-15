@@ -40,6 +40,31 @@ def rules_list():
     )
 
 
+@rules_bp.route("/rules/test", methods=["POST"])
+def rule_test():
+    """
+    Evaluates a candidate URL against EntryRules and BlockEntry items.
+    Returns JSON response.
+    """
+    from flask import jsonify
+    from yafr.services.rule_service import RuleService
+
+    url = None
+    if request.is_json:
+        body = request.get_json(silent=True) or {}
+        url = body.get("url")
+    if not url:
+        url = request.form.get("url")
+
+    if not url or not str(url).strip():
+        return jsonify({"success": False, "error": "URL is required."}), 400
+
+    session = get_session()
+    result = RuleService.test_url(str(url).strip(), session=session)
+    status_code = 200 if result.get("success") else 400
+    return jsonify(result), status_code
+
+
 @rules_bp.route("/rules/block-entries")
 @rules_bp.route("/rules/blocked-urls")
 def blocked_urls_view():

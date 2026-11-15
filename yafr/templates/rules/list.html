@@ -17,6 +17,14 @@
         </div>
 
         <div class="d-flex align-items-center gap-2 flex-wrap">
+          <button type="button"
+                  class="btn btn-outline-primary btn-sm rounded-pill px-3 shadow-sm"
+                  data-bs-toggle="modal"
+                  data-bs-target="#testLinkModal"
+                  id="btn-test-link"
+                  title="Test how rules and block entries affect a link">
+            <i class="bi bi-play-circle me-1"></i>Test Link
+          </button>
           <a href="{{ url_for('rules.blocked_urls_view') }}"
              class="btn btn-outline-danger btn-sm rounded-pill px-3 shadow-sm"
              id="btn-blocked-urls"
@@ -292,6 +300,58 @@
           </button>
         </div>
       </form>
+    </div>
+  </div>
+</div>
+
+<!-- Modal: Test Link Against Rules & Block Entries -->
+<div class="modal fade" id="testLinkModal" tabindex="-1" aria-labelledby="testLinkModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-lg modal-dialog-centered modal-dialog-scrollable">
+    <div class="modal-content shadow">
+      <div class="modal-header">
+        <h5 class="modal-title d-flex align-items-center gap-2" id="testLinkModalLabel">
+          <i class="bi bi-play-circle-fill text-primary"></i>
+          <span>Test Link against Rules & Block Entries</span>
+        </h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body">
+        <form id="test-link-form" onsubmit="return false;">
+          <div class="mb-3">
+            <label for="test-url-input" class="form-label fw-semibold small">Candidate URL <span class="text-danger">*</span></label>
+            <div class="input-group">
+              <input type="text"
+                     class="form-control"
+                     id="test-url-input"
+                     placeholder="e.g. https://example.com/article, old.reddit.com/r/python, or tracker.com"
+                     required
+                     autocomplete="off">
+              <button class="btn btn-primary px-4" type="submit" id="btn-run-test-url">
+                <i class="bi bi-play-fill me-1"></i>Test
+              </button>
+            </div>
+            <div class="form-text small">
+              Evaluates the candidate URL against all regex rules (block, trust, auto-tag, age limit) and BlockEntry patterns.
+            </div>
+          </div>
+        </form>
+
+        <!-- Dynamic Results Area -->
+        <div id="test-link-results" class="mt-3">
+          <div class="text-muted text-center py-4 small" id="test-link-empty-state">
+            <i class="bi bi-search me-1"></i>Enter a URL above and click <strong>Test</strong> to inspect what rules and block entries do to the link.
+          </div>
+          <div class="text-center py-4 d-none" id="test-link-spinner">
+            <div class="spinner-border spinner-border-sm text-primary me-2" role="status"></div>
+            <span class="text-muted small">Evaluating URL against rules and block entries...</span>
+          </div>
+          <div id="test-link-output" class="d-none"></div>
+        </div>
+      </div>
+      <div class="modal-footer d-flex justify-content-between">
+        <button type="button" class="btn btn-outline-secondary btn-sm rounded-pill" id="btn-clear-test-url">Clear</button>
+        <button type="button" class="btn btn-secondary btn-sm rounded-pill px-4" data-bs-dismiss="modal">Close</button>
+      </div>
     </div>
   </div>
 </div>

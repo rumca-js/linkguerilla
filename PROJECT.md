@@ -217,8 +217,10 @@ It should be possible to download a new database .db file from the internet, or 
  - BlockEntriesScreen - Displays and manages individual BlockEntry records with pagination and search (keeps EntryRulesScreen responsive with large block lists).
  - BlockListsScreen - Displays and manages BlockEntryList plain text block lists.
  - AboutScreen - Shows information about the application.
- - UrlPreview - shows preview for link. Link can be passed to it from other places of software
-    - it should say if link is blocked, and if it is by which rule
+ - UrlPreview (`/preview`) - shows dynamic preview for a link. Link can be passed via `?url=` from other places in the software or entered via search input.
+    - dynamically extracts metadata using `webtools_service.py` (`WebToolsWrapper`): title, description, thumbnail, author, language, publication date, HTTP status code, media embed (e.g. YouTube), feed entries (`get_entries()`), content links (`get_content_links()`), and social properties.
+    - evaluates whether the link is blocked by EntryRules or BlockEntry patterns, indicating the blocking rule or block entry.
+    - provides action buttons to add the URL as a link entry, add as a feed source, or test against entry rules.
  - DatabaseView - shows database information
  - StatusView - shows status of app, if background task reading jobs is working
  - ConfigurationView - allows user to change configurationentry properties (display style)
@@ -467,6 +469,7 @@ The screen displays, where available:
  - trigger_rule_url supports re syntax ".*reddit.com.*" should work
  - multiple rules can be defined in a single rule, eg. ".*reddit.com.*, .*github.com.*"
  - Block entries are not displayed directly as a monolithic table in EntryRulesScreen to ensure fast rendering when handling thousands of entries. Instead, a "Blocked Urls" button with a badge count navigates to BlockEntriesScreen with search and pagination controls.
+ - Test Link button: provides an interactive modal tool to test any candidate URL against rules and block entries. Shows whether the link is blocked, what actions are taken (block, trust, auto-tag, age limit), and lists all matching rules and block entries that affect it.
 
 ## BlockEntriesScreen
  - Displays BlockEntry items (blocked URLs, domains, and patterns) with server-side pagination and search.
