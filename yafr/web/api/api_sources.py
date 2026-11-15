@@ -327,16 +327,25 @@ def batch_add():
     }
 
     for item in candidates:
-        url = (item.get("url") or "").strip() if isinstance(item, dict) else str(item).strip()
+        url = (
+            (item.get("url") or "").strip()
+            if isinstance(item, dict)
+            else str(item).strip()
+        )
         if not url:
             continue
 
-        raw_type = (item.get("source_type") or "").strip().upper() if isinstance(item, dict) else ""
+        raw_type = (
+            (item.get("source_type") or "").strip().upper()
+            if isinstance(item, dict)
+            else ""
+        )
         source_type = raw_type if raw_type in allowed_types else None
 
         # Duplicate check
         from sqlalchemy import select as sa_select
         from linkarchivetools.model.definitions import SourcesTable as ST
+
         exists = session.execute(
             sa_select(ST.id).where(ST.url == url).limit(1)
         ).scalar()
@@ -351,7 +360,9 @@ def batch_add():
                 source_type=source_type,
                 enabled=True,
             )
-            added.append({"id": source.id, "url": source.url, "source_type": source.source_type})
+            added.append(
+                {"id": source.id, "url": source.url, "source_type": source.source_type}
+            )
         except Exception as exc:
             logger.warning("batch-add: failed to add %s: %s", url, exc)
             session.rollback()
@@ -366,7 +377,11 @@ def batch_add():
             "added": added,
             "message": (
                 f"Added {len(added)} sources"
-                + (f", {len(skipped_duplicate)} duplicates skipped" if skipped_duplicate else "")
+                + (
+                    f", {len(skipped_duplicate)} duplicates skipped"
+                    if skipped_duplicate
+                    else ""
+                )
                 + (f", {len(skipped_invalid)} invalid" if skipped_invalid else "")
                 + "."
             ),

@@ -58,3 +58,9 @@
   ──────
   TL;DR: 100–200 MB virtual memory for a Python Flask app with SQLAlchemy + yt-dlp is completely expected and not a
   concern. It would only become an issue if you're deploying to a device with very limited RAM (< 256 MB total).
+
+## Resolved Bugs
+
+- **Logs View Main Checkbox (`#select-all-logs`) Not Selecting All Logs**:
+  In `yafr/static/js/logs.js`, the AJAX call and click handler for `#confirm-clear-logs-btn` were missing closing `});` statements, causing a JavaScript syntax error that prevented `logs.js` from executing and registering the `#select-all-logs` change event handler.
+

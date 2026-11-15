@@ -112,6 +112,9 @@ document.addEventListener("DOMContentLoaded", function () {
         btn.prop("disabled", false).html(originalHtml);
         alert("Network error while clearing logs.");
       }
+    });
+  });
+
   // 4. Multi-Select Checkbox Handling & Batch Delete
   function updateBatchDeleteBar() {
     var checkedBoxes = $(".log-select-checkbox:checked");
