@@ -134,6 +134,15 @@ class TestEntryRoutes(unittest.TestCase):
         self.assertNotIn("btn-set-vote", html)
 
 
+    def test_search_view_copy_links_button(self):
+        """GET /?q=Python renders copy links to clipboard button and entries have data-entry-url."""
+        response = self.client.get("/?q=Python")
+        self.assertEqual(response.status_code, 200)
+        html = response.get_data(as_text=True)
+        self.assertIn("btn-copy-links", html)
+        self.assertIn("Copy Links", html)
+        self.assertIn('data-entry-url="https://example.com/py1"', html)
+
     def test_display_gallery_layout(self):
         """GET /?q=Python&display=gallery renders gallery-grid container."""
         response = self.client.get("/?q=Python&display=gallery")

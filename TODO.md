@@ -8,6 +8,7 @@
  - [x] configuration screen
  - [x] **Configuration constants from linkarchivetools**: `yafr/web/shared.py` uses DISPLAY_TYPE and DISPLAY_STYLE definitions from `linkarchivetools.model.configurationentry` (`ConfigurationEntryService`).
  - [x] **Compact vs Links-Only Layouts**: Compact layout displays high-density tabular view with metadata, icons, and action buttons; Links-only layout displays strictly one link per line without additional data.
+ - [x] **Copy Links to Clipboard in Entry List**: Added button in `yafr/templates/entries/list.html` to copy entry links to clipboard with visual feedback.
  - [x] jobs screen
  - [x] logs screen (includes Clear All, clear logs of particular level, and row checkboxes with batch delete; master checkbox #select-all-logs toggle fix)
  - [x] **AppLoggingHandler & NOTIFICATION log level**: Introduce NOTIFICATION (25) severity level, AppLoggingHandler routing NOTIFICATION/WARNING/ERROR/CRITICAL to applogging table, and UI level filter.
@@ -17,6 +18,8 @@
  - [x] **Link Update Data Background Job**: `JOB_LINK_UPDATE_DATA = "link-update-data"` enqueued when links are added by user, worker thread fetches BaseUrl/RemoteUrl title and description and updates entry metadata.
  - [x] **WebTools Direct Parsing (No BeautifulSoup / Response Fallback)**: Either BaseUrl/RemoteUrl works, or not. Webtoolkit provides direct parsing of titles, descriptions, date_published, author, album, language, thumbnail, etc. Fallback on response and BeautifulSoup removed from WebToolsWrapper and link-update-data job. PROJECT.md and ARCHITECTURE.md updated.
  - [x] link update job updates title, description, date_published, author, album, language, thumbnail, and dead link status.
+ - [x] provide ability to block entries (blockentries and blockentrylist tables supported via repositories, parsing, and splitting)
+ - [x] provide ability to add many sources
 - [ ] **Entry Rules & URL Preview**: Implement `EntryRulesScreen` (`/rules`) for URL regex rules (block, trust, auto-tag) and `UrlPreview` (`/preview`) to verify whether links are blocked by rules.
 - [ ] **Data Import & Export**: Implement OPML import/export for sources and JSON/link lists import/export for database entries.
 - [ ] **Remote Database Download**: Provide functionality to download and replace the active SQLite database from a remote URL.
@@ -26,8 +29,6 @@
  - provide docker compose script and Dockerfile
  - On hold - introduce system operations table to mark that threads are working
  - if database file is replaced, how thread should be restarted?
- - [x] provide ability to block entries (blockentries and blockentrylist tables supported via repositories, parsing, and splitting)
- - provide ability to add many sources
  - page properties tool
  - source list: order by errors
 

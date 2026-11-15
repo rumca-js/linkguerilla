@@ -40,6 +40,14 @@
           </div>
 
           <div class="d-flex align-items-center gap-2">
+            {% if entries %}
+            <button type="button" 
+                    class="btn btn-outline-secondary btn-sm btn-copy-links" 
+                    id="btn-copy-links" 
+                    title="Copy links to clipboard">
+              <i class="bi bi-clipboard me-1"></i><span class="copy-text">Copy Links</span>
+            </button>
+            {% endif %}
             <span class="text-secondary small d-none d-sm-inline">Layout:</span>
             <div class="btn-group btn-group-sm" role="group" aria-label="Display style">
               <a href="{{ url_for('entries.search_view', q=query, filter=active_filter, display='gallery', page=page) }}" 

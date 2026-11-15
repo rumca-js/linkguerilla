@@ -20,7 +20,7 @@
 {# 1. GALLERY LAYOUT (YouTube / TikTok style visual grid)                    #}
 {# ======================================================================== #}
 {% if display_type == 'gallery' %}
-<div class="gallery-card border shadow-sm entry-card-clickable {{ class_str }}" id="entry-card-{{ entry.id }}" data-entry-id="{{ entry.id }}" data-detail-url="{{ url_for('entries.entry_detail_view', id=entry.id) }}" title="{{entry.title}}">
+<div class="gallery-card border shadow-sm entry-card-clickable {{ class_str }}" id="entry-card-{{ entry.id }}" data-entry-id="{{ entry.id }}" data-detail-url="{{ url_for('entries.entry_detail_view', id=entry.id) }}" data-entry-url="{{ entry.link }}" title="{{entry.title}}">
   {% if show_icons %}
   <div class="gallery-thumb-wrap">
     {% if entry.thumbnail %}
@@ -150,7 +150,7 @@
 {# 2. STANDARD LAYOUT (Feed Reader style: Left Thumb, Right Content)         #}
 {# ======================================================================== #}
 {% elif display_type == 'standard' %}
-<div class="card standard-card border shadow-sm p-3 entry-card-clickable {{ class_str }}" id="entry-card-{{ entry.id }}" data-entry-id="{{ entry.id }}" data-detail-url="{{ url_for('entries.entry_detail_view', id=entry.id) }}" title="{{entry.title}}">
+<div class="card standard-card border shadow-sm p-3 entry-card-clickable {{ class_str }}" id="entry-card-{{ entry.id }}" data-entry-id="{{ entry.id }}" data-detail-url="{{ url_for('entries.entry_detail_view', id=entry.id) }}" data-entry-url="{{ entry.link }}" title="{{entry.title}}">
   <div class="d-flex flex-column flex-sm-row gap-3">
     {% if show_icons %}
       {% if entry.thumbnail %}
@@ -258,7 +258,7 @@
 {# 3. SEARCH ENGINE LAYOUT (Google / DuckDuckGo style)                       #}
 {# ======================================================================== #}
 {% elif display_type == 'search-engine' %}
-<div class="search-engine-item entry-card-clickable {{ class_str }}" id="entry-card-{{ entry.id }}" data-entry-id="{{ entry.id }}" data-detail-url="{{ url_for('entries.entry_detail_view', id=entry.id) }}" title="{{entry.title}}">
+<div class="search-engine-item entry-card-clickable {{ class_str }}" id="entry-card-{{ entry.id }}" data-entry-id="{{ entry.id }}" data-detail-url="{{ url_for('entries.entry_detail_view', id=entry.id) }}" data-entry-url="{{ entry.link }}" title="{{entry.title}}">
   <div class="search-engine-breadcrumb">
     {% if show_icons %}
       {% if source_obj and source_obj.favicon %}
@@ -371,7 +371,7 @@
 {# 4. CONTENT CENTRIC LAYOUT (Reddit / Forum style)                          #}
 {# ======================================================================== #}
 {% elif display_type == 'content-centric' %}
-<div class="content-centric-card shadow-sm entry-card-clickable {{ class_str }}" id="entry-card-{{ entry.id }}" data-entry-id="{{ entry.id }}" data-detail-url="{{ url_for('entries.entry_detail_view', id=entry.id) }}">
+<div class="content-centric-card shadow-sm entry-card-clickable {{ class_str }}" id="entry-card-{{ entry.id }}" data-entry-id="{{ entry.id }}" data-detail-url="{{ url_for('entries.entry_detail_view', id=entry.id) }}" data-entry-url="{{ entry.link }}">
   <!-- Left Vote Column -->
   <div class="content-vote-col btn-set-vote" data-id="{{ entry.id }}" data-current="{{ entry.page_rating_votes or 0 }}" style="cursor: pointer;" title="Click to set vote (-100 to 100)">
     <i class="bi bi-star text-warning fs-5"></i>
@@ -458,7 +458,7 @@
 {# 5. COMPACT LAYOUT (High density tabular view)                             #}
 {# ======================================================================== #}
 {% elif display_type == 'compact' %}
-<tr class="compact-row entry-card-clickable {{ class_str }}" id="entry-card-{{ entry.id }}" data-entry-id="{{ entry.id }}" data-detail-url="{{ url_for('entries.entry_detail_view', id=entry.id) }}">
+<tr class="compact-row entry-card-clickable {{ class_str }}" id="entry-card-{{ entry.id }}" data-entry-id="{{ entry.id }}" data-detail-url="{{ url_for('entries.entry_detail_view', id=entry.id) }}" data-entry-url="{{ entry.link }}">
   {% if show_icons %}
   <td>
     {% if is_dead %}
@@ -518,7 +518,7 @@
 {# 6. LINKS ONLY LAYOUT (One link per line, no extra data)                   #}
 {# ======================================================================== #}
 {% else %}
-<div class="links-only-line {{ class_str }}" id="entry-card-{{ entry.id }}" data-entry-id="{{ entry.id }}">
+<div class="links-only-line {{ class_str }}" id="entry-card-{{ entry.id }}" data-entry-id="{{ entry.id }}" data-entry-url="{{ entry.link }}">
   <a href="{{ entry.link }}" target="_blank" rel="noopener noreferrer" class="links-only-url" title="{{ entry.title }}">{{ entry.link }}</a>
 </div>
 {% endif %}

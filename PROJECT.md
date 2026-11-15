@@ -282,6 +282,7 @@ It should be possible to download a new database .db file from the internet, or 
  - can support lazy loading (but does not have to) if we had many embedded youtube previews, etc
  - user should be able to change display style, or type from this place, or change if clicking on entry should lead into entry.link, or local preview, or if icons should be shown
  - user should be able to use batch operations on selected links: delete / bookmark / unbookmark / copy
+ - user can copy links from the entry list to clipboard via a dedicated button
 
 ### EntryListItem - row in EntryListScreen
 There are several list styles:

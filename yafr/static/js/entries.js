@@ -327,4 +327,73 @@ $(document).ready(function () {
     });
   });
 
+  // 5. Copy Links to Clipboard in Entry List
+  function _setCopiedState(btn, originalHtml) {
+    btn.html('<i class="bi bi-check2 me-1"></i><span class="copy-text">Copied!</span>');
+    btn.addClass('btn-success').removeClass('btn-outline-secondary');
+    setTimeout(function () {
+      btn.html(originalHtml);
+      btn.removeClass('btn-success').addClass('btn-outline-secondary');
+    }, 2000);
+  }
+
+  function _fallbackCopy(text, btn, originalHtml) {
+    var textarea = document.createElement('textarea');
+    textarea.value = text;
+    textarea.style.position = 'fixed';
+    textarea.style.opacity = '0';
+    document.body.appendChild(textarea);
+    textarea.select();
+    try {
+      document.execCommand('copy');
+      _setCopiedState(btn, originalHtml);
+    } catch (err) {
+      console.error('Failed to copy links:', err);
+    }
+    document.body.removeChild(textarea);
+  }
+
+  $(document).on('click', '#btn-copy-links, .btn-copy-links', function (e) {
+    e.preventDefault();
+    e.stopPropagation();
+
+    var btn = $(this);
+    var links = [];
+
+    // Collect all links from entry elements with data-entry-url
+    $('[data-entry-url]').each(function () {
+      var url = $(this).attr('data-entry-url');
+      if (url && links.indexOf(url) === -1) {
+        links.push(url);
+      }
+    });
+
+    // Fallback: if data-entry-url is not set, collect from entry external links
+    if (links.length === 0) {
+      $('.entry-external-link, .links-only-url').each(function () {
+        var href = $(this).attr('href');
+        if (href && href !== '#' && links.indexOf(href) === -1) {
+          links.push(href);
+        }
+      });
+    }
+
+    if (links.length === 0) {
+      return;
+    }
+
+    var text = links.join('\n');
+    var originalHtml = btn.html();
+
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(text).then(function () {
+        _setCopiedState(btn, originalHtml);
+      }).catch(function () {
+        _fallbackCopy(text, btn, originalHtml);
+      });
+    } else {
+      _fallbackCopy(text, btn, originalHtml);
+    }
+  });
+
 });
