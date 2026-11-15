@@ -366,6 +366,32 @@
     </div>
   </div>
 
+  <!-- Related URLs Discovery (lazy-loaded on demand) -->
+  {% if stype != 'EMAIL' %}
+  <div class="card mb-4 shadow-sm border" id="related-urls-card">
+    <div class="card-header bg-body py-3 d-flex justify-content-between align-items-center">
+      <h5 class="mb-0 fs-6 fw-bold">
+        <i class="bi bi-diagram-3 me-1 text-primary"></i>Related & Discovered URLs
+      </h5>
+      <button
+        type="button"
+        class="btn btn-outline-primary btn-sm rounded-pill"
+        id="btn-discover-urls"
+        data-source-id="{{ source.id }}"
+      >
+        <i class="bi bi-search me-1"></i>Discover
+      </button>
+    </div>
+    <div class="card-body" id="related-urls-body">
+      <p class="text-muted small mb-0">
+        Click <strong>Discover</strong> to probe <code>{{ source.url }}</code> for feed links and
+        alternate URL variants (canonical, channel, etc.) that differ from the stored source URL.
+        This performs a live network request.
+      </p>
+    </div>
+  </div>
+  {% endif %}
+
   <!-- IMAP Credentials Info (For Email sources) -->
   {% if stype == 'EMAIL' and credentials %}
     <div class="card mb-4 shadow-sm border">
@@ -643,6 +669,173 @@
           btn.prop('disabled', false);
           alert('Failed to convert source: ' + (xhr.responseJSON?.error || xhr.statusText));
         }
+      });
+    });
+
+    // Related URLs Discovery button
+    $('#btn-discover-urls').on('click', function() {
+      const btn = $(this);
+      const sourceId = btn.data('source-id');
+      const container = $('#related-urls-body');
+
+      btn.prop('disabled', true);
+      btn.html('<span class="spinner-border spinner-border-sm me-1" role="status" aria-hidden="true"></span>Discovering...');
+
+      container.html(`
+        <div class="d-flex align-items-center py-2 text-muted">
+          <span class="spinner-border spinner-border-sm me-2 text-primary" role="status" aria-hidden="true"></span>
+          <span class="small">Probing <code>{{ source.url }}</code> for feed links and alternate URLs...</span>
+        </div>
+      `);
+
+      $.ajax({
+        url: `/api/sources/${sourceId}/related-urls`,
+        method: 'GET',
+        success: function(resp) {
+          btn.prop('disabled', false);
+          btn.html('<i class="bi bi-arrow-clockwise me-1"></i>Re-probe');
+
+          if (!resp.success) {
+            container.html(`
+              <div class="alert alert-danger py-2 px-3 small mb-0">
+                <i class="bi bi-exclamation-octagon me-1"></i>Failed to discover URLs: ${resp.error || 'Unknown error'}
+              </div>
+            `);
+            return;
+          }
+
+          const feeds = resp.feeds || [];
+          const urls = resp.urls || [];
+
+          if (feeds.length === 0 && urls.length === 0) {
+            let html = `
+              <div class="text-muted small py-1">
+                <i class="bi bi-info-circle me-1"></i>No unique alternate links or feeds discovered for this source.
+              </div>
+            `;
+            if (resp.error) {
+              html += `
+                <div class="alert alert-warning py-2 px-3 small mt-2 mb-0">
+                  <i class="bi bi-exclamation-triangle me-1"></i>Notice: ${resp.error}
+                </div>
+              `;
+            }
+            container.html(html);
+            return;
+          }
+
+          function escapeHtml(str) {
+            if (!str) return '';
+            const d = document.createElement('div');
+            d.textContent = str;
+            return d.innerHTML;
+          }
+
+          let out = '';
+
+          if (feeds.length > 0) {
+            out += `
+              <div class="fw-semibold text-secondary small mb-2 text-uppercase d-flex align-items-center">
+                <i class="bi bi-rss me-1 text-warning"></i>Discovered Feeds (${feeds.length})
+              </div>
+              <ul class="list-group list-group-flush mb-3">
+            `;
+            feeds.forEach(function(feed) {
+              const safeFeed = escapeHtml(feed);
+              const addUrl = "{{ url_for('sources.source_add_rss') }}?url=" + encodeURIComponent(feed);
+              out += `
+                <li class="list-group-item px-0 py-2 d-flex justify-content-between align-items-center flex-wrap gap-2">
+                  <div class="d-flex align-items-center text-truncate" style="min-width: 0; max-width: 75%;">
+                    <span class="badge bg-warning-subtle text-warning border me-2">Feed</span>
+                    <a href="${safeFeed}" target="_blank" rel="noopener noreferrer" class="font-monospace text-truncate small text-decoration-none" title="${safeFeed}">
+                      ${safeFeed}
+                    </a>
+                  </div>
+                  <div class="d-flex align-items-center gap-1">
+                    <button type="button" class="btn btn-outline-secondary btn-sm copy-rel-btn py-0 px-2" data-url="${safeFeed}" title="Copy URL">
+                      <i class="bi bi-clipboard"></i>
+                    </button>
+                    <a href="${safeFeed}" target="_blank" rel="noopener noreferrer" class="btn btn-outline-secondary btn-sm py-0 px-2" title="Open external URL">
+                      <i class="bi bi-box-arrow-up-right"></i>
+                    </a>
+                    <a href="${addUrl}" class="btn btn-outline-success btn-sm py-0 px-2" title="Add as new RSS source">
+                      <i class="bi bi-plus-lg me-1"></i>Add Source
+                    </a>
+                  </div>
+                </li>
+              `;
+            });
+            out += '</ul>';
+          }
+
+          if (urls.length > 0) {
+            out += `
+              <div class="fw-semibold text-secondary small mb-2 text-uppercase d-flex align-items-center">
+                <i class="bi bi-link-45deg me-1 text-primary"></i>Alternate URLs (${urls.length})
+              </div>
+              <ul class="list-group list-group-flush mb-0">
+            `;
+            urls.forEach(function(item) {
+              const safeUrl = escapeHtml(item.url);
+              let label = item.label || 'link';
+              if (label.startsWith('link_')) label = label.slice(5);
+              label = label.charAt(0).toUpperCase() + label.slice(1);
+              const safeLabel = escapeHtml(label);
+              out += `
+                <li class="list-group-item px-0 py-2 d-flex justify-content-between align-items-center flex-wrap gap-2">
+                  <div class="d-flex align-items-center text-truncate" style="min-width: 0; max-width: 75%;">
+                    <span class="badge bg-secondary-subtle text-secondary border me-2">${safeLabel}</span>
+                    <a href="${safeUrl}" target="_blank" rel="noopener noreferrer" class="font-monospace text-truncate small text-decoration-none" title="${safeUrl}">
+                      ${safeUrl}
+                    </a>
+                  </div>
+                  <div class="d-flex align-items-center gap-1">
+                    <button type="button" class="btn btn-outline-secondary btn-sm copy-rel-btn py-0 px-2" data-url="${safeUrl}" title="Copy URL">
+                      <i class="bi bi-clipboard"></i>
+                    </button>
+                    <a href="${safeUrl}" target="_blank" rel="noopener noreferrer" class="btn btn-outline-secondary btn-sm py-0 px-2" title="Open external URL">
+                      <i class="bi bi-box-arrow-up-right"></i>
+                    </a>
+                  </div>
+                </li>
+              `;
+            });
+            out += '</ul>';
+          }
+
+          if (resp.error) {
+            out += `
+              <div class="alert alert-warning py-2 px-3 small mt-3 mb-0">
+                <i class="bi bi-exclamation-triangle me-1"></i>Notice: ${escapeHtml(resp.error)}
+              </div>
+            `;
+          }
+
+          container.html(out);
+        },
+        error: function(xhr) {
+          btn.prop('disabled', false);
+          btn.html('<i class="bi bi-search me-1"></i>Discover');
+          container.html(`
+            <div class="alert alert-danger py-2 px-3 small mb-0">
+              <i class="bi bi-exclamation-octagon me-1"></i>Failed to discover URLs: ${escapeHtml(xhr.responseJSON?.error || xhr.statusText)}
+            </div>
+          `);
+        }
+      });
+    });
+
+    // Copy button handling for discovered URLs
+    $(document).on('click', '.copy-rel-btn', function() {
+      const btn = $(this);
+      const url = btn.data('url');
+      if (!url) return;
+      navigator.clipboard.writeText(url).then(function() {
+        const origHtml = btn.html();
+        btn.html('<i class="bi bi-check2 text-success"></i>');
+        setTimeout(function() {
+          btn.html(origHtml);
+        }, 1500);
       });
     });
   });

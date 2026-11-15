@@ -1002,3 +1002,114 @@ class TestSourceApiBatchAdd(unittest.TestCase):
         html = resp.get_data(as_text=True)
         self.assertIn("batchAddSourcesModal", html)
         self.assertIn("Add Multiple URLs", html)
+
+
+class TestRelatedUrlsDiscovery(unittest.TestCase):
+    """
+    Test suite for GET /api/sources/<source_id>/related-urls and related UI card.
+    """
+
+    def setUp(self):
+        self.app = create_app(
+            {
+                "TESTING": True,
+                "DATABASE_PATH": ":memory:",
+                "SECRET_KEY": "test-key-related-urls",
+            }
+        )
+        self.client = self.app.test_client()
+        self.session = get_session()
+        self.repo = SourceRepository(self.session)
+        self.source = self.repo.add_source(
+            url="https://example.com/blog",
+            title="Example Blog",
+            source_type="RSS",
+            enabled=True,
+        )
+
+    def tearDown(self):
+        close_session()
+
+    def test_related_urls_404_for_unknown_source(self):
+        """GET /api/sources/99999/related-urls returns 404."""
+        resp = self.client.get("/api/sources/99999/related-urls")
+        self.assertEqual(resp.status_code, 404)
+        data = resp.get_json()
+        self.assertFalse(data["success"])
+        self.assertIn("Source not found", data["error"])
+
+    @patch("webtoolkit.BaseUrl")
+    def test_related_urls_returns_unique_and_different_links(self, mock_base_url_cls):
+        """Returns unique feeds and URLs that differ from source.url and deduplicates."""
+        mock_instance = mock_base_url_cls.return_value
+        mock_instance.get_feeds.return_value = [
+            "https://example.com/blog",  # identical to source.url -> must be omitted
+            "https://example.com/feed.xml",
+            "https://example.com/feed.xml",  # duplicate feed -> must be deduplicated
+            "",
+            None,
+        ]
+        mock_instance.get_urls.return_value = {
+            "link": "https://example.com/blog",  # identical to source.url -> omitted
+            "link_request": "https://example.com/blog",  # identical -> omitted
+            "link_feed": "https://example.com/feed.xml",  # already in feeds -> omitted
+            "link_canonical": "https://example.com/canonical",
+            "link_channel": "https://example.com/channel",
+            "duplicate_canonical": "https://example.com/canonical",  # duplicate URL -> omitted
+            "empty": None,
+        }
+
+        resp = self.client.get(f"/api/sources/{self.source.id}/related-urls")
+        self.assertEqual(resp.status_code, 200)
+        data = resp.get_json()
+        self.assertTrue(data["success"])
+        self.assertEqual(data["source_id"], self.source.id)
+        self.assertEqual(data["source_url"], "https://example.com/blog")
+
+        # Feeds must contain only unique items different from source_url
+        self.assertEqual(data["feeds"], ["https://example.com/feed.xml"])
+
+        # URLs must contain unique items different from source_url and not in feeds
+        expected_urls = [
+            {"label": "link_canonical", "url": "https://example.com/canonical"},
+            {"label": "link_channel", "url": "https://example.com/channel"},
+        ]
+        self.assertEqual(data["urls"], expected_urls)
+        self.assertIsNone(data["error"])
+        mock_instance.close.assert_called_once()
+
+    @patch("webtoolkit.BaseUrl")
+    def test_related_urls_handles_network_error_gracefully(self, mock_base_url_cls):
+        """Network/DNS or BaseUrl errors are caught and returned in error field."""
+        mock_base_url_cls.side_effect = RuntimeError("DNS resolution failed")
+
+        resp = self.client.get(f"/api/sources/{self.source.id}/related-urls")
+        self.assertEqual(resp.status_code, 200)
+        data = resp.get_json()
+        self.assertTrue(data["success"])
+        self.assertEqual(data["feeds"], [])
+        self.assertEqual(data["urls"], [])
+        self.assertIn("DNS resolution failed", data["error"])
+
+    def test_source_detail_html_contains_related_urls_section_for_rss(self):
+        """Detail screen for RSS source includes related URLs discovery card and button."""
+        resp = self.client.get(f"/sources/{self.source.id}")
+        self.assertEqual(resp.status_code, 200)
+        html = resp.get_data(as_text=True)
+        self.assertIn("related-urls-card", html)
+        self.assertIn('id="btn-discover-urls"', html)
+        self.assertIn("Related & Discovered URLs", html)
+
+    def test_source_detail_html_omits_related_urls_for_email_source(self):
+        """Detail screen for EMAIL source does not include related URLs discovery card."""
+        email_source = self.repo.add_source(
+            url="imap://user:pass@imap.example.com",
+            title="Email Source",
+            source_type="EMAIL",
+        )
+        resp = self.client.get(f"/sources/{email_source.id}")
+        self.assertEqual(resp.status_code, 200)
+        html = resp.get_data(as_text=True)
+        self.assertNotIn("related-urls-card", html)
+        self.assertNotIn('id="btn-discover-urls"', html)
+

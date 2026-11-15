@@ -377,6 +377,28 @@ Following the project requirement to **"prefer having small server functions tha
   ```
 - **Offline Capable**: Yes.
 
+#### `GET /api/sources/<int:id>/related-urls`
+- **Purpose**: Discovers related URLs and feeds for a source by querying `webtoolkit.BaseUrl(url).get_feeds()` and `BaseUrl(url).get_urls()`. Returns discovered feed URLs and alternate URL variants (such as canonical and channel links) that are unique and differ from the source's stored URL.
+- **Response**:
+  ```json
+  {
+    "success": true,
+    "source_id": 7,
+    "source_url": "https://example.com",
+    "feeds": [
+      "https://example.com/feed.xml"
+    ],
+    "urls": [
+      {
+        "label": "link_canonical",
+        "url": "https://example.com/canonical"
+      }
+    ],
+    "error": null
+  }
+  ```
+- **Offline Capable**: No (requires internet/live probe).
+
 #### `POST /api/sources/fetch-all`
 - **Purpose**: Triggers a batch refresh for all outdated sources (`date_fetched > 1h`) or sources with consecutive errors.
 - **Request Body**:

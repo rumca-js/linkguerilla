@@ -213,6 +213,78 @@ def delete_source(source_id: int):
     return jsonify({"success": True, "deleted_source_id": source_id})
 
 
+@api_sources_bp.route("/<int:source_id>/related-urls", methods=["GET"])
+def related_urls(source_id: int):
+    """
+    Discovers related URLs for a source by calling webtoolkit.BaseUrl.get_feeds()
+    and BaseUrl.get_urls() on the source's URL.
+
+    Returns feeds and alternate URL variants that differ from the stored source URL,
+    de-duplicated. This is a potentially slow network call; it is triggered lazily
+    from the detail page.
+    """
+    session = get_session()
+    repo = SourceRepository(session)
+    source = repo.get_by_id(source_id)
+    if not source:
+        return api_response(success=False, error="Source not found", status_code=404)
+
+    import webtoolkit
+
+    source_url = source.url.strip()
+    result_feeds = []
+    result_urls = []
+    seen_urls = {source_url}
+    error_msg = None
+    b = None
+
+    try:
+        b = webtoolkit.BaseUrl(url=source_url)
+
+        # get_feeds() – RSS/Atom feed URLs discovered on the page
+        try:
+            feeds = b.get_feeds() or []
+            for f in feeds:
+                f = (f or "").strip()
+                if f and f not in seen_urls:
+                    result_feeds.append(f)
+                    seen_urls.add(f)
+        except Exception as exc:
+            logger.debug("get_feeds failed for %s: %s", source_url, exc)
+
+        # get_urls() – canonical / channel / cleaned URL variants
+        try:
+            urls_map = b.get_urls() or {}
+            for key, val in urls_map.items():
+                val = (val or "").strip()
+                if val and val not in seen_urls:
+                    result_urls.append({"label": key, "url": val})
+                    seen_urls.add(val)
+        except Exception as exc:
+            logger.debug("get_urls failed for %s: %s", source_url, exc)
+
+    except Exception as exc:
+        logger.warning("related_urls: BaseUrl init failed for %s: %s", source_url, exc)
+        error_msg = str(exc)
+    finally:
+        if b is not None and hasattr(b, "close"):
+            try:
+                b.close()
+            except Exception:
+                pass
+
+    return jsonify(
+        {
+            "success": True,
+            "source_id": source_id,
+            "source_url": source_url,
+            "feeds": result_feeds,
+            "urls": result_urls,
+            "error": error_msg,
+        }
+    )
+
+
 @api_sources_bp.route("/batch-add", methods=["POST"])
 def batch_add():
     """

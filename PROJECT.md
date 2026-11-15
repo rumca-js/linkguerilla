@@ -407,6 +407,7 @@ The screen displays, where available:
     -- Fetch / Update
     -- Edit.
     -- Remove.
+    -- Discover Related URLs: probes source URL via webtoolkit BaseUrl to discover RSS/Atom feeds (BaseUrl.get_feeds()) and alternate URL variants (BaseUrl.get_urls()) such as canonical and channel links that differ from the source URL (unique).
  - The Fetch action downloads the source content from the internet.
      button should not be active, if it is fetch job (process-source) in jobs
  - The source content is expected to be RSS or a compatible feed.
