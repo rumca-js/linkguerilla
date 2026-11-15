@@ -48,6 +48,9 @@ BOOLEAN_CONFIG_FIELDS = [
     "enable_file_support",
     "enable_link_archiving",
     "enable_source_archiving",
+    "allow_remove_permanent_entries",
+    "allow_remove_bookmarked_entries",
+    "allow_remove_votes_entries",
     "debug_mode",
 ]
 

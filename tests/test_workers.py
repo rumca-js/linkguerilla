@@ -887,6 +887,9 @@ class TestCleanupJobRetention(unittest.TestCase):
         date_published=None,
         date_created=None,
         date_dead_since=None,
+        permanent: bool = False,
+        bookmarked: bool = False,
+        page_rating_votes: int = 0,
     ) -> LinkDataModel:
         """Helper to insert a minimal LinkDataModel entry."""
         entry = LinkDataModel(
@@ -895,6 +898,9 @@ class TestCleanupJobRetention(unittest.TestCase):
             date_published=date_published,
             date_created=date_created or datetime.now(timezone.utc),
             date_dead_since=date_dead_since,
+            permanent=permanent,
+            bookmarked=bookmarked,
+            page_rating_votes=page_rating_votes,
         )
         self.session.add(entry)
         self.session.commit()
@@ -977,6 +983,217 @@ class TestCleanupJobRetention(unittest.TestCase):
 
         self.assertIsNotNone(self.entry_repo.get_by_id(e1.id))
         self.assertIsNotNone(self.entry_repo.get_by_id(e2.id))
+
+    def test_cleanup_preserves_permanent_entries_when_not_allowed(self):
+        """CleanupJobHandler preserves permanent entries when allow_remove_permanent_entries is False."""
+        config = self.config_repo.get_config()
+        config.days_to_remove_links = 30
+        config.allow_remove_permanent_entries = False
+        self.session.commit()
+
+        old_date = datetime.now(timezone.utc) - timedelta(days=35)
+        perm_entry = self._add_entry(
+            "https://permanent.example.com", date_published=old_date, permanent=True
+        )
+        regular_entry = self._add_entry(
+            "https://regular.example.com", date_published=old_date, permanent=False
+        )
+
+        self.job_repo.enqueue_job(
+            job="cleanup", subject="system", priority=1, enabled=True
+        )
+        executor = JobExecutor(session=self.session, auto_refresh_sources=False)
+        executor.process_one(session=self.session)
+
+        # Permanent should be preserved, regular should be removed
+        self.assertIsNotNone(self.entry_repo.get_by_id(perm_entry.id))
+        self.assertIsNone(self.entry_repo.get_by_id(regular_entry.id))
+
+    def test_cleanup_removes_permanent_entries_when_allowed(self):
+        """CleanupJobHandler removes permanent entries when allow_remove_permanent_entries is True."""
+        config = self.config_repo.get_config()
+        config.days_to_remove_links = 30
+        config.allow_remove_permanent_entries = True
+        self.session.commit()
+
+        old_date = datetime.now(timezone.utc) - timedelta(days=35)
+        perm_entry = self._add_entry(
+            "https://permanent-allowed.example.com",
+            date_published=old_date,
+            permanent=True,
+        )
+
+        self.job_repo.enqueue_job(
+            job="cleanup", subject="system", priority=1, enabled=True
+        )
+        executor = JobExecutor(session=self.session, auto_refresh_sources=False)
+        executor.process_one(session=self.session)
+
+        self.assertIsNone(self.entry_repo.get_by_id(perm_entry.id))
+
+    def test_cleanup_preserves_bookmarked_entries_when_not_allowed(self):
+        """CleanupJobHandler preserves bookmarked entries when allow_remove_bookmarked_entries is False."""
+        config = self.config_repo.get_config()
+        config.days_to_remove_links = 30
+        config.allow_remove_bookmarked_entries = False
+        self.session.commit()
+
+        old_date = datetime.now(timezone.utc) - timedelta(days=35)
+        bm_entry = self._add_entry(
+            "https://bookmarked.example.com", date_published=old_date, bookmarked=True
+        )
+        regular_entry = self._add_entry(
+            "https://not-bookmarked.example.com",
+            date_published=old_date,
+            bookmarked=False,
+        )
+
+        self.job_repo.enqueue_job(
+            job="cleanup", subject="system", priority=1, enabled=True
+        )
+        executor = JobExecutor(session=self.session, auto_refresh_sources=False)
+        executor.process_one(session=self.session)
+
+        self.assertIsNotNone(self.entry_repo.get_by_id(bm_entry.id))
+        self.assertIsNone(self.entry_repo.get_by_id(regular_entry.id))
+
+    def test_cleanup_removes_bookmarked_entries_when_allowed(self):
+        """CleanupJobHandler removes bookmarked entries when allow_remove_bookmarked_entries is True."""
+        config = self.config_repo.get_config()
+        config.days_to_remove_links = 30
+        config.allow_remove_bookmarked_entries = True
+        self.session.commit()
+
+        old_date = datetime.now(timezone.utc) - timedelta(days=35)
+        bm_entry = self._add_entry(
+            "https://bookmarked-allowed.example.com",
+            date_published=old_date,
+            bookmarked=True,
+        )
+
+        self.job_repo.enqueue_job(
+            job="cleanup", subject="system", priority=1, enabled=True
+        )
+        executor = JobExecutor(session=self.session, auto_refresh_sources=False)
+        executor.process_one(session=self.session)
+
+        self.assertIsNone(self.entry_repo.get_by_id(bm_entry.id))
+
+    def test_cleanup_preserves_voted_entries_when_not_allowed(self):
+        """CleanupJobHandler preserves voted entries when allow_remove_votes_entries is False."""
+        config = self.config_repo.get_config()
+        config.days_to_remove_links = 30
+        config.allow_remove_votes_entries = False
+        config.remove_entry_vote_threshold = 0
+        self.session.commit()
+
+        old_date = datetime.now(timezone.utc) - timedelta(days=35)
+        voted_entry = self._add_entry(
+            "https://voted.example.com", date_published=old_date, page_rating_votes=5
+        )
+        unvoted_entry = self._add_entry(
+            "https://unvoted.example.com", date_published=old_date, page_rating_votes=0
+        )
+
+        self.job_repo.enqueue_job(
+            job="cleanup", subject="system", priority=1, enabled=True
+        )
+        executor = JobExecutor(session=self.session, auto_refresh_sources=False)
+        executor.process_one(session=self.session)
+
+        self.assertIsNotNone(self.entry_repo.get_by_id(voted_entry.id))
+        self.assertIsNone(self.entry_repo.get_by_id(unvoted_entry.id))
+
+    def test_cleanup_removes_voted_entries_when_allowed(self):
+        """CleanupJobHandler removes voted entries when allow_remove_votes_entries is True and threshold is 0."""
+        config = self.config_repo.get_config()
+        config.days_to_remove_links = 30
+        config.allow_remove_votes_entries = True
+        config.remove_entry_vote_threshold = 0
+        self.session.commit()
+
+        old_date = datetime.now(timezone.utc) - timedelta(days=35)
+        voted_entry = self._add_entry(
+            "https://voted-allowed.example.com",
+            date_published=old_date,
+            page_rating_votes=5,
+        )
+
+        self.job_repo.enqueue_job(
+            job="cleanup", subject="system", priority=1, enabled=True
+        )
+        executor = JobExecutor(session=self.session, auto_refresh_sources=False)
+        executor.process_one(session=self.session)
+
+        self.assertIsNone(self.entry_repo.get_by_id(voted_entry.id))
+
+    def test_cleanup_respects_vote_threshold(self):
+        """CleanupJobHandler only removes entries whose votes do not exceed remove_entry_vote_threshold."""
+        config = self.config_repo.get_config()
+        config.days_to_remove_links = 30
+        config.allow_remove_votes_entries = True
+        config.remove_entry_vote_threshold = 5
+        self.session.commit()
+
+        old_date = datetime.now(timezone.utc) - timedelta(days=35)
+        low_vote_entry = self._add_entry(
+            "https://low-vote.example.com",
+            date_published=old_date,
+            page_rating_votes=3,
+        )
+        high_vote_entry = self._add_entry(
+            "https://high-vote.example.com",
+            date_published=old_date,
+            page_rating_votes=10,
+        )
+
+        self.job_repo.enqueue_job(
+            job="cleanup", subject="system", priority=1, enabled=True
+        )
+        executor = JobExecutor(session=self.session, auto_refresh_sources=False)
+        executor.process_one(session=self.session)
+
+        # Low vote (<= 5) should be removed, high vote (> 5) should be preserved
+        self.assertIsNone(self.entry_repo.get_by_id(low_vote_entry.id))
+        self.assertIsNotNone(self.entry_repo.get_by_id(high_vote_entry.id))
+
+    def test_cleanup_stale_dead_entries_respects_protection_switches(self):
+        """CleanupJobHandler respects permanent, bookmark, and votes switches when removing stale dead entries."""
+        config = self.config_repo.get_config()
+        config.days_to_remove_links = 0
+        config.days_to_remove_stale_entries = 14
+        config.allow_remove_permanent_entries = False
+        config.allow_remove_bookmarked_entries = False
+        config.allow_remove_votes_entries = False
+        config.remove_entry_vote_threshold = 0
+        self.session.commit()
+
+        old_dead = datetime.now(timezone.utc) - timedelta(days=20)
+        dead_perm = self._add_entry(
+            "https://dead-perm.example.com", date_dead_since=old_dead, permanent=True
+        )
+        dead_bm = self._add_entry(
+            "https://dead-bm.example.com", date_dead_since=old_dead, bookmarked=True
+        )
+        dead_voted = self._add_entry(
+            "https://dead-voted.example.com",
+            date_dead_since=old_dead,
+            page_rating_votes=4,
+        )
+        dead_regular = self._add_entry(
+            "https://dead-reg.example.com", date_dead_since=old_dead
+        )
+
+        self.job_repo.enqueue_job(
+            job="cleanup", subject="system", priority=1, enabled=True
+        )
+        executor = JobExecutor(session=self.session, auto_refresh_sources=False)
+        executor.process_one(session=self.session)
+
+        self.assertIsNotNone(self.entry_repo.get_by_id(dead_perm.id))
+        self.assertIsNotNone(self.entry_repo.get_by_id(dead_bm.id))
+        self.assertIsNotNone(self.entry_repo.get_by_id(dead_voted.id))
+        self.assertIsNone(self.entry_repo.get_by_id(dead_regular.id))
 
     def test_enqueue_cleanup_if_needed_enqueues_when_not_done_today(self):
         """enqueue_cleanup_if_needed enqueues cleanup job when retention is configured and none ran today."""

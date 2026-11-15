@@ -200,6 +200,10 @@ class ConfigRepository(BaseRepository[ConfigurationEntry]):
             "enable_file_support": False,
             "enable_link_archiving": False,
             "enable_source_archiving": False,
+            "allow_remove_permanent_entries": False,
+            "allow_remove_bookmarked_entries": False,
+            "allow_remove_votes_entries": False,
+            "remove_entry_vote_threshold": 0,
             "debug_mode": False,
         }
         return self.update_config(**defaults)

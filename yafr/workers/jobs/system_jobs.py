@@ -6,11 +6,12 @@ Contains handlers for cleanup, storage limit enforcement, and generic tasks.
 
 import logging
 from datetime import datetime, timedelta, timezone
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Optional
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 from linkarchivetools.model.definitions import (
     BackgroundJob,
+    ConfigurationEntry,
     LinkDataModel,
     SearchHistory,
 )
@@ -53,10 +54,10 @@ class CleanupJobHandler(BaseJobHandler):
         history_repo.apply_storage_limit(SearchHistory, SearchHistory.id, max_searches)
 
         removed_links = self._remove_old_links(
-            session, entry_repo, config.days_to_remove_links
+            session, entry_repo, config.days_to_remove_links, config
         )
         removed_stale = self._remove_stale_dead_entries(
-            session, entry_repo, config.days_to_remove_stale_entries
+            session, entry_repo, config.days_to_remove_stale_entries, config
         )
 
         msg = (
@@ -71,23 +72,60 @@ class CleanupJobHandler(BaseJobHandler):
             "message": msg,
         }
 
+    def _apply_retention_filters(self, stmt: Any, config: ConfigurationEntry) -> Any:
+        """
+        Applies exclusion filters on entry queries based on ConfigurationEntry switches:
+        - allow_remove_permanent_entries: protects permanent entries when False
+        - allow_remove_bookmarked_entries: protects bookmarked entries when False
+        - allow_remove_votes_entries: protects voted entries (or capped by remove_entry_vote_threshold)
+        """
+        if not config.allow_remove_permanent_entries:
+            stmt = stmt.where(
+                (LinkDataModel.permanent == False) | (LinkDataModel.permanent == None)
+            )
+
+        if not config.allow_remove_bookmarked_entries:
+            stmt = stmt.where(
+                (LinkDataModel.bookmarked == False) | (LinkDataModel.bookmarked == None)
+            )
+
+        threshold = config.remove_entry_vote_threshold or 0
+        if not config.allow_remove_votes_entries:
+            stmt = stmt.where(
+                (LinkDataModel.page_rating_votes == None)
+                | (LinkDataModel.page_rating_votes <= threshold)
+            )
+        elif threshold > 0:
+            stmt = stmt.where(
+                (LinkDataModel.page_rating_votes == None)
+                | (LinkDataModel.page_rating_votes <= threshold)
+            )
+
+        return stmt
+
     def _remove_old_links(
         self,
         session: Session,
         entry_repo: EntryRepository,
         days: int,
+        config: Optional[ConfigurationEntry] = None,
     ) -> int:
         """
         Removes entries whose date_published (or date_created if date_published is NULL)
         is older than the given number of days. Skips if days <= 0.
+        Respects protection switches on ConfigurationEntry.
 
         :param session: Active database session
         :param entry_repo: EntryRepository instance
         :param days: Retention period in days; 0 means disabled
+        :param config: Optional active ConfigurationEntry instance
         :return: Number of entries removed
         """
         if not days or days <= 0:
             return 0
+
+        if config is None:
+            config = ConfigRepository(session).get_config()
 
         cutoff = datetime.now(timezone.utc) - timedelta(days=days)
         stmt = select(LinkDataModel.id).where(
@@ -101,6 +139,7 @@ class CleanupJobHandler(BaseJobHandler):
                 & (LinkDataModel.date_created < cutoff)
             )
         )
+        stmt = self._apply_retention_filters(stmt, config)
         entry_ids: List[int] = list(session.execute(stmt).scalars().all())
         if not entry_ids:
             return 0
@@ -116,18 +155,24 @@ class CleanupJobHandler(BaseJobHandler):
         session: Session,
         entry_repo: EntryRepository,
         days: int,
+        config: Optional[ConfigurationEntry] = None,
     ) -> int:
         """
         Removes entries where date_dead_since is older than the given number of days.
         Skips if days <= 0.
+        Respects protection switches on ConfigurationEntry.
 
         :param session: Active database session
         :param entry_repo: EntryRepository instance
         :param days: Retention period in days for dead entries; 0 means disabled
+        :param config: Optional active ConfigurationEntry instance
         :return: Number of entries removed
         """
         if not days or days <= 0:
             return 0
+
+        if config is None:
+            config = ConfigRepository(session).get_config()
 
         cutoff = datetime.now(timezone.utc) - timedelta(days=days)
         stmt = (
@@ -135,6 +180,7 @@ class CleanupJobHandler(BaseJobHandler):
             .where(LinkDataModel.date_dead_since != None)
             .where(LinkDataModel.date_dead_since < cutoff)
         )
+        stmt = self._apply_retention_filters(stmt, config)
         entry_ids: List[int] = list(session.execute(stmt).scalars().all())
         if not entry_ids:
             return 0

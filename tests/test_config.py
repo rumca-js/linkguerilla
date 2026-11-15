@@ -143,7 +143,7 @@ class TestConfigurationWebAndApi(unittest.TestCase):
         self.assertTrue(config.accept_non_domain_links)
 
     def test_configuration_view_renders_retention_fields(self):
-        """GET /configuration renders inputs for days_to_remove_links and days_to_remove_stale_entries."""
+        """GET /configuration renders inputs for days_to_remove_links, days_to_remove_stale_entries, and removal switches."""
         res = self.client.get("/configuration")
         self.assertEqual(res.status_code, 200)
         html = res.get_data(as_text=True)
@@ -152,14 +152,22 @@ class TestConfigurationWebAndApi(unittest.TestCase):
         self.assertIn("days_to_remove_stale_entries", html)
         self.assertIn("Days to Remove Links", html)
         self.assertIn("Days to Remove Stale Dead Entries", html)
+        self.assertIn("allow_remove_permanent_entries", html)
+        self.assertIn("allow_remove_bookmarked_entries", html)
+        self.assertIn("allow_remove_votes_entries", html)
+        self.assertIn("remove_entry_vote_threshold", html)
 
     def test_post_configuration_updates_retention_fields(self):
-        """POST /configuration persists updated days_to_remove_links and days_to_remove_stale_entries values."""
+        """POST /configuration persists updated days_to_remove_links, days_to_remove_stale_entries, and removal switches."""
         res = self.client.post(
             "/configuration",
             data={
                 "days_to_remove_links": "45",
                 "days_to_remove_stale_entries": "14",
+                "allow_remove_permanent_entries": "on",
+                "allow_remove_bookmarked_entries": "on",
+                "allow_remove_votes_entries": "on",
+                "remove_entry_vote_threshold": "10",
             },
             follow_redirects=True,
         )
@@ -168,6 +176,10 @@ class TestConfigurationWebAndApi(unittest.TestCase):
         config = self.config_repo.get_config()
         self.assertEqual(config.days_to_remove_links, 45)
         self.assertEqual(config.days_to_remove_stale_entries, 14)
+        self.assertTrue(config.allow_remove_permanent_entries)
+        self.assertTrue(config.allow_remove_bookmarked_entries)
+        self.assertTrue(config.allow_remove_votes_entries)
+        self.assertEqual(config.remove_entry_vote_threshold, 10)
 
     def test_api_get_features(self):
         """GET /api/config/features returns full dictionary of feature flags."""

@@ -268,6 +268,7 @@ stateDiagram-v2
      - Removes link entries older than `days_to_remove_links` (based on `date_published` or `date_created`).
      - Removes stale dead entries where `date_dead_since` exceeds `days_to_remove_stale_entries`.
      - Skips removal when the respective `days_` configuration is 0.
+     - Respects `ConfigurationEntry` protection switches: entries where `permanent == True` are preserved unless `allow_remove_permanent_entries` is True; entries where `bookmarked == True` are preserved unless `allow_remove_bookmarked_entries` is True; entries with votes (`page_rating_votes > threshold`, default 0) are preserved unless `allow_remove_votes_entries` is True, and if `remove_entry_vote_threshold > 0`, entries with votes exceeding the threshold are preserved.
      - Scheduled once per day via worker checking `BackgroundJobHistory`.
    - Executes jobs sequentially based on priority.
    - Records errors in `backgroundjob.errors`. If consecutive failures exceed max retries (3), disables the job (`enabled = False`) and creates an entry in `applogging`.
