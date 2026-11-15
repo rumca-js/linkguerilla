@@ -289,6 +289,8 @@ There are several list styles:
  - Standard (similar to gallery, but thumbnail is smaller, and on the left, should remind Feed readers
  - Search engine (emphasis on title, and showing actual link. Should look like search engine results)
  - Conent centric - reddit-like. Shows more of description. Allows user to interact with entry, like set its properties.
+ - Compact - high-density tabular view with metadata, icons, author/source, published date, votes, and quick action buttons.
+ - Links only - shows only links without any additional data. One link - one line.
 
  Entry Item shall display:
  - entry.thumbnail or source.favicon

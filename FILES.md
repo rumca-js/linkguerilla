@@ -139,7 +139,8 @@ yafr_next/
 │       │   ├── display-gallery.css           # YouTube / TikTok thumbnail grid layout
 │       │   ├── display-search-engine.css     # Google-like search results layout
 │       │   ├── display-content-centric.css   # Reddit-like content preview layout
-│       │   └── display-links-only.css        # Compact links-only list
+│       │   ├── display-compact.css           # High-density tabular view
+│       │   └── display-links-only.css        # Bare URLs only list (one link per line)
 │       ├── js/
 │       │   ├── jquery-3.7.1.min.js           # jQuery core library
 │       │   ├── bootstrap.bundle.min.js       # Bootstrap 5 bundle (with Popper)

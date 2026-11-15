@@ -108,6 +108,32 @@ class TestEntryRoutes(unittest.TestCase):
         html = response.get_data(as_text=True)
         self.assertIn("Flask Web Development", html)
 
+    def test_search_view_compact_layout(self):
+        """GET /?q=&display=compact renders high-density tabular view with metadata and actions."""
+        response = self.client.get("/?q=&display=compact")
+        self.assertEqual(response.status_code, 200)
+        html = response.get_data(as_text=True)
+        self.assertIn("compact-table", html)
+        self.assertIn("Advanced Python Programming", html)
+        self.assertIn("Flask Web Development", html)
+        self.assertIn("btn-set-vote", html)
+        self.assertIn("btn-bookmark", html)
+        self.assertIn("btn-read-later", html)
+
+    def test_search_view_links_only_layout(self):
+        """GET /?q=&display=links-only renders only URLs, one per line, without extra data/actions."""
+        response = self.client.get("/?q=&display=links-only")
+        self.assertEqual(response.status_code, 200)
+        html = response.get_data(as_text=True)
+        self.assertIn("links-only-container", html)
+        self.assertIn("links-only-line", html)
+        self.assertIn("https://example.com/py1", html)
+        self.assertIn("https://example.com/flask", html)
+        # Should NOT contain action buttons in the results section
+        self.assertNotIn("compact-table", html)
+        self.assertNotIn("btn-set-vote", html)
+
+
     def test_display_gallery_layout(self):
         """GET /?q=Python&display=gallery renders gallery-grid container."""
         response = self.client.get("/?q=Python&display=gallery")
@@ -151,13 +177,13 @@ class TestEntryRoutes(unittest.TestCase):
         self.assertIn("content-centric-list", html)
         self.assertIn("content-centric-card", html)
 
-    def test_display_links_only_layout(self):
-        """GET /?q=Python&display=links-only renders high-density tabular view."""
-        response = self.client.get("/?q=Python&display=links-only")
+    def test_display_compact_layout(self):
+        """GET /?q=Python&display=compact renders high-density tabular view."""
+        response = self.client.get("/?q=Python&display=compact")
         self.assertEqual(response.status_code, 200)
         html = response.get_data(as_text=True)
-        self.assertIn("links-only-table", html)
-        self.assertIn("links-only-row", html)
+        self.assertIn("compact-table", html)
+        self.assertIn("compact-row", html)
 
     def test_entry_item_click_links_to_detail_view(self):
         """Entry items in search results contain data-detail-url and links to EntryDetailView."""
@@ -256,7 +282,8 @@ class TestEntryRoutes(unittest.TestCase):
         self.assertIn("gallery-grid show-icons", html)
         self.assertIn("gallery-thumb-wrap", html)
 
-        res_table = self.client.get("/?q=Python&display=links-only")
+        # 3. Compact
+        res_table = self.client.get("/?q=Python&display=compact")
         self.assertEqual(res_table.status_code, 200)
         html_table = res_table.get_data(as_text=True)
         self.assertIn('<th style="width: 40px;"></th>', html_table)
@@ -283,8 +310,8 @@ class TestEntryRoutes(unittest.TestCase):
         self.assertIn("standard-list no-icons", html_standard)
         self.assertNotIn("standard-thumb-col", html_standard)
 
-        # 3. Links-only
-        res_table = self.client.get("/?q=Python&display=links-only")
+        # 3. Compact
+        res_table = self.client.get("/?q=Python&display=compact")
         self.assertEqual(res_table.status_code, 200)
         html_table = res_table.get_data(as_text=True)
         self.assertIn('data-show-icons="false"', html_table)

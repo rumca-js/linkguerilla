@@ -306,7 +306,8 @@ The presentation layer supports dynamic configuration switching via user prefere
 - `DISPLAY_TYPE_GALLERY`: YouTube / TikTok style visual card with large thumbnail preview, duration/social indicators, and compact metadata below.
 - `DISPLAY_TYPE_SEARCH_ENGINE`: Google / DuckDuckGo style layout with emphasis on hyperlinked title, breadcrumb source URL, and matching snippets.
 - `DISPLAY_TYPE_CONTENT_CENTRIC`: Reddit / forum style card with expanded description, clickable in-line links, full social metrics bar, and comment actions.
-- `DISPLAY_TYPE_LINKS_ONLY`: High-density tabular / compact list for power users.
+- `DISPLAY_TYPE_COMPACT`: High-density tabular view with metadata, icons, author/source, published date, votes, and quick action buttons.
+- `DISPLAY_TYPE_LINKS_ONLY`: Shows only links without any additional data (one link per line).
 
 #### 3. Visual Transparency (Alpha) Rules:
 - **Visited Alpha** (`entries_visit_alpha`, default `0.6`): Applied to entries found in `entryvisithistory` to fade out already read content.

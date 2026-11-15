@@ -1,54 +1,33 @@
-/* YAFR - Links Only Layout (High density list) */
+/* YAFR - Links Only Layout (One URL per line, no extra data) */
 
-.links-only-table {
-  width: 100%;
+.links-only-container {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
   font-size: 0.875rem;
-  border-collapse: separate;
-  border-spacing: 0 0.35rem;
 }
 
-.links-only-row {
-  background-color: var(--bs-card-bg);
-  transition: background-color 0.15s ease;
-  border: 1px solid var(--bs-border-color);
-}
-
-.links-only-row:hover {
-  background-color: rgba(var(--bs-primary-rgb), 0.04);
-}
-
-.links-only-row td {
-  padding: 0.5rem 0.75rem;
-  vertical-align: middle;
-  border-top: 1px solid var(--bs-border-color);
-  border-bottom: 1px solid var(--bs-border-color);
-}
-
-.links-only-row td:first-child {
-  border-left: 1px solid var(--bs-border-color);
-  border-top-left-radius: 0.35rem;
-  border-bottom-left-radius: 0.35rem;
-  width: 40px;
-  text-align: center;
-}
-
-.links-only-row td:last-child {
-  border-right: 1px solid var(--bs-border-color);
-  border-top-right-radius: 0.35rem;
-  border-bottom-right-radius: 0.35rem;
-  text-align: right;
+.links-only-line {
+  padding: 0.25rem 0;
+  line-height: 1.6;
+  border-bottom: 1px solid var(--bs-border-color-translucent);
   white-space: nowrap;
-}
-
-.links-only-title {
-  font-weight: 500;
-  text-decoration: none;
-  display: -webkit-box;
-  -webkit-line-clamp: 1;
-  -webkit-box-orient: vertical;
   overflow: hidden;
+  text-overflow: ellipsis;
 }
 
-.links-only-title:hover {
+.links-only-line:last-child {
+  border-bottom: none;
+}
+
+.links-only-url {
+  color: var(--bs-body-color);
+  text-decoration: none;
+  font-family: var(--bs-font-monospace);
+  font-size: 0.8125rem;
+}
+
+.links-only-url:hover {
   text-decoration: underline;
+  color: var(--bs-primary);
 }

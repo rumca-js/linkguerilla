@@ -773,7 +773,7 @@ Following the project requirement to **"prefer having small server functions tha
 - **Offline Capable**: Yes.
 
 #### `POST /api/config/display-type`
-- **Purpose**: Switches entry layout type (`standard`, `gallery`, `search-engine`, `content-centric`, `links-only`).
+- **Purpose**: Switches entry layout type (`standard`, `gallery`, `search-engine`, `content-centric`, `compact`, `links-only`).
 - **Request Body**:
   ```json
   { "display_type": "gallery" }

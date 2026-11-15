@@ -208,6 +208,20 @@ class TestConfigurationWebAndApi(unittest.TestCase):
         self.assertEqual(res3.status_code, 200)
         self.assertTrue(res3.get_json()["enabled"])
 
+    def test_api_update_display_type_compact_and_links_only(self):
+        """POST /api/config/display-type accepts compact and links-only."""
+        res_compact = self.client.post(
+            "/api/config/display-type", json={"display_type": "compact"}
+        )
+        self.assertEqual(res_compact.status_code, 200)
+        self.assertEqual(res_compact.get_json()["display_type"], "compact")
+
+        res_links = self.client.post(
+            "/api/config/display-type", json={"display_type": "links-only"}
+        )
+        self.assertEqual(res_links.status_code, 200)
+        self.assertEqual(res_links.get_json()["display_type"], "links-only")
+
 
 class TestInstanceConfigAndConsoleTitles(unittest.TestCase):
     """
@@ -295,6 +309,10 @@ class TestInstanceConfigAndConsoleTitles(unittest.TestCase):
             ConfigurationEntryService.DISPLAY_TYPE_CONTENT_CENTRIC,
         )
         self.assertEqual(
+            shared.DISPLAY_TYPE_COMPACT,
+            ConfigurationEntryService.DISPLAY_TYPE_COMPACT,
+        )
+        self.assertEqual(
             shared.DISPLAY_TYPE_LINKS_ONLY,
             ConfigurationEntryService.DISPLAY_TYPE_LINKS_ONLY,
         )
@@ -313,9 +331,19 @@ class TestInstanceConfigAndConsoleTitles(unittest.TestCase):
             ConfigurationEntryService.DISPLAY_TYPE_CONTENT_CENTRIC,
         )
         self.assertIs(
+            shared.DISPLAY_TYPE_COMPACT,
+            ConfigurationEntryService.DISPLAY_TYPE_COMPACT,
+        )
+        self.assertIs(
             shared.DISPLAY_TYPE_LINKS_ONLY,
             ConfigurationEntryService.DISPLAY_TYPE_LINKS_ONLY,
         )
+
+        # Check DISPLAY_TYPES list includes compact and links-only
+        display_type_ids = [dt["id"] for dt in shared.DISPLAY_TYPES]
+        self.assertIn("compact", display_type_ids)
+        self.assertIn("links-only", display_type_ids)
+
 
         # Display Presets
         self.assertEqual(

@@ -56,10 +56,16 @@ DISPLAY_TYPES = [
         "description": "Expanded descriptions and metadata (Reddit style)",
     },
     {
+        "id": DISPLAY_TYPE_COMPACT,
+        "name": "Compact",
+        "icon": "bi-table",
+        "description": "High-density tabular list with metadata and quick actions",
+    },
+    {
         "id": DISPLAY_TYPE_LINKS_ONLY,
         "name": "Links Only",
-        "icon": "bi-table",
-        "description": "High-density tabular list of links",
+        "icon": "bi-list-ul",
+        "description": "Bare URLs only, one link per line",
     },
 ]
 

@@ -455,10 +455,10 @@
 </div>
 
 {# ======================================================================== #}
-{# 5. LINKS ONLY LAYOUT (High density tabular view)                          #}
+{# 5. COMPACT LAYOUT (High density tabular view)                             #}
 {# ======================================================================== #}
-{% else %}
-<tr class="links-only-row entry-card-clickable {{ class_str }}" id="entry-card-{{ entry.id }}" data-entry-id="{{ entry.id }}" data-detail-url="{{ url_for('entries.entry_detail_view', id=entry.id) }}">
+{% elif display_type == 'compact' %}
+<tr class="compact-row entry-card-clickable {{ class_str }}" id="entry-card-{{ entry.id }}" data-entry-id="{{ entry.id }}" data-detail-url="{{ url_for('entries.entry_detail_view', id=entry.id) }}">
   {% if show_icons %}
   <td>
     {% if is_dead %}
@@ -477,7 +477,7 @@
   {% endif %}
   <td>
     <div class="d-flex align-items-center">
-      <a href="{{ url_for('entries.entry_detail_view', id=entry.id) }}" class="links-only-title text-body entry-link" data-id="{{ entry.id }}" title="{{ entry.title }}">
+      <a href="{{ url_for('entries.entry_detail_view', id=entry.id) }}" class="compact-title text-body entry-link" data-id="{{ entry.id }}" title="{{ entry.title }}">
         {{ entry.title or entry.link }}
       </a>
       <a href="{{ entry.link }}" target="_blank" rel="noopener noreferrer" class="text-muted ms-1 small entry-external-link" title="Open external URL" onclick="event.stopPropagation();">
@@ -513,4 +513,12 @@
     </div>
   </td>
 </tr>
+
+{# ======================================================================== #}
+{# 6. LINKS ONLY LAYOUT (One link per line, no extra data)                   #}
+{# ======================================================================== #}
+{% else %}
+<div class="links-only-line {{ class_str }}" id="entry-card-{{ entry.id }}" data-entry-id="{{ entry.id }}">
+  <a href="{{ entry.link }}" target="_blank" rel="noopener noreferrer" class="links-only-url" title="{{ entry.title }}">{{ entry.link }}</a>
+</div>
 {% endif %}

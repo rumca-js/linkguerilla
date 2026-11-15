@@ -7,6 +7,7 @@
  - [x] database screen
  - [x] configuration screen
  - [x] **Configuration constants from linkarchivetools**: `yafr/web/shared.py` uses DISPLAY_TYPE and DISPLAY_STYLE definitions from `linkarchivetools.model.configurationentry` (`ConfigurationEntryService`).
+ - [x] **Compact vs Links-Only Layouts**: Compact layout displays high-density tabular view with metadata, icons, and action buttons; Links-only layout displays strictly one link per line without additional data.
  - [x] jobs screen
  - [x] logs screen (includes Clear All, clear logs of particular level, and row checkboxes with batch delete; master checkbox #select-all-logs toggle fix)
  - [x] **AppLoggingHandler & NOTIFICATION log level**: Introduce NOTIFICATION (25) severity level, AppLoggingHandler routing NOTIFICATION/WARNING/ERROR/CRITICAL to applogging table, and UI level filter.

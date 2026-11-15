@@ -62,10 +62,15 @@
                  title="Content-centric layout (Reddit style)">
                 <i class="bi bi-chat-square-text"></i>
               </a>
+              <a href="{{ url_for('entries.search_view', q=query, filter=active_filter, display='compact', page=page) }}" 
+                 class="btn btn-outline-secondary {{ 'active' if display_type == 'compact' else '' }}" 
+                 title="Compact layout (High-density table)">
+                <i class="bi bi-table"></i>
+              </a>
               <a href="{{ url_for('entries.search_view', q=query, filter=active_filter, display='links-only', page=page) }}" 
                  class="btn btn-outline-secondary {{ 'active' if display_type == 'links-only' else '' }}" 
-                 title="Links-only layout (Compact list)">
-                <i class="bi bi-table"></i>
+                 title="Links only (One URL per line)">
+                <i class="bi bi-list-ul"></i>
               </a>
             </div>
           </div>
@@ -112,9 +117,9 @@
               {% endfor %}
             </div>
 
-          {% elif display_type == 'links-only' %}
+          {% elif display_type == 'compact' %}
             <div class="table-responsive">
-              <table class="links-only-table {{ 'show-icons' if show_icons else 'no-icons' }}" data-show-icons="{{ 'true' if show_icons else 'false' }}">
+              <table class="compact-table {{ 'show-icons' if show_icons else 'no-icons' }}" data-show-icons="{{ 'true' if show_icons else 'false' }}">
                 <thead>
                   <tr class="text-secondary small">
                     {% if show_icons %}
@@ -133,6 +138,13 @@
                   {% endfor %}
                 </tbody>
               </table>
+            </div>
+
+          {% elif display_type == 'links-only' %}
+            <div class="links-only-container">
+              {% for entry in entries %}
+                {% include "components/entry_item.html" %}
+              {% endfor %}
             </div>
           {% endif %}
 
