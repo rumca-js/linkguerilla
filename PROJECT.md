@@ -47,7 +47,7 @@ Naming vs Table names
  - SearchHistory - search history
  - Read Later - readlater
  - Credentials - credentials (used for email source type)
- - AppLogging - applogging (logs). Follows logging levels: DEBUG, INFO, NOTIFICATION, WARNING, ERROR, CRITICAL. AppLoggingHandler routes NOTIFICATION and above to applogging table.
+ - AppLogging - applogging (logs). Follows logging levels: DEBUG, INFO, NOTIFICATION, WARNING, ERROR, CRITICAL defined centrally in LoggingRepository (single source of truth for level constants, name mappings, and string alias parsing). AppLoggingHandler routes NOTIFICATION and above to applogging table.
  - SearchView, or Filters - searchview
  - Block Entry Lists - blockentrylist
  - Block Entries - blockentry
@@ -211,7 +211,7 @@ It should be possible to download a new database .db file from the internet, or 
  - SourceParseEditScreen - Edits source
  - CredentialsScreen - displays credentials information
  - JobsView - view showing jobs
- - LogsView - view showing AppLogging entries. There should be a limit to number of logs. Maybe up to 2000?
+ - LogsView - view showing AppLogging entries. There should be a limit to number of logs. Maybe up to 2000? Supports clearing all logs or selectively clearing logs of a particular severity level (e.g. DEBUG, INFO, NOTIFICATION, WARNING, ERROR, CRITICAL).
  - EntryRulesScreen - Displays and configures entry rules.
  - BlockEntriesScreen - Displays and manages individual BlockEntry records with pagination and search (keeps EntryRulesScreen responsive with large block lists).
  - BlockListsScreen - Displays and manages BlockEntryList plain text block lists.

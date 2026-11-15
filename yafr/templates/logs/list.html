@@ -48,14 +48,80 @@
             </ul>
           </div>
 
-          <!-- Clear All Logs Button -->
-          {% if total_results > 0 %}
-            <button type="button"
-                    class="btn btn-outline-danger btn-sm rounded-pill"
-                    data-bs-toggle="modal"
-                    data-bs-target="#clearLogsModal">
-              <i class="bi bi-trash me-1"></i>Clear All
-            </button>
+          <!-- Clear Logs Controls -->
+          {% if total_all_logs > 0 %}
+            <div class="d-flex align-items-center gap-2">
+              {% if active_level != 'all' and total_results > 0 %}
+                <button type="button"
+                        class="btn btn-outline-danger btn-sm rounded-pill"
+                        data-bs-toggle="modal"
+                        data-bs-target="#clearLogsModal"
+                        data-clear-level="{{ active_level }}"
+                        data-clear-name="{{ active_level_name }}">
+                  <i class="bi bi-trash me-1"></i>Clear {{ active_level_name }}
+                </button>
+              {% endif %}
+
+              <!-- Clear All / Level Dropdown -->
+              <div class="btn-group">
+                <button type="button"
+                        class="btn btn-outline-danger btn-sm rounded-start-pill"
+                        data-bs-toggle="modal"
+                        data-bs-target="#clearLogsModal"
+                        data-clear-level="all"
+                        data-clear-name="All">
+                  <i class="bi bi-trash me-1"></i>Clear All
+                </button>
+                <button type="button"
+                        class="btn btn-outline-danger btn-sm rounded-end-pill dropdown-toggle dropdown-toggle-split"
+                        data-bs-toggle="dropdown"
+                        aria-expanded="false"
+                        title="Clear logs by level">
+                  <span class="visually-hidden">Toggle Clear Options</span>
+                </button>
+                <ul class="dropdown-menu dropdown-menu-end shadow">
+                  <li>
+                    <button class="dropdown-item text-danger fw-semibold"
+                            type="button"
+                            data-bs-toggle="modal"
+                            data-bs-target="#clearLogsModal"
+                            data-clear-level="all"
+                            data-clear-name="All">
+                      <i class="bi bi-trash me-2"></i>Clear All Logs
+                    </button>
+                  </li>
+                  <li><hr class="dropdown-divider"></li>
+                  <li><h6 class="dropdown-header">Clear by Severity</h6></li>
+                  {% for f in level_filters %}
+                    {% if f.id != 'all' %}
+                      <li>
+                        <button class="dropdown-item"
+                                type="button"
+                                data-bs-toggle="modal"
+                                data-bs-target="#clearLogsModal"
+                                data-clear-level="{{ f.id }}"
+                                data-clear-name="{{ f.name }}">
+                          {% if f.id == 'warning' %}
+                            <i class="bi bi-exclamation-triangle text-warning me-2"></i>
+                          {% elif f.id == 'error' %}
+                            <i class="bi bi-x-circle text-danger me-2"></i>
+                          {% elif f.id == 'critical' %}
+                            <i class="bi bi-exclamation-octagon text-danger me-2"></i>
+                          {% elif f.id == 'info' %}
+                            <i class="bi bi-info-circle text-info me-2"></i>
+                          {% elif f.id == 'debug' %}
+                            <i class="bi bi-bug text-secondary me-2"></i>
+                          {% else %}
+                            <i class="bi bi-bell text-primary me-2"></i>
+                          {% endif %}
+                          Clear {{ f.name }} Logs
+                        </button>
+                      </li>
+                    {% endif %}
+                  {% endfor %}
+                </ul>
+              </div>
+            </div>
           {% endif %}
         </div>
       </div>
@@ -197,31 +263,31 @@
 
 </div>
 
-<!-- Modal: Clear All Logs Confirmation -->
+<!-- Modal: Clear Logs Confirmation -->
 <div class="modal fade" id="clearLogsModal" tabindex="-1" aria-labelledby="clearLogsModalLabel" aria-hidden="true">
   <div class="modal-dialog modal-dialog-centered">
     <div class="modal-content shadow">
       <div class="modal-header">
         <h5 class="modal-title text-danger d-flex align-items-center gap-2" id="clearLogsModalLabel">
           <i class="bi bi-exclamation-triangle-fill"></i>
-          <span>Clear All Logs</span>
+          <span id="clear-modal-title">Clear All Logs</span>
         </h5>
         <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
       </div>
       <div class="modal-body">
-        <p>
+        <p id="clear-modal-body-text" class="mb-2">
           Are you sure you want to permanently delete all
           <strong>{{ "{:,}".format(total_results) }}</strong> log entries?
         </p>
         <div class="alert alert-warning small mb-0">
           <i class="bi bi-info-circle me-1"></i>
-          This operation cannot be undone. All application log history will be lost.
+          <span id="clear-modal-warning-text">This operation cannot be undone. All application log history will be lost.</span>
         </div>
       </div>
       <div class="modal-footer">
         <button type="button" class="btn btn-secondary rounded-pill" data-bs-dismiss="modal">Cancel</button>
-        <button type="button" class="btn btn-danger rounded-pill px-4" id="confirm-clear-logs-btn">
-          <i class="bi bi-trash me-1"></i>Clear All Logs
+        <button type="button" class="btn btn-danger rounded-pill px-4" id="confirm-clear-logs-btn" data-clear-level="all">
+          <i class="bi bi-trash me-1"></i><span id="confirm-clear-btn-text">Clear All Logs</span>
         </button>
       </div>
     </div>

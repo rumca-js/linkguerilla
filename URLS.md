@@ -23,7 +23,7 @@ This document details the complete routing matrix for YAFR, encompassing both **
 | `/sources/<int:id>/convert`   | `POST`        | **SourceDetailScreen** | Converts source type between RSS and Parse (or unfilled to RSS/Parse). | **Yes** |
 | `/credentials` | `GET` | **CredentialsScreen** | Displays and manages stored email/IMAP credentials. | **Yes** |
 | `/jobs` | `GET` | **JobsView** | Displays table of background jobs, orderable by priority, date created, or error count, with type filters and pause/resume/delete actions. | **Yes** |
-| `/logs` | `GET` | **LogsView** | Displays entries from `applogging` table, filterable by severity level (DEBUG, INFO, WARNING, ERROR, CRITICAL). | **Yes** |
+| `/logs` | `GET` | **LogsView** | Displays entries from `applogging` table, filterable by severity level (DEBUG, INFO, NOTIFICATION, WARNING, ERROR, CRITICAL). Supports clearing all logs or clearing logs of a specific severity level. | **Yes** |
 | `/rules` | `GET`, `POST` | **EntryRulesScreen** | Displays and configures URL regex rules (`trigger_rule_url`), actions (block, trust, auto-tag), and age limits. | **Yes** |
 | `/rules/blocked-urls` | `GET` | **BlockEntriesScreen** | Displays and manages individual BlockEntry records (blocked URLs/domains) with search, pagination, and deletion controls. | **Yes** |
 | `/rules/block-lists` | `GET` | **BlockListsScreen** | Displays and manages plain text block lists with ingestion and parsing controls. | **Yes** |
@@ -1012,6 +1012,67 @@ Following the project requirement to **"prefer having small server functions tha
     "check_type": "worker",
     "message": "Background jobs are disabled in configuration.",
     "max_age_seconds": 600
+  }
+  ```
+- **Offline Capable**: Yes.
+
+### 2.9 Application Logs API (`/api/logs`)
+
+#### `GET /api/logs`
+- **Purpose**: Returns paginated log entries as JSON with optional minimum severity filtering.
+- **Query Parameters**:
+  - `level` (int, optional): Minimum severity filter (10, 20, 25, 30, 40, 50).
+  - `limit` (int, default `50`): Max entries per page.
+  - `offset` (int, default `0`): Pagination offset.
+- **Response**:
+  ```json
+  {
+    "success": true,
+    "data": {
+      "logs": [
+        {
+          "id": 1,
+          "info_text": "Source fetch completed",
+          "detail_text": "Parsed 12 entries",
+          "level": 25,
+          "level_name": "NOTIFICATION",
+          "date": "2026-11-15T10:00:00"
+        }
+      ],
+      "total": 1
+    }
+  }
+  ```
+- **Offline Capable**: Yes.
+
+#### `DELETE /api/logs/<int:log_id>`
+- **Purpose**: Deletes an individual log entry by primary key ID.
+- **Response**:
+  ```json
+  {
+    "success": true,
+    "message": "Log entry deleted"
+  }
+  ```
+- **Offline Capable**: Yes.
+
+#### `POST /api/logs/clear`
+- **Purpose**: Clears log entries from the `applogging` table. Supports clearing all entries or selectively clearing only entries of a specified severity level (e.g., INFO, DEBUG, or ERROR).
+- **Request Parameters / Body (optional)**:
+  - `level` (string or int, optional): Severity level to clear (e.g. `"info"`, `"debug"`, `"error"`, `"errors"`, `20`, `40`). If omitted or `"all"`, clears all log entries.
+- **Request Body Example**:
+  ```json
+  { "level": "error" }
+  ```
+- **Response**:
+  ```json
+  {
+    "success": true,
+    "message": "Cleared 4 ERROR log entries",
+    "data": {
+      "deleted_count": 4,
+      "level": 40
+    }
   }
   ```
 - **Offline Capable**: Yes.

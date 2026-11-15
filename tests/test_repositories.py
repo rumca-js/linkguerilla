@@ -405,6 +405,91 @@ class TestRepositories(unittest.TestCase):
         self.assertEqual(len(error_logs), 1)
         self.assertEqual(error_logs[0].info_text, "Error message")
 
+    def test_logging_repository_clear_by_level(self):
+        """Verifies clearing logs filtered by exact level."""
+        repo = LoggingRepository()
+
+        repo.log(info_text="Debug msg 1", level=LoggingRepository.DEBUG)
+        repo.log(info_text="Debug msg 2", level=LoggingRepository.DEBUG)
+        repo.log(info_text="Info msg 1", level=LoggingRepository.INFO)
+        repo.log(info_text="Error msg 1", level=LoggingRepository.ERROR)
+
+        self.assertEqual(repo.count_logs(), 4)
+
+        # Clear only DEBUG logs (level=10)
+        deleted_count = repo.clear_logs(level=LoggingRepository.DEBUG)
+        self.assertEqual(deleted_count, 2)
+        self.assertEqual(repo.count_logs(), 2)
+
+        remaining_debug = [l for l in repo.list_logs() if l.level == LoggingRepository.DEBUG]
+        self.assertEqual(len(remaining_debug), 0)
+
+        # Info and Error logs should remain intact
+        remaining_info = [l for l in repo.list_logs() if l.level == LoggingRepository.INFO]
+        self.assertEqual(len(remaining_info), 1)
+        remaining_error = [l for l in repo.list_logs() if l.level == LoggingRepository.ERROR]
+        self.assertEqual(len(remaining_error), 1)
+
+        # Clear only ERROR logs (level=40)
+        deleted_error = repo.clear_logs(level=LoggingRepository.ERROR)
+        self.assertEqual(deleted_error, 1)
+        self.assertEqual(repo.count_logs(), 1)
+
+        # Clear remaining logs (all)
+        deleted_all = repo.clear_logs()
+        self.assertEqual(deleted_all, 1)
+        self.assertEqual(repo.count_logs(), 0)
+
+    def test_logging_repository_centralized_levels(self):
+        """Verifies centralized level constants, name mapping, and parsing in LoggingRepository."""
+        self.assertEqual(LoggingRepository.DEBUG, 10)
+        self.assertEqual(LoggingRepository.INFO, 20)
+        self.assertEqual(LoggingRepository.NOTIFICATION, 25)
+        self.assertEqual(LoggingRepository.WARNING, 30)
+        self.assertEqual(LoggingRepository.ERROR, 40)
+        self.assertEqual(LoggingRepository.CRITICAL, 50)
+
+        # get_level_name
+        self.assertEqual(LoggingRepository.get_level_name(LoggingRepository.DEBUG), "DEBUG")
+        self.assertEqual(LoggingRepository.get_level_name(LoggingRepository.INFO), "INFO")
+        self.assertEqual(LoggingRepository.get_level_name(LoggingRepository.NOTIFICATION), "NOTIFICATION")
+        self.assertEqual(LoggingRepository.get_level_name(LoggingRepository.WARNING), "WARNING")
+        self.assertEqual(LoggingRepository.get_level_name(LoggingRepository.ERROR), "ERROR")
+        self.assertEqual(LoggingRepository.get_level_name(LoggingRepository.CRITICAL), "CRITICAL")
+        self.assertEqual(LoggingRepository.get_level_name(99), "LEVEL-99")
+
+        # parse_level - none / all
+        level, err = LoggingRepository.parse_level(None)
+        self.assertIsNone(level)
+        self.assertIsNone(err)
+
+        level, err = LoggingRepository.parse_level("all")
+        self.assertIsNone(level)
+        self.assertIsNone(err)
+
+        # parse_level - string aliases
+        level, err = LoggingRepository.parse_level("info")
+        self.assertEqual(level, 20)
+        self.assertIsNone(err)
+
+        level, err = LoggingRepository.parse_level("errors")
+        self.assertEqual(level, 40)
+        self.assertIsNone(err)
+
+        level, err = LoggingRepository.parse_level("DEBUG")
+        self.assertEqual(level, 10)
+        self.assertIsNone(err)
+
+        # parse_level - int
+        level, err = LoggingRepository.parse_level(30)
+        self.assertEqual(level, 30)
+        self.assertIsNone(err)
+
+        # parse_level - invalid
+        level, err = LoggingRepository.parse_level("invalid_level")
+        self.assertIsNone(level)
+        self.assertIsNotNone(err)
+
 
 if __name__ == "__main__":
     unittest.main()

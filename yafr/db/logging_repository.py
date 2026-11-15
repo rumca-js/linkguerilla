@@ -7,7 +7,7 @@ with standard severity levels and FIFO retention management.
 
 from datetime import datetime, timezone
 import logging
-from typing import List, Optional
+from typing import Any, List, Optional
 from sqlalchemy import delete, func, select
 from sqlalchemy.orm import Session
 from linkarchivetools.model.definitions import AppLogging
@@ -41,6 +41,68 @@ class LoggingRepository(BaseRepository[AppLogging]):
     WARNING = 30
     ERROR = 40
     CRITICAL = 50
+
+    LEVEL_NAMES = {
+        DEBUG: "DEBUG",
+        INFO: "INFO",
+        NOTIFICATION: "NOTIFICATION",
+        WARNING: "WARNING",
+        ERROR: "ERROR",
+        CRITICAL: "CRITICAL",
+    }
+
+    LEVEL_STR_MAP = {
+        "debug": DEBUG,
+        "info": INFO,
+        "notification": NOTIFICATION,
+        "notifications": NOTIFICATION,
+        "warning": WARNING,
+        "warnings": WARNING,
+        "warn": WARNING,
+        "error": ERROR,
+        "errors": ERROR,
+        "err": ERROR,
+        "critical": CRITICAL,
+        "crit": CRITICAL,
+    }
+
+    @classmethod
+    def get_level_name(cls, level: int) -> str:
+        """
+        Maps integer severity level to human-readable label.
+
+        :param level: Integer severity level
+        :return: Human-readable level name
+        """
+        return cls.LEVEL_NAMES.get(level, f"LEVEL-{level}")
+
+    @classmethod
+    def parse_level(cls, val: Any) -> tuple[Optional[int], Optional[str]]:
+        """
+        Parses and validates a log level input.
+
+        :param val: Integer, string representation of int, or string name (e.g. 'info', 'error')
+        :return: Tuple of (parsed_level_int_or_none, error_message_or_none)
+        """
+        if val is None:
+            return None, None
+        if isinstance(val, int):
+            return val, None
+
+        val_str = str(val).strip().lower()
+        if val_str in ("", "all", "none"):
+            return None, None
+
+        if val_str in cls.LEVEL_STR_MAP:
+            return cls.LEVEL_STR_MAP[val_str], None
+
+        try:
+            return int(val_str), None
+        except ValueError:
+            return (
+                None,
+                f"Invalid log level: '{val}'. Expected one of: debug, info, notification, warning, error, critical, or all.",
+            )
 
     def __init__(self, session: Optional[Session] = None) -> None:
         super().__init__(session=session)
@@ -99,16 +161,23 @@ class LoggingRepository(BaseRepository[AppLogging]):
 
         return list(self.session.execute(stmt).scalars().all())
 
-    def count_logs(self, min_level: Optional[int] = None) -> int:
+    def count_logs(
+        self,
+        min_level: Optional[int] = None,
+        exact_level: Optional[int] = None,
+    ) -> int:
         """
         Counts log entries matching optional severity filter.
 
         :param min_level: Optional minimum severity level filter
+        :param exact_level: Optional exact severity level filter
         :return: Total count of matching log entries
         """
         stmt = select(func.count(AppLogging.id))
         if min_level is not None:
             stmt = stmt.where(AppLogging.level >= min_level)
+        if exact_level is not None:
+            stmt = stmt.where(AppLogging.level == exact_level)
         return self.session.execute(stmt).scalar() or 0
 
     def delete_log(self, log_id: int) -> bool:
@@ -125,13 +194,17 @@ class LoggingRepository(BaseRepository[AppLogging]):
         self.session.commit()
         return True
 
-    def clear_logs(self) -> int:
+    def clear_logs(self, level: Optional[int] = None) -> int:
         """
-        Truncates all entries in the applogging table.
+        Truncates entries in the applogging table, optionally filtered by exact level.
 
+        :param level: Optional exact severity level integer (e.g. 10, 20, 25, 30, 40, 50).
+                      If None, clears all log entries.
         :return: Count of deleted rows
         """
         stmt = delete(AppLogging)
+        if level is not None:
+            stmt = stmt.where(AppLogging.level == level)
         result = self.session.execute(stmt)
         self.session.commit()
         return result.rowcount or 0

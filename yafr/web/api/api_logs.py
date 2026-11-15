@@ -6,6 +6,7 @@ all log entries from the applogging table.
 """
 
 import logging
+from typing import Any, Optional
 from flask import Blueprint, request
 from yafr.db import LoggingRepository, get_session
 from yafr.web.shared import api_response
@@ -84,7 +85,12 @@ def api_delete_log(log_id: int):
 @api_logs_bp.route("/api/logs/clear", methods=["POST"])
 def api_clear_logs():
     """
-    Clears all log entries from the applogging table.
+    Clears log entries from the applogging table.
+    Supports clearing all entries or entries of a specific severity level.
+
+    Optional body or query parameters:
+        - level: Severity level to clear (e.g. 'info', 'debug', 'error', or 10, 20, 40).
+                 If omitted or 'all', clears all entries.
 
     This is a destructive operation — the frontend must present
     a confirmation modal before calling this endpoint.
@@ -92,32 +98,45 @@ def api_clear_logs():
     :return: JSON response with count of deleted rows
     """
     try:
+        level_arg = None
+        if request.is_json and request.json:
+            level_arg = request.json.get("level")
+        if level_arg is None:
+            level_arg = request.form.get("level") or request.args.get("level")
+
+        level_int, error = LoggingRepository.parse_level(level_arg)
+        if error:
+            return api_response(success=False, error=error, status_code=400)
+
         session = get_session()
         log_repo = LoggingRepository(session)
-        count = log_repo.clear_logs()
+        count = log_repo.clear_logs(level=level_int)
+
+        level_str = (
+            LoggingRepository.get_level_name(level_int)
+            if level_int is not None
+            else "All"
+        )
+        message = (
+            f"Cleared {count} {level_str} log entries"
+            if level_int is not None
+            else f"Cleared {count} log entries"
+        )
         return api_response(
             success=True,
-            message=f"Cleared {count} log entries",
-            data={"deleted_count": count},
+            message=message,
+            data={"deleted_count": count, "level": level_int},
         )
     except Exception as err:
         logger.error("Failed to clear logs: %s", err)
         return api_response(success=False, error=str(err), status_code=500)
 
 
-def _level_name(level: int) -> str:
-    """
-    Maps integer severity level to human-readable label.
+def _parse_level(val: Any) -> tuple[Optional[int], Optional[str]]:
+    """Delegates level parsing to LoggingRepository (single source of truth)."""
+    return LoggingRepository.parse_level(val)
 
-    :param level: Integer severity level
-    :return: Human-readable level name
-    """
-    names = {
-        10: "DEBUG",
-        20: "INFO",
-        25: "NOTIFICATION",
-        30: "WARNING",
-        40: "ERROR",
-        50: "CRITICAL",
-    }
-    return names.get(level, f"LEVEL-{level}")
+
+def _level_name(level: int) -> str:
+    """Delegates level name mapping to LoggingRepository (single source of truth)."""
+    return LoggingRepository.get_level_name(level)
