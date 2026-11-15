@@ -176,7 +176,7 @@ To avoid duplicating database access logic, all raw SQLAlchemy operations are en
 4. **JobRepository (`backgroundjob`, `backgroundjobhistory`)**:
    - Fetches prioritized enabled jobs (`priority ASC`, `date_created ASC`) directly from SQLite.
    - Updates error counts and disables failing jobs exceeding threshold.
-   - Moves completed tasks to `backgroundjobhistory`.
+   - Moves completed tasks to `backgroundjobhistory`, and provides paginated inspection and clearing of job execution history.
 
 5. **HistoryRepository**:
    - **SearchHistory**: Stores user queries up to `max_number_of_user_search` (default 50-100).

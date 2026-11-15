@@ -23,6 +23,7 @@ This document details the complete routing matrix for YAFR, encompassing both **
 | `/sources/<int:id>/convert`   | `POST`        | **SourceDetailScreen** | Converts source type between RSS and Parse (or unfilled to RSS/Parse). | **Yes** |
 | `/credentials` | `GET` | **CredentialsScreen** | Displays and manages stored email/IMAP credentials. | **Yes** |
 | `/jobs` | `GET` | **JobsView** | Displays table of background jobs, orderable by priority, date created, or error count, with type filters and pause/resume/delete actions. | **Yes** |
+| `/jobs/history` | `GET` | **JobHistoryView** | Displays table of historical completed background jobs (`backgroundjobhistory`), filterable by job type and sortable by date, with clear history action. | **Yes** |
 | `/logs` | `GET` | **LogsView** | Displays entries from `applogging` table, filterable by severity level (DEBUG, INFO, NOTIFICATION, WARNING, ERROR, CRITICAL). Provides row selection checkboxes with batch delete, single delete, and clearing all or level-filtered logs. | **Yes** |
 | `/rules` | `GET`, `POST` | **EntryRulesScreen** | Displays and configures URL regex rules (`trigger_rule_url`), actions (block, trust, auto-tag), and age limits. Provides an interactive "Test Link" tool to evaluate how rules and block entries affect candidate URLs. | **Yes** |
 | `/rules/blocked-urls` | `GET` | **BlockEntriesScreen** | Displays and manages individual BlockEntry records (blocked URLs/domains) with search, pagination, and deletion controls. | **Yes** |
@@ -546,6 +547,45 @@ Following the project requirement to **"prefer having small server functions tha
   {
     "success": true,
     "affected_count": 2
+  }
+  ```
+- **Offline Capable**: Yes.
+
+#### `GET /api/jobs/history`
+- **Purpose**: Retrieves paginated list of completed/archived background jobs from `backgroundjobhistory`.
+- **Query Parameters**:
+  - `job_type` (string, optional): Filter by job type identifier.
+  - `limit` (int, default `50`): Max results to return.
+  - `offset` (int, default `0`): Rows to skip.
+- **Response**:
+  ```json
+  {
+    "success": true,
+    "data": {
+      "total": 120,
+      "history": [
+        {
+          "id": 1,
+          "job": "cleanup",
+          "subject": "system",
+          "task": "",
+          "args": "",
+          "date_created": "2026-11-15T00:00:00Z"
+        }
+      ]
+    }
+  }
+  ```
+- **Offline Capable**: Yes.
+
+#### `POST /api/jobs/history/clear`
+- **Purpose**: Clears all records from `backgroundjobhistory`.
+- **Response**:
+  ```json
+  {
+    "success": true,
+    "deleted_count": 120,
+    "message": "Successfully cleared all 120 history records."
   }
   ```
 - **Offline Capable**: Yes.

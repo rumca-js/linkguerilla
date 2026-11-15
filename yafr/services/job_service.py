@@ -336,3 +336,75 @@ class JobService:
         sess = session or get_session()
         repo = JobRepository(sess)
         return repo.clear_error_jobs()
+
+    @classmethod
+    def clear_history(cls, session: Optional[Session] = None) -> int:
+        """
+        Clears all records in the backgroundjobhistory table.
+
+        :param session: Optional active database session
+        :return: Number of deleted rows
+        """
+        sess = session or get_session()
+        repo = JobRepository(sess)
+        return repo.clear_history()
+
+    @classmethod
+    def list_history(
+        cls,
+        job_type: Optional[str] = None,
+        order_by: str = "date_created",
+        limit: Optional[int] = None,
+        offset: Optional[int] = None,
+        session: Optional[Session] = None,
+    ) -> List[Any]:
+        """
+        Lists historical background jobs.
+
+        :param job_type: Optional filter by job type
+        :param order_by: Sorting column
+        :param limit: Maximum rows to return
+        :param offset: Number of rows to skip
+        :param session: Optional active database session
+        :return: List of BackgroundJobHistory instances
+        """
+        sess = session or get_session()
+        repo = JobRepository(sess)
+        return repo.list_history(
+            job_type=job_type,
+            order_by=order_by,
+            limit=limit,
+            offset=offset,
+        )
+
+    @classmethod
+    def count_history(
+        cls,
+        job_type: Optional[str] = None,
+        session: Optional[Session] = None,
+    ) -> int:
+        """
+        Counts historical background jobs matching specified filters.
+
+        :param job_type: Optional filter by job type
+        :param session: Optional active database session
+        :return: Total number of matching history records
+        """
+        sess = session or get_session()
+        repo = JobRepository(sess)
+        return repo.count_history(job_type=job_type)
+
+    @classmethod
+    def get_history_job_types(
+        cls,
+        session: Optional[Session] = None,
+    ) -> List[str]:
+        """
+        Returns list of distinct job types present in the history table.
+
+        :param session: Optional active database session
+        :return: List of distinct job names
+        """
+        sess = session or get_session()
+        repo = JobRepository(sess)
+        return repo.get_distinct_history_job_types()

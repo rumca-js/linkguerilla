@@ -209,6 +209,43 @@ class TestJobRepositoryAndService(unittest.TestCase):
                 raise_on_duplicate=True,
             )
 
+    def test_list_and_count_history(self):
+        """Verifies listing, filtering, pagination and counting of job history."""
+        # Complete j1 and j3 to archive them to history
+        self.repo.complete_job(self.j1.id)
+        self.repo.complete_job(self.j3.id)
+
+        # Count history
+        self.assertEqual(self.repo.count_history(), 2)
+        self.assertEqual(self.repo.count_history(job_type="process-source"), 2)
+        self.assertEqual(self.repo.count_history(job_type="non-existent"), 0)
+
+        # List history
+        history = self.repo.list_history()
+        self.assertEqual(len(history), 2)
+
+        # Pagination
+        paginated = self.repo.list_history(limit=1, offset=0)
+        self.assertEqual(len(paginated), 1)
+
+        # Types
+        types = self.repo.get_distinct_history_job_types()
+        self.assertIn("process-source", types)
+
+        # JobService wrapper
+        svc_history = JobService.list_history(session=self.session)
+        self.assertEqual(len(svc_history), 2)
+        self.assertEqual(JobService.count_history(session=self.session), 2)
+
+    def test_clear_history(self):
+        """Verifies clearing all job history records."""
+        self.repo.complete_job(self.j1.id)
+        self.assertEqual(self.repo.count_history(), 1)
+
+        deleted = JobService.clear_history(session=self.session)
+        self.assertEqual(deleted, 1)
+        self.assertEqual(self.repo.count_history(), 0)
+
 
 class TestJobWebRoutes(unittest.TestCase):
     """
@@ -432,6 +469,62 @@ class TestJobWebRoutes(unittest.TestCase):
         self.assertEqual(res_all.status_code, 200)
         self.assertIn("Successfully cleared all 1 jobs", res_all.get_data(as_text=True))
         self.assertEqual(self.repo.count_jobs(), 0)
+
+    def test_jobs_view_has_history_button(self):
+        """GET /jobs has a Job History button linking to /jobs/history."""
+        res = self.client.get("/jobs")
+        self.assertEqual(res.status_code, 200)
+        html = res.get_data(as_text=True)
+        self.assertIn("/jobs/history", html)
+        self.assertIn("Job History", html)
+
+    def test_job_history_view_html(self):
+        """GET /jobs/history renders the historical completed jobs view."""
+        # Archive job to history
+        self.repo.complete_job(self.job.id)
+
+        res = self.client.get("/jobs/history")
+        self.assertEqual(res.status_code, 200)
+        html = res.get_data(as_text=True)
+        self.assertIn("Job History", html)
+        self.assertIn("process-source", html)
+        self.assertIn("https://news.ycombinator.com/rss", html)
+        self.assertIn("/jobs", html)
+
+    def test_routes_clear_history(self):
+        """POST /jobs/history/clear clears all history and redirects."""
+        self.repo.complete_job(self.job.id)
+        self.assertEqual(self.repo.count_history(), 1)
+
+        res = self.client.post("/jobs/history/clear", follow_redirects=True)
+        self.assertEqual(res.status_code, 200)
+        self.assertIn(
+            "Successfully cleared 1 history records", res.get_data(as_text=True)
+        )
+        self.assertEqual(self.repo.count_history(), 0)
+
+    def test_api_list_history(self):
+        """GET /api/jobs/history returns JSON history payload."""
+        self.repo.complete_job(self.job.id)
+
+        res = self.client.get("/api/jobs/history")
+        self.assertEqual(res.status_code, 200)
+        data = res.get_json()
+        self.assertTrue(data["success"])
+        self.assertEqual(data["data"]["total"], 1)
+        self.assertEqual(data["data"]["history"][0]["job"], "process-source")
+
+    def test_api_clear_history(self):
+        """POST /api/jobs/history/clear clears history via JSON API."""
+        self.repo.complete_job(self.job.id)
+        self.assertEqual(self.repo.count_history(), 1)
+
+        res = self.client.post("/api/jobs/history/clear")
+        self.assertEqual(res.status_code, 200)
+        data = res.get_json()
+        self.assertTrue(data["success"])
+        self.assertEqual(data["deleted_count"], 1)
+        self.assertEqual(self.repo.count_history(), 0)
 
 
 if __name__ == "__main__":

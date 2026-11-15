@@ -436,3 +436,68 @@ class JobRepository(BaseRepository[BackgroundJob]):
         result = self.session.execute(stmt)
         self.session.commit()
         return result.rowcount or 0
+
+    def list_history(
+        self,
+        job_type: Optional[str] = None,
+        order_by: str = "date_created",
+        limit: Optional[int] = None,
+        offset: Optional[int] = None,
+    ) -> List[BackgroundJobHistory]:
+        """
+        Lists historical background jobs with optional type filter and sorting.
+
+        :param job_type: Optional filter by specific job type identifier
+        :param order_by: Sorting column ('date_created', 'date_created_asc', 'id', 'job')
+        :param limit: Maximum rows to return
+        :param offset: Number of rows to skip
+        :return: List of BackgroundJobHistory instances
+        """
+        stmt = select(BackgroundJobHistory)
+        if job_type:
+            stmt = stmt.where(BackgroundJobHistory.job == job_type)
+
+        if order_by == "date_created_asc":
+            stmt = stmt.order_by(
+                BackgroundJobHistory.date_created.asc(), BackgroundJobHistory.id.asc()
+            )
+        elif order_by == "job":
+            stmt = stmt.order_by(
+                BackgroundJobHistory.job.asc(), BackgroundJobHistory.date_created.desc()
+            )
+        elif order_by == "id":
+            stmt = stmt.order_by(BackgroundJobHistory.id.desc())
+        else:
+            stmt = stmt.order_by(
+                BackgroundJobHistory.date_created.desc(), BackgroundJobHistory.id.desc()
+            )
+
+        if offset is not None:
+            stmt = stmt.offset(offset)
+        if limit is not None:
+            stmt = stmt.limit(limit)
+
+        return list(self.session.execute(stmt).scalars().all())
+
+    def count_history(self, job_type: Optional[str] = None) -> int:
+        """
+        Counts historical background jobs matching specified filters.
+
+        :param job_type: Optional filter by specific job type identifier
+        :return: Total number of matching history records
+        """
+        stmt = select(func.count(BackgroundJobHistory.id))
+        if job_type:
+            stmt = stmt.where(BackgroundJobHistory.job == job_type)
+        return self.session.execute(stmt).scalar() or 0
+
+    def get_distinct_history_job_types(self) -> List[str]:
+        """
+        Returns list of distinct job types present in the history table.
+
+        :return: List of distinct job names
+        """
+        stmt = select(distinct(BackgroundJobHistory.job)).order_by(
+            BackgroundJobHistory.job
+        )
+        return [str(j) for j in self.session.execute(stmt).scalars().all() if j]

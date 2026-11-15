@@ -323,3 +323,76 @@ def clear_error_jobs():
     except Exception as err:
         logger.error("Failed to clear error jobs: %s", err)
         return api_response(success=False, error=str(err), status_code=500)
+
+
+@api_jobs_bp.route("/history", methods=["GET"])
+def list_history_api():
+    """
+    Returns a paginated list of historical completed background jobs as JSON.
+    """
+    try:
+        active_type = request.args.get("job_type", "all")
+        order_by = request.args.get("order_by", "date_created")
+        page = max(1, request.args.get("page", 1, type=int))
+        limit = max(1, min(request.args.get("limit", 50, type=int), 200))
+        offset = (page - 1) * limit
+
+        type_filter = None if active_type == "all" else active_type
+
+        session = get_session()
+        total = JobService.count_history(
+            job_type=type_filter,
+            session=session,
+        )
+        history = JobService.list_history(
+            order_by=order_by,
+            limit=limit,
+            offset=offset,
+            job_type=type_filter,
+            session=session,
+        )
+
+        return api_response(
+            success=True,
+            data={
+                "history": [
+                    {
+                        "id": h.id,
+                        "job": h.job,
+                        "subject": h.subject,
+                        "task": h.task,
+                        "args": h.args,
+                        "date_created": (
+                            h.date_created.isoformat() if h.date_created else None
+                        ),
+                    }
+                    for h in history
+                ],
+                "total": total,
+                "page": page,
+                "limit": limit,
+            },
+        )
+    except Exception as err:
+        logger.error("Failed to list job history via API: %s", err)
+        return api_response(success=False, error=str(err), status_code=500)
+
+
+@api_jobs_bp.route("/history/clear", methods=["POST"])
+def clear_history_api():
+    """
+    Clears all historical background jobs.
+    """
+    try:
+        session = get_session()
+        deleted_count = JobService.clear_history(session=session)
+        return jsonify(
+            {
+                "success": True,
+                "deleted_count": deleted_count,
+                "message": f"Successfully cleared {deleted_count} history records.",
+            }
+        )
+    except Exception as err:
+        logger.error("Failed to clear job history: %s", err)
+        return api_response(success=False, error=str(err), status_code=500)

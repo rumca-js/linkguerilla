@@ -28,6 +28,13 @@ ORDER_OPTIONS = [
     {"id": "enabled", "name": "Status (Active first)"},
 ]
 
+HISTORY_ORDER_OPTIONS = [
+    {"id": "date_created", "name": "Date Created (Newest first)"},
+    {"id": "date_created_asc", "name": "Date Created (Oldest first)"},
+    {"id": "id", "name": "ID (Highest first)"},
+    {"id": "job", "name": "Job Type (A-Z)"},
+]
+
 
 @jobs_bp.route("/jobs")
 def jobs_list():
@@ -127,3 +134,68 @@ def jobs_clear_errors():
         "success",
     )
     return redirect(url_for("jobs.jobs_list"))
+
+
+@jobs_bp.route("/jobs/history")
+def jobs_history():
+    """
+    Renders JobHistoryView — a paginated table of historical completed background jobs.
+
+    Query parameters:
+        - job_type: Filter by specific job type or 'all'
+        - order_by: Sort column ('date_created', 'date_created_asc', 'id', 'job')
+        - page: Page number (1-indexed)
+    """
+    active_type = request.args.get("job_type", "all")
+    order_by = request.args.get("order_by", "date_created")
+    page = max(1, request.args.get("page", 1, type=int))
+    per_page = 50
+
+    type_filter = None if active_type == "all" else active_type
+
+    session = get_session()
+
+    total_results = JobService.count_history(
+        job_type=type_filter,
+        session=session,
+    )
+    total_pages = (
+        max(1, math.ceil(total_results / per_page)) if total_results > 0 else 1
+    )
+
+    offset = (page - 1) * per_page
+    history = JobService.list_history(
+        order_by=order_by,
+        limit=per_page,
+        offset=offset,
+        job_type=type_filter,
+        session=session,
+    )
+
+    distinct_job_types = JobService.get_history_job_types(session=session)
+    total_history_in_db = JobService.count_history(session=session)
+
+    return render_template(
+        "jobs/history.html",
+        history=history,
+        active_type=active_type,
+        order_by=order_by,
+        order_options=HISTORY_ORDER_OPTIONS,
+        job_types=distinct_job_types,
+        total_results=total_results,
+        total_history_in_db=total_history_in_db,
+        page=page,
+        total_pages=total_pages,
+        per_page=per_page,
+    )
+
+
+@jobs_bp.route("/jobs/history/clear", methods=["POST"])
+def jobs_history_clear():
+    """
+    Clears all background job history records and redirects to JobHistoryView.
+    """
+    session = get_session()
+    deleted_count = JobService.clear_history(session=session)
+    flash(f"Successfully cleared {deleted_count} history records.", "success")
+    return redirect(url_for("jobs.jobs_history"))
