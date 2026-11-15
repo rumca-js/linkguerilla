@@ -44,6 +44,8 @@ def search_view():
         ("q" in request.args)
         or ("page" in request.args)
         or ("filter" in request.args)
+        or ("order_by" in request.args)
+        or ("order" in request.args)
         or bool(query)
     )
 
@@ -64,6 +66,10 @@ def search_view():
 
         # Parse user query using AST grammar
         parsed_query = SearchParser.parse(query)
+        if not parsed_query.order_by:
+            order_param = request.args.get("order_by") or request.args.get("order")
+            if order_param:
+                parsed_query.order_by = order_param.strip()
 
         # Execute search with filters and sorting
         entries, total_results = SearchQueryBuilder.execute_search(

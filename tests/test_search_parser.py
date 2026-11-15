@@ -100,6 +100,28 @@ class TestSearchParser(unittest.TestCase):
         self.assertEqual(len(query2.clauses), 1)
         self.assertEqual(query2.order_by, "published")
 
+    def test_order_directive_date_dead_since(self):
+        """Verifies parsing of order directives with date_dead_since and order_by aliases."""
+        q1 = SearchParser.parse("order:-date_dead_since")
+        self.assertEqual(q1.order_by, "-date_dead_since")
+
+        q2 = SearchParser.parse("order:date_dead_since")
+        self.assertEqual(q2.order_by, "date_dead_since")
+
+        q3 = SearchParser.parse("order_by:-date_dead_since")
+        self.assertEqual(q3.order_by, "-date_dead_since")
+
+        q4 = SearchParser.parse("sort:dead_since")
+        self.assertEqual(q4.order_by, "dead_since")
+
+    def test_field_alias_date_dead_since(self):
+        """Verifies dead_since alias maps to date_dead_since."""
+        q = SearchParser.parse("dead_since>2026-01-01")
+        self.assertEqual(len(q.clauses), 1)
+        self.assertEqual(q.clauses[0].field, "date_dead_since")
+        self.assertEqual(q.clauses[0].operator, ">")
+        self.assertEqual(q.clauses[0].value, "2026-01-01")
+
     def test_comparison_operators(self):
         """Verifies parsing of >, <, >=, <= comparison operators with and without spaces."""
         q1 = SearchParser.parse("page_rating_votes>0")
@@ -359,6 +381,79 @@ class TestSearchQueryBuilder(unittest.TestCase):
         entries4, count4 = SearchQueryBuilder.execute_search(self.session, pq4)
         self.assertEqual(count4, 1)
         self.assertEqual(entries4[0].id, self.e1.id)
+
+    def test_order_by_date_dead_since_desc_dead_first(self):
+        """Verifies order_by='-date_dead_since' places dead entries first, newest dead first."""
+        e2_obj = self.entry_repo.get_by_id(self.e2.id)
+        e2_obj.date_dead_since = datetime(2026, 1, 15, 12, 0, 0, tzinfo=timezone.utc)
+        e3_obj = self.entry_repo.get_by_id(self.e3.id)
+        e3_obj.date_dead_since = datetime(2026, 11, 10, 12, 0, 0, tzinfo=timezone.utc)
+        self.session.commit()
+
+        pq = SearchParser.parse("order:-date_dead_since")
+        entries, count = SearchQueryBuilder.execute_search(self.session, pq)
+        self.assertEqual(count, 3)
+        self.assertEqual(entries[0].id, self.e3.id)  # Dead 2026-11-10 (newest dead)
+        self.assertEqual(entries[1].id, self.e2.id)  # Dead 2026-01-15 (older dead)
+        self.assertEqual(entries[2].id, self.e1.id)  # Alive (date_dead_since is None)
+
+    def test_order_by_date_dead_since_without_sign_dead_first(self):
+        """Verifies order_by='date_dead_since' without minus/plus also places dead entries first."""
+        e2_obj = self.entry_repo.get_by_id(self.e2.id)
+        e2_obj.date_dead_since = datetime(2026, 1, 15, 12, 0, 0, tzinfo=timezone.utc)
+        e3_obj = self.entry_repo.get_by_id(self.e3.id)
+        e3_obj.date_dead_since = datetime(2026, 11, 10, 12, 0, 0, tzinfo=timezone.utc)
+        self.session.commit()
+
+        pq = SearchParser.parse("order:date_dead_since")
+        entries, count = SearchQueryBuilder.execute_search(self.session, pq)
+        self.assertEqual(count, 3)
+        self.assertEqual(entries[0].id, self.e3.id)  # Dead entries first
+        self.assertEqual(entries[1].id, self.e2.id)
+        self.assertEqual(entries[2].id, self.e1.id)  # Alive entries last
+
+    def test_order_by_date_dead_since_asc_dead_first(self):
+        """Verifies order_by='+date_dead_since' places dead entries first with oldest dead first."""
+        e2_obj = self.entry_repo.get_by_id(self.e2.id)
+        e2_obj.date_dead_since = datetime(2026, 1, 15, 12, 0, 0, tzinfo=timezone.utc)
+        e3_obj = self.entry_repo.get_by_id(self.e3.id)
+        e3_obj.date_dead_since = datetime(2026, 11, 10, 12, 0, 0, tzinfo=timezone.utc)
+        self.session.commit()
+
+        pq = SearchParser.parse("order:+date_dead_since")
+        entries, count = SearchQueryBuilder.execute_search(self.session, pq)
+        self.assertEqual(count, 3)
+        self.assertEqual(entries[0].id, self.e2.id)  # Dead 2026-01-15 (oldest dead first)
+        self.assertEqual(entries[1].id, self.e3.id)  # Dead 2026-11-10
+        self.assertEqual(entries[2].id, self.e1.id)  # Alive entries last (NULLS LAST)
+
+    def test_order_by_dead_since_aliases(self):
+        """Verifies aliases dead_since and dead work for ordering dead entries first."""
+        e3_obj = self.entry_repo.get_by_id(self.e3.id)
+        e3_obj.date_dead_since = None
+        e2_obj = self.entry_repo.get_by_id(self.e2.id)
+        e2_obj.date_dead_since = datetime(2026, 1, 15, 12, 0, 0, tzinfo=timezone.utc)
+        self.session.commit()
+
+        for alias in ("-dead_since", "dead_since", "-dead", "dead"):
+            pq = SearchParser.parse(f"order:{alias}")
+            entries, _ = SearchQueryBuilder.execute_search(self.session, pq)
+            self.assertEqual(entries[0].id, self.e2.id, f"Failed for alias {alias}")
+
+    def test_order_by_date_dead_since_secondary_sort(self):
+        """Verifies multi-field order with date_dead_since as primary sort."""
+        # e2 is dead; e1 has 50 votes; e3 has 0 votes and is alive
+        e3_obj = self.entry_repo.get_by_id(self.e3.id)
+        e3_obj.date_dead_since = None
+        e2_obj = self.entry_repo.get_by_id(self.e2.id)
+        e2_obj.date_dead_since = datetime(2026, 1, 15, 12, 0, 0, tzinfo=timezone.utc)
+        self.session.commit()
+
+        pq = SearchParser.parse("order:-date_dead_since,-votes")
+        entries, _ = SearchQueryBuilder.execute_search(self.session, pq)
+        self.assertEqual(entries[0].id, self.e2.id)  # Dead entry first
+        self.assertEqual(entries[1].id, self.e1.id)  # Alive with 50 votes
+        self.assertEqual(entries[2].id, self.e3.id)  # Alive with 0 votes
 
 
 class TestFilterRegistry(unittest.TestCase):

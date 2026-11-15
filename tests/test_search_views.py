@@ -393,6 +393,29 @@ class TestSearchViewAPIAndSearch(unittest.TestCase):
             self.assertEqual(entries[0].title, "Advanced Python")  # 100 votes
             self.assertEqual(entries[1].title, "Python Tutorial")  # 10 votes
 
+            # Create custom SearchView with order_by="-date_dead_since"
+            from datetime import datetime, timezone
+
+            e2.date_dead_since = datetime(2026, 1, 1, tzinfo=timezone.utc)
+            session.commit()
+
+            dead_view = SearchViewService.create_view(
+                {
+                    "name": "Dead First",
+                    "priority": 2,
+                    "order_by": "-date_dead_since",
+                },
+                session=session,
+            )
+            entries_dead, count_dead = SearchQueryBuilder.execute_search(
+                session=session,
+                parsed_query=SearchParser.parse(""),
+                filter_id=f"custom_{dead_view.id}",
+            )
+            self.assertEqual(count_dead, 3)
+            # e2 is dead (date_dead_since is set), e1 and e3 are alive (None)
+            self.assertEqual(entries_dead[0].id, e2.id)
+
     def test_configuration_view_renders_search_views(self):
         # Create a view
         self.client.post(

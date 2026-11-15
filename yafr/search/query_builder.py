@@ -483,6 +483,12 @@ class SearchQueryBuilder:
                     if is_explicit_desc
                     else LinkDataModel.link.asc()
                 )
+            elif clean in ("date_dead_since", "dead_since", "dead"):
+                order_clauses.append(
+                    LinkDataModel.date_dead_since.asc().nullslast()
+                    if is_asc
+                    else LinkDataModel.date_dead_since.desc().nullslast()
+                )
             elif (social_col := cls._resolve_social_column(clean)) is not None:
                 if not joined_social:
                     stmt = stmt.outerjoin(

@@ -472,5 +472,6 @@ The screen displays, where available:
 
  - support name, default, priority, filter_statement, and order_by.
     -- filter_statement: search filter expression using the standard search syntax.
-    -- order_by: comma-separated list of ordering columns. Prefix with `-` for descending and `+` (or omitted) for ascending (e.g. `-followers_count, -date_published, link`). Supports all entry and social data ordering fields.
+    -- order_by: comma-separated list of ordering columns. Prefix with `-` for descending and `+` (or omitted) for ascending (e.g. `-followers_count, -date_published, link`, `-date_dead_since`). Supports all entry and social data ordering fields.
+    -- `date_dead_since` ordering (aliases: `date_dead_since`, `dead_since`, `dead`): sorting by `-date_dead_since` or `date_dead_since` ensures entries that are dead (`date_dead_since IS NOT NULL`) are displayed first by utilizing `NULLS LAST`, keeping non-dead entries last.
  - currently it can be only used for searching linkdatamodel

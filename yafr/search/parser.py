@@ -50,9 +50,11 @@ FIELD_ALIASES = {
     "socialdata_stars": "stars",
     "thumbs_up": "thumbs_up",
     "thumbs_down": "thumbs_down",
+    "date_dead_since": "date_dead_since",
+    "dead_since": "date_dead_since",
 }
 
-ORDER_DIRECTIVES = ("order:", "sort:")
+ORDER_DIRECTIVES = ("order_by:", "orderby:", "order:", "sort:")
 
 
 @dataclass

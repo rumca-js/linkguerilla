@@ -8,7 +8,7 @@ This document details the complete routing matrix for YAFR, encompassing both **
 
 | Route Path | HTTP Method | View / Screen | Purpose & Behavior | Offline Capable? |
 | :--- | :--- | :--- | :--- | :--- |
-| `/` or `/entries` | `GET` | **EntriesListView** | Default Google-like search view. If query is empty, displays a prominent centered search input. If query is present, displays search input at the top with results list, filter dropdown, and batch controls. | **Yes** |
+| `/` or `/entries` | `GET` | **EntriesListView** | Default Google-like search view. If query is empty, displays a prominent centered search input. If query is present, displays search input at the top with results list, filter dropdown, and batch controls. Supports `order_by` (or `order`) query parameter (e.g. `order_by=-date_dead_since` to sort dead entries first). | **Yes** |
 | `/entries/<int:id>` | `GET` | **EntryDetailView** | Displays complete metadata for a single entry, video playback frame (if YouTube/video), vote widget, tags with edit icon, comments, and entry navigation transition pane. | **Yes** |
 | `/entries/new` | `GET`, `POST` | **EntryEditScreen** | Form to manually create a new link entry. | **Yes** |
 | `/entries/<int:id>/edit`| `GET`, `POST` | **EntryEditScreen** | Form to edit existing link entry metadata (title, URL, description, tags, author, language). | **Yes** |
@@ -885,7 +885,7 @@ Following the project requirement to **"prefer having small server functions tha
 - **Offline Capable**: Yes.
 
 #### `POST /api/search-views`
-- **Purpose**: Creates a new search view. Supported fields: `name`, `default`, `priority`, `filter_statement`, `order_by`.
+- **Purpose**: Creates a new search view. Supported fields: `name`, `default`, `priority`, `filter_statement`, `order_by` (e.g. `-date_dead_since, -date_published`).
 - **Request Body**:
   ```json
   {
