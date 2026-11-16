@@ -352,6 +352,23 @@ class TestEntryRoutes(unittest.TestCase):
             self.assertIn('data-show-icons="false"', html)
             self.assertNotIn("gallery-thumb-wrap", html)
 
+    def test_quick_add_modal_autofocus(self):
+        """Verifies quick add modal has autofocus on single and batch inputs."""
+        response = self.client.get("/")
+        self.assertEqual(response.status_code, 200)
+        html = response.get_data(as_text=True)
+        # Check single link input has autofocus
+        self.assertRegex(html, r'<input[^>]+id="quick-add-url"[^>]*autofocus')
+        # Check batch links textarea has autofocus
+        self.assertRegex(html, r'<textarea[^>]+id="quick-add-batch-urls"[^>]*autofocus')
+
+    def test_sources_batch_add_modal_autofocus(self):
+        """Verifies sources list batch add modal has autofocus on batch URLs textarea."""
+        response = self.client.get("/sources")
+        self.assertEqual(response.status_code, 200)
+        html = response.get_data(as_text=True)
+        self.assertRegex(html, r'<textarea[^>]+id="batch-add-sources-urls"[^>]*autofocus')
+
 
 if __name__ == "__main__":
     unittest.main()

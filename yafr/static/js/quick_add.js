@@ -314,4 +314,24 @@ $(document).ready(function () {
     });
   });
 
+  // Autofocus link input on modal open and tab switch
+  const quickAddModal = document.getElementById('quickAddLinkModal');
+  if (quickAddModal) {
+    quickAddModal.addEventListener('shown.bs.modal', function () {
+      if ($('#batch-link-pane').hasClass('active')) {
+        $('#quick-add-batch-urls').trigger('focus');
+      } else {
+        $('#quick-add-url').trigger('focus');
+      }
+    });
+  }
+
+  $('#single-link-tab').on('shown.bs.tab', function () {
+    $('#quick-add-url').trigger('focus');
+  });
+
+  $('#batch-link-tab').on('shown.bs.tab', function () {
+    $('#quick-add-batch-urls').trigger('focus');
+  });
+
 });

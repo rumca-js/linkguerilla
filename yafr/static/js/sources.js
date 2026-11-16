@@ -316,8 +316,12 @@ $(document).ready(function() {
     $('#batch-add-sources-counter').text(`${count} / 100 URLs`);
   });
 
-  // Reset modal on close
+  // Autofocus URL textarea on modal open and reset modal on close
   if (batchAddModal) {
+    batchAddModal.addEventListener('shown.bs.modal', function() {
+      $('#batch-add-sources-urls').trigger('focus');
+    });
+
     batchAddModal.addEventListener('hidden.bs.modal', function() {
       $('#batch-add-sources-form')[0].reset();
       $('#batch-add-sources-counter').text('0 / 100 URLs');

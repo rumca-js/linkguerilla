@@ -92,7 +92,7 @@ Should be written in a such way, so it would be easily changed in code from SQli
  - preferably views should have one place with autofocus. Search views on search input
 
  - Any input should be limited. Do not allow infinite amount of inputs. For example entries can be inserted by a textfield, but only allow 200 to ba added by one field at a time
- - Link addition UI provides a quick modal from navbar and EntriesListView with live validation, clickable proposition buttons, and a batch ingestion tab for up to 200 URLs.
+ - Link addition UI provides a quick modal from navbar and EntriesListView with live validation, clickable proposition buttons, and a batch ingestion tab for up to 200 URLs. Modal link inputs (Quick Add single/batch and Sources batch add modal) support autofocus.
 
 # JobsView
  - displays list of jobs
