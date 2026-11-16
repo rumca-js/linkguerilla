@@ -267,8 +267,6 @@
         <i class="bi bi-globe"></i>
       {% endif %}
     {% endif %}
-    <span>{{ source_obj.title if source_obj else (entry.author or 'Web') }}</span>
-    <span>&rsaquo;</span>
     <span class="text-truncate">{{ entry.link }}</span>
     {% if is_dead %}
       <span class="badge bg-danger ms-1"><i class="bi bi-skull me-1"></i>Dead Link</span>
