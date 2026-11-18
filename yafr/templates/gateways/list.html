@@ -1,0 +1,134 @@
+{% extends "base.html" %}
+
+{% block title %}{{ app_name }} - Gateways{% endblock %}
+
+{% block content %}
+<div class="container-fluid px-4">
+  <div class="row justify-content-center mt-4">
+    <div class="col-12 col-xl-10">
+      <div class="d-flex flex-wrap justify-content-between align-items-center mb-3 gap-2">
+        <div class="d-flex align-items-center gap-2">
+          <i class="bi bi-grid-3x3-gap text-primary fs-4"></i>
+          <h4 class="mb-0">Gateways</h4>
+          <span class="badge bg-secondary-subtle text-secondary-emphasis border">{{ gateways|length }}</span>
+        </div>
+        <a href="{{ url_for('entries.search_view') }}" class="btn btn-outline-secondary btn-sm rounded-pill px-3">
+          <i class="bi bi-arrow-left me-1"></i>Back to Search
+        </a>
+      </div>
+
+      {% with messages = get_flashed_messages(with_categories=true) %}
+        {% for category, message in messages %}
+          <div class="alert alert-{{ category }} alert-dismissible fade show" role="alert">
+            {{ message }}
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+          </div>
+        {% endfor %}
+      {% endwith %}
+
+      <div class="row g-3 mb-4">
+        <div class="col-12 col-lg-8">
+          <div class="card border-0 shadow-sm h-100">
+            <div class="card-header bg-body border-0 pt-3">
+              <h5 class="mb-0"><i class="bi bi-plus-circle text-primary me-2"></i>Add Gateway</h5>
+            </div>
+            <div class="card-body">
+              <form method="post" action="{{ url_for('gateways.gateways_list') }}">
+                <input type="hidden" name="action" value="add">
+                <div class="row g-3 align-items-end">
+                  <div class="col-12 col-md-6">
+                    <label for="gateway-link" class="form-label">URL</label>
+                    <input id="gateway-link" name="link" type="text" class="form-control" maxlength="2048"
+                           placeholder="https://example.com" required autofocus>
+                    <div class="form-text">If omitted, HTTPS is used.</div>
+                  </div>
+                  <div class="col-12 col-md-3">
+                    <label for="gateway-title" class="form-label">Display title</label>
+                    <input id="gateway-title" name="title" type="text" class="form-control" maxlength="200"
+                           placeholder="Optional">
+                  </div>
+                  <div class="col-12 col-md-3">
+                    <label for="gateway-type" class="form-label">Category</label>
+                    <select id="gateway-type" name="gateway_type" class="form-select" required>
+                      {% for gateway_type in gateway_types %}
+                        <option value="{{ gateway_type }}" {% if gateway_type == 'other' %}selected{% endif %}>
+                          {{ gateway_type|replace('-', ' ')|title }}
+                        </option>
+                      {% endfor %}
+                    </select>
+                  </div>
+                  <div class="col-12">
+                    <button type="submit" class="btn btn-primary btn-sm rounded-pill px-3">
+                      <i class="bi bi-plus-lg me-1"></i>Add Gateway
+                    </button>
+                  </div>
+                </div>
+              </form>
+            </div>
+          </div>
+        </div>
+        <div class="col-12 col-lg-4">
+          <div class="card border-0 shadow-sm h-100">
+            <div class="card-body d-flex flex-column justify-content-between gap-3">
+              <div>
+                <h5 class="card-title"><i class="bi bi-arrow-counterclockwise text-secondary me-2"></i>Restore defaults</h5>
+                <p class="text-secondary small mb-0">Replace the current gateway list with the built-in default gateways.</p>
+              </div>
+              <form method="post" action="{{ url_for('gateways.gateways_list') }}"
+                    onsubmit="return confirm('Replace all gateways with the built-in defaults?');">
+                <input type="hidden" name="action" value="reset">
+                <button type="submit" class="btn btn-outline-danger btn-sm rounded-pill px-3">
+                  <i class="bi bi-arrow-counterclockwise me-1"></i>Reset Gateways
+                </button>
+              </form>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="card border-0 shadow-sm mb-4">
+        {% if gateways %}
+          <div class="table-responsive">
+            <table class="table table-hover align-middle mb-0">
+              <thead class="table-light small">
+                <tr>
+                  <th>Gateway</th>
+                  <th style="width: 190px;">Category</th>
+                  <th style="width: 100px;" class="text-end">Action</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for gateway in gateways %}
+                  <tr>
+                    <td>
+                      <div class="fw-semibold">{{ gateway.title or gateway.link|replace('https://', '')|replace('http://', '') }}</div>
+                      <a href="{{ gateway.link }}" target="_blank" rel="noopener noreferrer" class="small text-break">{{ gateway.link }}</a>
+                    </td>
+                    <td><span class="badge bg-secondary-subtle text-secondary-emphasis">{{ (gateway.gateway_type or 'other')|replace('-', ' ')|title }}</span></td>
+                    <td class="text-end">
+                      <form method="post" action="{{ url_for('gateways.gateways_list') }}"
+                            onsubmit="return confirm('Remove this gateway?');">
+                        <input type="hidden" name="action" value="delete">
+                        <input type="hidden" name="gateway_id" value="{{ gateway.id }}">
+                        <button type="submit" class="btn btn-outline-danger btn-sm" aria-label="Remove gateway">
+                          <i class="bi bi-trash"></i>
+                        </button>
+                      </form>
+                    </td>
+                  </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+        {% else %}
+          <div class="text-center py-5 text-muted">
+            <i class="bi bi-grid-3x3-gap display-5 d-block mb-3"></i>
+            <h5>No gateways configured</h5>
+            <p class="mb-0">Add a gateway above or restore the built-in defaults.</p>
+          </div>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
