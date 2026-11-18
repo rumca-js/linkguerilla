@@ -1,25 +1,23 @@
-from django.db import models
+"""Repository operations for the linkarchivetools ``gateway`` table."""
 
 from collections import OrderedDict
+from typing import Iterable, Optional
+
+from sqlalchemy import delete, select
+from sqlalchemy.orm import Session
+
+from linkarchivetools.model.definitions import Gateway
+
+from yafr.db.base_repository import BaseRepository
 
 
-class Gateway(models.Model):
-    """
-    Gateways were introduced when amazon, google, and others were checked by EU
-    to see if they should be split.
+class GatewayRepository(BaseRepository[Gateway]):
+    """Persists and queries curated gateway links."""
 
-    This table should be small, should contain limited amount of entries.
-
-    I think many more pages, plarforms are gateways to the internet, and should be
-    kept in check.
-    """
-
-    TYPE_GATEWAY = "gateway"  # generally acknowledged as popular
+    TYPE_GATEWAY = "gateway"
     TYPE_SEARCH_ENGINE = "search-engine"
     TYPE_AI_BOT = "ai-bot"
-    TYPE_POPULAR = (
-        "popular"  # popular in this instance. 5 most popular entries, by a visit?
-    )
+    TYPE_POPULAR = "popular"
     TYPE_SOCIAL_MEDIA = "social-media"
     TYPE_FAVOURITE = "favourite"
     TYPE_AUDIO_STREAMING = "audio-streaming"
@@ -36,8 +34,8 @@ class Gateway(models.Model):
         TYPE_SEARCH_ENGINE,
         TYPE_AI_BOT,
         TYPE_POPULAR,
-        TYPE_FAVOURITE,
         TYPE_SOCIAL_MEDIA,
+        TYPE_FAVOURITE,
         TYPE_AUDIO_STREAMING,
         TYPE_VIDEO_STREAMING,
         TYPE_FILE_SHARING,
@@ -47,251 +45,128 @@ class Gateway(models.Model):
         TYPE_APP_STORE,
         TYPE_OTHER,
     ]
+    GATEWAYS_CHOICES = [[gateway_type, gateway_type] for gateway_type in GATEWAYS_TYPES]
 
-    GATEWAYS_CHOICES = [
-        [TYPE_GATEWAY, TYPE_GATEWAY],
-        [TYPE_SEARCH_ENGINE, TYPE_SEARCH_ENGINE],
-        [TYPE_AI_BOT, TYPE_AI_BOT],
-        [TYPE_POPULAR, TYPE_POPULAR],
-        [TYPE_SOCIAL_MEDIA, TYPE_SOCIAL_MEDIA],
-        [TYPE_FAVOURITE, TYPE_FAVOURITE],
-        [TYPE_AUDIO_STREAMING, TYPE_AUDIO_STREAMING],
-        [TYPE_VIDEO_STREAMING, TYPE_VIDEO_STREAMING],
-        [TYPE_FILE_SHARING, TYPE_FILE_SHARING],
-        [TYPE_BANKING, TYPE_BANKING],
-        [TYPE_DIGITAL_LIBRARY, TYPE_DIGITAL_LIBRARY],
-        [TYPE_MARKETPLACE, TYPE_MARKETPLACE],
-        [TYPE_APP_STORE, TYPE_APP_STORE],
-        [TYPE_OTHER, TYPE_OTHER],
-    ]
+    _SEED_DATA = {
+        TYPE_SEARCH_ENGINE: "google.com bing.com kagi.com yahoo.com yandex.com duckduckgo.com searxng.site 4get.ca search.brave.com startpage.com wolframalpha.com mwmbl.org whoogle.io search.marginalia.nu baidu.com mojeek.com morphic.sh shodan.io sogou.com stract.com wiby.me cse.google.com anoox.com greppr.org letsearch.ru presearch.io".split(),
+        TYPE_DIGITAL_LIBRARY: "wikipedia.org github.com archive.org archive.ph annas-archive.org".split(),
+        TYPE_VIDEO_STREAMING: "youtube.com tiktok.com netflix.com disneyplus.com rumble.com odysee.com yewtu.be twitch.tv dailymotion.com vimeo.com".split(),
+        TYPE_FILE_SHARING: ["drive.google.com", "icloud.com"],
+        TYPE_BANKING: ["paypal.com", "wallet.google", "apple.com/pl/apple-pay"],
+        TYPE_AUDIO_STREAMING: ["open.spotify.com", "music.youtube.com"],
+        TYPE_SOCIAL_MEDIA: "meta.com reddit.com facebook.com stackoverflow.com linkedin.com discord.com messanger.com whatsapp.com instagram.com quora.com wechat.com hn.algolia.com news.ycombinator.com".split(),
+        TYPE_AI_BOT: "chatgpt.com copilot.microsoft.com gemini.google.com chat.deepseek.com perplexity.ai claude.ai x.ai".split(),
+        TYPE_MARKETPLACE: [
+            "amazon.com",
+            "aliexpress.com",
+            "ebay.com",
+            "facebook.com/marketplace",
+            "vinted.com",
+        ],
+        TYPE_APP_STORE: [
+            "play.google.com",
+            "store.steampowered.com",
+            "apps.apple.com",
+            "store.playstation.com",
+            "shop.battle.net",
+        ],
+        TYPE_OTHER: [
+            "gmail.com",
+            "maps.google.com",
+            "chrome.google.com",
+            "office.com/",
+            "apple.com",
+            "microsoft.com",
+            "microsoft.com/microsoft-teams",
+            "suno.com",
+        ],
+    }
 
-    link = models.CharField(max_length=1000, unique=True)
-    title = models.CharField(max_length=1000, null=True, blank=True)
-    description = models.TextField(max_length=1000, null=True, blank=True)
-    gateway_type = models.CharField(
-        max_length=1000, choices=GATEWAYS_CHOICES, null=True, blank=True
-    )  # TYPE
+    _GROUP_NAMES = OrderedDict(
+        [
+            (TYPE_SEARCH_ENGINE, "search_engines"),
+            (TYPE_AI_BOT, "ai_search_engines"),
+            (TYPE_DIGITAL_LIBRARY, "digital_library"),
+            (TYPE_GATEWAY, "gateways"),
+            (TYPE_APP_STORE, "app_store"),
+            (TYPE_POPULAR, "popular"),
+            (TYPE_FAVOURITE, "favourite"),
+            (TYPE_SOCIAL_MEDIA, "social_media"),
+            (TYPE_AUDIO_STREAMING, "audio_streaming"),
+            (TYPE_VIDEO_STREAMING, "video_streaming"),
+            (TYPE_MARKETPLACE, "marketplace"),
+            (TYPE_FILE_SHARING, "file_sharing"),
+            (TYPE_BANKING, "banking"),
+            (TYPE_OTHER, "other"),
+        ]
+    )
 
-    def cleanup(cfg=None):
-        """
-        Should:
-         - remove all popular, fetch new 5 top visited links, add it to popular here
-         - clears social-media entries, adds "social media" from tags
-         - clears search-engine entries, adds "search engine" from tags
-        """
+    def __init__(self, session: Optional[Session] = None) -> None:
+        super().__init__(session=session)
 
-        full_cleanup = False
-        if cfg and "full" in cfg:
-            full_cleanup = True
+    def add_gateway(
+        self,
+        link: str,
+        gateway_type: Optional[str] = None,
+        title: Optional[str] = None,
+        description: Optional[str] = None,
+    ) -> Gateway:
+        """Add or update a gateway, keyed by its unique link."""
+        link = link.strip()
+        gateway = self.get_by_link(link)
+        if gateway is None:
+            gateway = Gateway(link=link)
+            self.session.add(gateway)
+        gateway.gateway_type = gateway_type
+        gateway.title = title
+        gateway.description = description
+        self.commit()
+        return gateway
 
-        if full_cleanup:
-            Gateway.objects.all().delete()
-            Gateway.populate()
+    def get_by_link(self, link: str) -> Optional[Gateway]:
+        """Return a gateway matching ``link`` exactly after trimming whitespace."""
+        stmt = select(Gateway).where(Gateway.link == link.strip()).limit(1)
+        return self.session.execute(stmt).scalar_one_or_none()
 
-    def check_init():
-        if not Gateway.objects.all().exists():
-            Gateway.populate()
-
-    def populate():
-        Gateway.populate_search_engines()
-        Gateway.populate_digital_libraries()
-        Gateway.populate_video_streaming()
-        Gateway.populate_audio_streaming()
-        Gateway.populate_favourites()
-        Gateway.populate_social_media()
-        Gateway.populate_ai_bot()
-        Gateway.populate_marketplaces()
-        Gateway.populate_file_sharing()
-        Gateway.populate_banking()
-        Gateway.populate_app_store()
-        Gateway.populate_other()
-
-    # fmt: off
-    def populate_search_engines():
-        thetype = Gateway.TYPE_SEARCH_ENGINE
-
-        Gateway.objects.create(link="https://google.com", gateway_type=thetype)
-        Gateway.objects.create(link="https://bing.com", gateway_type=thetype)
-        Gateway.objects.create(link="https://kagi.com", gateway_type=thetype)
-        Gateway.objects.create(link="https://yahoo.com", gateway_type=thetype)
-        Gateway.objects.create(link="https://yandex.com", gateway_type=thetype)
-        Gateway.objects.create(link="https://duckduckgo.com", gateway_type=thetype)
-        Gateway.objects.create(link="https://searxng.site", gateway_type=thetype)
-        Gateway.objects.create(link="https://4get.ca", gateway_type=thetype)
-        Gateway.objects.create(link="https://search.brave.com", gateway_type=thetype)
-        Gateway.objects.create(link="https://startpage.com", gateway_type=thetype)
-        Gateway.objects.create(link="https://wolframalpha.com", gateway_type=thetype)
-        Gateway.objects.create(link="https://mwmbl.org", gateway_type=thetype)
-        Gateway.objects.create(link="https://whoogle.io", gateway_type=thetype)
-        Gateway.objects.create(link="https://search.marginalia.nu", gateway_type=thetype)
-        Gateway.objects.create(link="https://baidu.com", gateway_type=thetype)
-        Gateway.objects.create(link="https://mojeek.com", gateway_type=thetype)
-        Gateway.objects.create(link="https://morphic.sh", gateway_type=thetype)
-        Gateway.objects.create(link="https://shodan.io", gateway_type=thetype)
-        Gateway.objects.create(link="https://sogou.com", gateway_type=thetype)
-        Gateway.objects.create(link="https://stract.com", gateway_type=thetype)
-        Gateway.objects.create(link="https://wiby.me", gateway_type=thetype)
-        Gateway.objects.create(link="https://cse.google.com", gateway_type=thetype)
-        Gateway.objects.create(link="https://anoox.com", gateway_type=thetype)
-        Gateway.objects.create(link="https://greppr.org", gateway_type=thetype)
-        Gateway.objects.create(link="https://letsearch.ru", gateway_type=thetype)
-        Gateway.objects.create(link="https://presearch.io", gateway_type=thetype)
-
-    def populate_digital_libraries():
-        thetype = Gateway.TYPE_DIGITAL_LIBRARY
-
-        Gateway.objects.create(link="https://wikipedia.org", gateway_type=thetype)
-        Gateway.objects.create(link="https://github.com", gateway_type=thetype)
-        Gateway.objects.create(link="https://archive.org", gateway_type=thetype)
-        Gateway.objects.create(link="https://archive.ph", gateway_type=thetype)
-        Gateway.objects.create(link="https://annas-archive.org", gateway_type=thetype)
-
-    def populate_video_streaming():
-        thetype = Gateway.TYPE_VIDEO_STREAMING
-
-        Gateway.objects.create(link="https://youtube.com", gateway_type=thetype)
-        Gateway.objects.create(link="https://tiktok.com", gateway_type=thetype)
-        Gateway.objects.create(link="https://netflix.com", gateway_type=thetype)
-        Gateway.objects.create(link="https://disneyplus.com", gateway_type=thetype)
-        Gateway.objects.create(link="https://rumble.com", gateway_type=thetype)
-        Gateway.objects.create(link="https://odysee.com", gateway_type=thetype)
-        Gateway.objects.create(link="https://yewtu.be", gateway_type=thetype)
-        Gateway.objects.create(link="https://twitch.tv", gateway_type=thetype)
-        Gateway.objects.create(link="https://dailymotion.com", gateway_type=thetype)
-        Gateway.objects.create(link="https://vimeo.com", gateway_type=thetype)
-
-    def populate_file_sharing():
-        thetype = Gateway.TYPE_FILE_SHARING
-
-        Gateway.objects.create(link="https://drive.google.com", gateway_type=thetype)
-        Gateway.objects.create(link="https://icloud.com", gateway_type=thetype)
-
-    def populate_banking():
-        thetype = Gateway.TYPE_BANKING
-
-        Gateway.objects.create(link="https://paypal.com", gateway_type=thetype)
-        Gateway.objects.create(link="https://wallet.google", gateway_type=thetype)
-        Gateway.objects.create(
-            link="https://apple.com/pl/apple-pay", gateway_type=thetype
+    def list_by_type(self, gateway_type: str) -> list[Gateway]:
+        """Return gateways of the requested type ordered by link."""
+        stmt = (
+            select(Gateway)
+            .where(Gateway.gateway_type == gateway_type)
+            .order_by(Gateway.link)
         )
+        return list(self.session.execute(stmt).scalars().all())
 
-    def populate_audio_streaming():
-        thetype = Gateway.TYPE_AUDIO_STREAMING
+    def cleanup(self, cfg=None) -> None:
+        """Rebuild default data only when ``cfg`` requests a full cleanup."""
+        if cfg and "full" in cfg:
+            self.session.execute(delete(Gateway))
+            self.populate()
 
-        Gateway.objects.create(link="https://open.spotify.com", gateway_type=thetype)
-        Gateway.objects.create(link="https://music.youtube.com", gateway_type=thetype)
+    def check_init(self) -> None:
+        """Populate default gateways when the table is empty."""
+        if self.count(Gateway) == 0:
+            self.populate()
 
-    def populate_favourites():
-        thetype = Gateway.TYPE_FAVOURITE
+    def populate(self) -> None:
+        """Insert the curated default gateway links without duplicating existing rows."""
+        for gateway_type, links in self._SEED_DATA.items():
+            for link in links:
+                normalized_link = "https://" + link
+                existing = self.get_by_link(normalized_link)
+                if existing is None:
+                    self.session.add(
+                        Gateway(link=normalized_link, gateway_type=gateway_type)
+                    )
+                elif existing.gateway_type is None:
+                    existing.gateway_type = gateway_type
+        self.commit()
 
-    def populate_social_media():
-        thetype = Gateway.TYPE_SOCIAL_MEDIA
-
-        Gateway.objects.create(link="https://meta.com", gateway_type=thetype)
-        Gateway.objects.create(link="https://reddit.com", gateway_type=thetype)
-        Gateway.objects.create(link="https://facebook.com", gateway_type=thetype)
-        Gateway.objects.create(link="https://stackoverflow.com", gateway_type=thetype)
-        Gateway.objects.create(link="https://linkedin.com", gateway_type=thetype)
-        Gateway.objects.create(link="https://discord.com", gateway_type=thetype)
-        Gateway.objects.create(link="https://messanger.com", gateway_type=thetype)
-        Gateway.objects.create(link="https://whatsapp.com", gateway_type=thetype)
-        Gateway.objects.create(link="https://instagram.com", gateway_type=thetype)
-        Gateway.objects.create(link="https://quora.com", gateway_type=thetype)
-        Gateway.objects.create(link="https://wechat.com", gateway_type=thetype)
-        Gateway.objects.create(link="https://hn.algolia.com", gateway_type=thetype)
-        Gateway.objects.create(link="https://news.ycombinator.com", gateway_type=thetype)
-
-    def populate_ai_bot():
-        thetype = Gateway.TYPE_AI_BOT
-
-        Gateway.objects.create(link="https://chatgpt.com", gateway_type=thetype)
-        Gateway.objects.create(link="https://copilot.microsoft.com", gateway_type=thetype)
-        Gateway.objects.create(link="https://gemini.google.com", gateway_type=thetype)
-        Gateway.objects.create(link="https://chat.deepseek.com", gateway_type=thetype)
-        Gateway.objects.create(link="https://perplexity.ai", gateway_type=thetype)
-        Gateway.objects.create(link="https://claude.ai", gateway_type=thetype)
-        Gateway.objects.create(link="https://x.ai", gateway_type=thetype)
-
-    def populate_marketplaces():
-        thetype = Gateway.TYPE_MARKETPLACE
-
-        Gateway.objects.create(link="https://amazon.com", gateway_type=thetype)
-        Gateway.objects.create(link="https://aliexpress.com", gateway_type=thetype)
-        Gateway.objects.create(link="https://ebay.com", gateway_type=thetype)
-        Gateway.objects.create(link="https://facebook.com/marketplace", gateway_type=thetype)
-        Gateway.objects.create(link="https://vinted.com", gateway_type=thetype)
-
-    def populate_app_store():
-        thetype = Gateway.TYPE_APP_STORE
-
-        Gateway.objects.create(link="https://play.google.com", gateway_type=thetype)
-        Gateway.objects.create(link="https://store.steampowered.com", gateway_type=thetype)
-        Gateway.objects.create(link="https://apps.apple.com", gateway_type=thetype)
-        Gateway.objects.create(link="https://store.playstation.com", gateway_type=thetype)
-        Gateway.objects.create(link="https://shop.battle.net", gateway_type=thetype)
-
-    def populate_other():
-        thetype = Gateway.TYPE_OTHER
-
-        Gateway.objects.create(link="https://gmail.com", gateway_type=thetype)
-        Gateway.objects.create(link="https://maps.google.com", gateway_type=thetype)
-        Gateway.objects.create(link="https://chrome.google.com", gateway_type=thetype)
-        Gateway.objects.create(link="https://office.com/", gateway_type=thetype)
-        Gateway.objects.create(link="https://apple.com", gateway_type=thetype)
-        Gateway.objects.create(link="https://microsoft.com", gateway_type=thetype)
-        Gateway.objects.create(link="https://microsoft.com/microsoft-teams", gateway_type=thetype)
-        Gateway.objects.create(link="https://suno.com", gateway_type=thetype)
-    # fmt: on
-
-    def get_types_mapping(gateway_types):
+    def get_types_mapping(self, gateway_types: Iterable[str]) -> OrderedDict:
+        """Return selected gateway types using the legacy template group names."""
+        selected = set(gateway_types)
         data = OrderedDict()
-        if Gateway.TYPE_SEARCH_ENGINE in gateway_types:
-            data["search_engines"] = Gateway.objects.filter(
-                gateway_type=Gateway.TYPE_SEARCH_ENGINE
-            )
-        if Gateway.TYPE_AI_BOT in gateway_types:
-            data["ai_search_engines"] = Gateway.objects.filter(
-                gateway_type=Gateway.TYPE_AI_BOT
-            )
-        if Gateway.TYPE_DIGITAL_LIBRARY in gateway_types:
-            data["digital_library"] = Gateway.objects.filter(
-                gateway_type=Gateway.TYPE_DIGITAL_LIBRARY
-            )
-        if Gateway.TYPE_GATEWAY in gateway_types:
-            data["gateways"] = Gateway.objects.filter(gateway_type=Gateway.TYPE_GATEWAY)
-        if Gateway.TYPE_APP_STORE in gateway_types:
-            data["app_store"] = Gateway.objects.filter(
-                gateway_type=Gateway.TYPE_APP_STORE
-            )
-        if Gateway.TYPE_POPULAR in gateway_types:
-            data["popular"] = Gateway.objects.filter(gateway_type=Gateway.TYPE_POPULAR)
-        if Gateway.TYPE_FAVOURITE in gateway_types:
-            data["favourite"] = Gateway.objects.filter(
-                gateway_type=Gateway.TYPE_FAVOURITE
-            )
-        if Gateway.TYPE_SOCIAL_MEDIA in gateway_types:
-            data["social_media"] = Gateway.objects.filter(
-                gateway_type=Gateway.TYPE_SOCIAL_MEDIA
-            )
-        if Gateway.TYPE_AUDIO_STREAMING in gateway_types:
-            data["audio_streaming"] = Gateway.objects.filter(
-                gateway_type=Gateway.TYPE_AUDIO_STREAMING
-            )
-        if Gateway.TYPE_VIDEO_STREAMING in gateway_types:
-            data["video_streaming"] = Gateway.objects.filter(
-                gateway_type=Gateway.TYPE_VIDEO_STREAMING
-            )
-        if Gateway.TYPE_MARKETPLACE in gateway_types:
-            data["marketplace"] = Gateway.objects.filter(
-                gateway_type=Gateway.TYPE_MARKETPLACE
-            )
-        if Gateway.TYPE_FILE_SHARING in gateway_types:
-            data["file_sharing"] = Gateway.objects.filter(
-                gateway_type=Gateway.TYPE_FILE_SHARING
-            )
-        if Gateway.TYPE_BANKING in gateway_types:
-            data["banking"] = Gateway.objects.filter(gateway_type=Gateway.TYPE_BANKING)
-        if Gateway.TYPE_OTHER in gateway_types:
-            data["other"] = Gateway.objects.filter(gateway_type=Gateway.TYPE_OTHER)
-
+        for gateway_type, group_name in self._GROUP_NAMES.items():
+            if gateway_type in selected:
+                data[group_name] = self.list_by_type(gateway_type)
         return data

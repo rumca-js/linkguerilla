@@ -140,6 +140,10 @@ def main():
                     executor.fix_database_schema(reapply_defaults=True)
                 except Exception as schema_err:
                     logging.warning("Startup schema fix error: %s", schema_err)
+            try:
+                executor.initialize_gateways()
+            except Exception as gateway_err:
+                logging.warning("Worker gateway initialization failed: %s", gateway_err)
             result = executor.process_one()
             if result and result.get("processed"):
                 on_job_result(result)

@@ -19,9 +19,11 @@ from sqlalchemy.orm import Session
 from linkarchivetools.model.definitions import (
     BackgroundJob,
     BackgroundJobHistory,
+    Gateway,
     LinkDataModel,
 )
 from yafr.db.config_repository import ConfigRepository
+from yafr.db.gateway_repository import GatewayRepository
 from yafr.db.job_repository import JobRepository
 from yafr.db.logging_repository import LoggingRepository
 from yafr.db.session import close_session, get_session
@@ -91,6 +93,20 @@ class JobExecutor:
         return DatabaseService.fix_all_tables(
             reapply_defaults=reapply_defaults, engine=engine
         )
+
+    def initialize_gateways(self, session: Optional[Session] = None) -> bool:
+        """Seed gateways at worker startup when enabled and currently empty."""
+        sess = self._get_session(session)
+        config = ConfigRepository(sess).get_config()
+        if not config.enable_gateways:
+            return False
+
+        gateway_repo = GatewayRepository(sess)
+        if gateway_repo.count(Gateway):
+            return False
+
+        gateway_repo.populate()
+        return True
 
     def _get_session(self, session: Optional[Session] = None) -> Session:
         return session or self._session or get_session()
@@ -696,6 +712,11 @@ class JobExecutor:
                 logger.warning(
                     "Worker startup schema fix encountered an issue: %s", schema_err
                 )
+
+        try:
+            self.initialize_gateways(self._get_session())
+        except Exception as gateway_err:
+            logger.warning("Worker gateway initialization failed: %s", gateway_err)
 
         # Enqueue outdated jobs at worker startup if auto_refresh_sources is enabled
         if self.auto_refresh_sources:

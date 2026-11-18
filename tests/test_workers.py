@@ -60,6 +60,36 @@ class TestJobExecutor(unittest.TestCase):
     def tearDown(self):
         close_session()
 
+    def test_gateway_initialization_requires_enabled_configuration(self):
+        """Gateways are populated only when enabled in configuration."""
+        from linkarchivetools.model.definitions import Gateway
+
+        executor = JobExecutor(session=self.session, auto_refresh_sources=False)
+        self.config_repo.update_config(enable_gateways=False)
+
+        self.assertFalse(executor.initialize_gateways())
+        self.assertEqual(self.session.query(Gateway).count(), 0)
+
+        self.config_repo.update_config(enable_gateways=True)
+        self.assertTrue(executor.initialize_gateways())
+        self.assertGreater(self.session.query(Gateway).count(), 0)
+
+        self.assertFalse(executor.initialize_gateways())
+
+    def test_gateways_remain_empty_when_feature_is_enabled_if_already_populated(self):
+        """Startup leaves existing gateway data intact and avoids reseeding."""
+        from linkarchivetools.model.definitions import Gateway
+        from yafr.db.gateway_repository import GatewayRepository
+
+        executor = JobExecutor(session=self.session, auto_refresh_sources=False)
+        self.config_repo.update_config(enable_gateways=True)
+        gateway_repo = GatewayRepository(self.session)
+        gateway_repo.add_gateway("https://custom.example", "other")
+
+        self.assertFalse(executor.initialize_gateways())
+        self.assertEqual(self.session.query(Gateway).count(), 1)
+        self.assertIsNotNone(gateway_repo.get_by_link("https://custom.example"))
+
     def test_process_cleanup_job(self):
         """JobExecutor processes cleanup task and archives it to history."""
         # Seed searches exceeding limit

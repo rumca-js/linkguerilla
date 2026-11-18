@@ -14,6 +14,7 @@ from yafr.db.block_repository import (
 from yafr.db.config_repository import ConfigRepository
 from yafr.db.credentials_repository import CredentialsRepository
 from yafr.db.entry_repository import EntryRepository
+from yafr.db.gateway_repository import GatewayRepository
 from yafr.db.history_repository import HistoryRepository
 from yafr.db.job_repository import JobRepository
 from yafr.db.logging_repository import (
@@ -50,6 +51,7 @@ __all__ = [
     "ConfigRepository",
     "CredentialsRepository",
     "EntryRepository",
+    "GatewayRepository",
     "SourceRepository",
     "JobRepository",
     "HistoryRepository",

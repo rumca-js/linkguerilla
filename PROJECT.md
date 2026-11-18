@@ -51,6 +51,8 @@ Naming vs Table names
  - SearchView, or Filters - searchview
  - Block Entry Lists - blockentrylist
  - Block Entries - blockentry
+ - Gateways - gateway (SQLAlchemy model defined by `linkarchivetools.model.definitions.Gateway`; YAFR repository supplies gateway type constants, seed data, and queries)
+ - The worker seeds default gateways at startup only when `ConfigurationEntry.enable_gateways` is enabled and the gateway table is empty. The repository does not populate data by itself.
 
 linkdatamodel table dependencies:
  - linkdatamodel.id = entrycompactedtags.entry_id
