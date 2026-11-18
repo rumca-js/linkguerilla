@@ -60,6 +60,41 @@ class TestEntryRoutes(unittest.TestCase):
         self.assertIn("--yafr-visit-alpha: 0.6", html)
         self.assertIn("--yafr-dead-alpha: 0.4", html)
 
+    def test_gateway_directory_is_collapsed_when_enabled(self):
+        """The initial search page offers configured gateways in a collapsed section."""
+        from yafr.db import GatewayRepository
+
+        ConfigRepository(self.session).update_config(enable_gateways=True)
+        GatewayRepository(self.session).add_gateway(
+            "https://example-search.test", "search-engine", title="Example Search"
+        )
+
+        response = self.client.get("/")
+        html = response.get_data(as_text=True)
+
+        self.assertEqual(response.status_code, 200)
+        self.assertIn("Browse gateways", html)
+        self.assertIn('id="gateway-directory"', html)
+        self.assertIn('aria-expanded="false"', html)
+        self.assertIn("Example Search", html)
+        self.assertIn("https://example-search.test", html)
+
+    def test_gateway_directory_is_not_shown_when_disabled_or_searching(self):
+        """Gateway links are only shown on the empty search page when enabled."""
+        from yafr.db import GatewayRepository
+
+        ConfigRepository(self.session).update_config(enable_gateways=False)
+        GatewayRepository(self.session).add_gateway(
+            "https://example-search.test", "search-engine", title="Example Search"
+        )
+
+        disabled_html = self.client.get("/").get_data(as_text=True)
+        self.assertNotIn("Browse gateways", disabled_html)
+
+        ConfigRepository(self.session).update_config(enable_gateways=True)
+        searched_html = self.client.get("/?q=Python").get_data(as_text=True)
+        self.assertNotIn("Browse gateways", searched_html)
+
     def test_search_view_custom_visit_alpha(self):
         """Custom entries_visit_alpha in config is rendered into page CSS root."""
         config_repo = ConfigRepository(self.session)

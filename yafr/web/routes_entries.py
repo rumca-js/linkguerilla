@@ -10,7 +10,13 @@ from urllib.parse import urlparse
 from flask import Blueprint, abort, flash, redirect, render_template, request, url_for
 from sqlalchemy import select
 from linkarchivetools.model.definitions import LinkDataModel, SocialData, SourcesTable
-from yafr.db import ConfigRepository, EntryRepository, HistoryRepository, get_session
+from yafr.db import (
+    ConfigRepository,
+    EntryRepository,
+    GatewayRepository,
+    HistoryRepository,
+    get_session,
+)
 from yafr.search import FilterRegistry, SearchParser, SearchQueryBuilder
 from yafr.services.entry_builder import EntryBuilder
 
@@ -50,6 +56,15 @@ def search_view():
     )
 
     config = config_repo.get_config()
+    gateway_groups = {}
+    if not has_query and config.enable_gateways:
+        gateway_groups = {
+            name: gateways
+            for name, gateways in GatewayRepository(session)
+            .get_types_mapping(GatewayRepository.GATEWAYS_TYPES)
+            .items()
+            if gateways
+        }
     display_type = request.args.get("display", config.display_type or "gallery")
     per_page = int(config.links_per_page or 25)
     offset = (page - 1) * per_page
@@ -137,6 +152,7 @@ def search_view():
         sources_map=sources_map,
         social_map=social_map,
         config=config,
+        gateway_groups=gateway_groups,
         show_icons=(
             bool(config.show_icons)
             if config and config.show_icons is not None

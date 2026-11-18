@@ -15,6 +15,40 @@
   <!-- Search Widget Component -->
   {% include "components/search_widget.html" %}
 
+  {% if gateway_groups %}
+    <div class="row justify-content-center mb-4">
+      <div class="col-12 col-md-10 col-lg-8">
+        <div class="d-flex justify-content-center">
+          <button class="btn btn-outline-secondary btn-sm rounded-pill px-3"
+                  type="button"
+                  data-bs-toggle="collapse"
+                  data-bs-target="#gateway-directory"
+                  aria-expanded="false"
+                  aria-controls="gateway-directory">
+            <i class="bi bi-grid-3x3-gap me-1"></i>Browse gateways
+          </button>
+        </div>
+        <div class="collapse mt-3" id="gateway-directory">
+          <div class="card card-body shadow-sm">
+            {% for group_name, gateways in gateway_groups.items() if gateways %}
+              <section class="mb-3">
+                <h2 class="h6 text-secondary text-capitalize">{{ group_name|replace('_', ' ') }}</h2>
+                <div class="d-flex flex-wrap gap-2">
+                  {% for gateway in gateways %}
+                    <a class="btn btn-outline-primary btn-sm rounded-pill"
+                       href="{{ gateway.link }}"
+                       target="_blank"
+                       rel="noopener noreferrer">{{ gateway.title or gateway.link|replace('https://', '')|replace('http://', '') }}</a>
+                  {% endfor %}
+                </div>
+              </section>
+            {% endfor %}
+          </div>
+        </div>
+      </div>
+    </div>
+  {% endif %}
+
   {% if error_message %}
     <div class="alert alert-danger d-flex align-items-center mt-3 mx-auto max-w-800" role="alert">
       <i class="bi bi-exclamation-triangle-fill flex-shrink-0 me-2 fs-5"></i>
