@@ -28,6 +28,7 @@ This document details the complete routing matrix for YAFR, encompassing both **
 | `/rules` | `GET`, `POST` | **EntryRulesScreen** | Displays and configures URL regex rules (`trigger_rule_url`), actions (block, trust, auto-tag), and age limits. Provides an interactive "Test Link" tool to evaluate how rules and block entries affect candidate URLs. | **Yes** |
 | `/rules/blocked-urls` | `GET` | **BlockEntriesScreen** | Displays and manages individual BlockEntry records (blocked URLs/domains) with search, pagination, and deletion controls. | **Yes** |
 | `/rules/block-lists` | `GET` | **BlockListsScreen** | Displays and manages plain text block lists with ingestion and parsing controls. | **Yes** |
+| `/gateways` | `GET`, `POST` | **GatewaysEditView** | Lists gateways in the active database and allows adding, removing, or resetting the set to built-in defaults. | **Yes** |
 | `/database` | `GET` | **DatabaseView** | Displays database path, creation date, last refresh, row counts, cache clear buttons, and remote DB download form. | **Yes** |
 | `/status` | `GET` | **StatusView** | Displays health of the application, background task runner status, active worker loops, and network connectivity state. | **Yes** |
 | `/configuration` | `GET`, `POST` | **ConfigurationView** | Allows user to modify display styles (`style-light`, `style-dark`), display types (`standard`, `gallery`, etc.), alphas, and quotas. | **Yes** |

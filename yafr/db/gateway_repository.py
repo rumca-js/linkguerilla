@@ -137,6 +137,25 @@ class GatewayRepository(BaseRepository[Gateway]):
         )
         return list(self.session.execute(stmt).scalars().all())
 
+    def list_all_gateways(self) -> list[Gateway]:
+        """Return all gateways ordered by type and link for management views."""
+        stmt = select(Gateway).order_by(Gateway.gateway_type, Gateway.link)
+        return list(self.session.execute(stmt).scalars().all())
+
+    def delete_gateway(self, gateway_id: int) -> bool:
+        """Delete one gateway by ID, returning whether a row was found."""
+        gateway = self.get_by_id(Gateway, gateway_id)
+        if gateway is None:
+            return False
+        self.session.delete(gateway)
+        self.commit()
+        return True
+
+    def reset_to_defaults(self) -> None:
+        """Replace the current gateway set with the curated defaults."""
+        self.session.execute(delete(Gateway))
+        self.populate()
+
     def cleanup(self, cfg=None) -> None:
         """Rebuild default data only when ``cfg`` requests a full cleanup."""
         if cfg and "full" in cfg:

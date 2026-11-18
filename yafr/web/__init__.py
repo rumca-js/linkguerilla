@@ -21,6 +21,7 @@ from yafr.web.routes_credentials import credentials_bp
 from yafr.web.routes_database import database_bp
 from yafr.web.routes_entries import entries_bp
 from yafr.web.routes_jobs import jobs_bp
+from yafr.web.routes_gateways import gateways_bp
 from yafr.web.routes_logs import logs_bp
 from yafr.web.routes_preview import preview_bp
 from yafr.web.routes_rules import rules_bp
@@ -35,6 +36,7 @@ def register_blueprints(app: Flask) -> None:
     app.register_blueprint(entries_bp)
     app.register_blueprint(sources_bp)
     app.register_blueprint(jobs_bp)
+    app.register_blueprint(gateways_bp)
     app.register_blueprint(logs_bp)
     app.register_blueprint(preview_bp)
     app.register_blueprint(rules_bp)

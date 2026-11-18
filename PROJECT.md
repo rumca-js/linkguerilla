@@ -53,6 +53,7 @@ Naming vs Table names
  - Block Entries - blockentry
  - Gateways - gateway (SQLAlchemy model defined by `linkarchivetools.model.definitions.Gateway`; YAFR repository supplies gateway type constants, seed data, and queries)
  - The worker seeds default gateways at startup only when `ConfigurationEntry.enable_gateways` is enabled and the gateway table is empty. The repository does not populate data by itself.
+ - Users can manage the gateway set in the active database. Reset restores the built-in default gateways; startup seeding remains limited to an enabled gateway feature and an empty gateway table.
 
 linkdatamodel table dependencies:
  - linkdatamodel.id = entrycompactedtags.entry_id
@@ -231,6 +232,7 @@ It should be possible to download a new database .db file from the internet, or 
  - ExportView - provides ability to export data. Can export sources into OPML, pure link list, entries from linkdatamodel into lists of ilnks
  - ImportView - provides ability to import data from files: JSON into linkdatamodel, or into sourcedatamodel, OMPL into sourcedatamodel
  - provide ability to add/edit search views
+ - GatewaysEditView - manages gateways displayed in the gateway directory on EntriesListView. Users can add gateways, remove existing gateways, or reset the active database's gateway set to the built-in defaults. Changes are saved to the active database and become visible in the directory.
 
 # Status, Indications, and Badges
  - The status API endpoint (`/api/status`) returns JSON describing operational health and UI indications (`indications`) and quantitative badges (`badges`).
