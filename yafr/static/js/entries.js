@@ -54,6 +54,26 @@ $(document).ready(function () {
     dropdown.addClass('show');
   }
 
+  /** Load the complete recent-search list for a search input. */
+  function _loadRecentSearches(dropdown) {
+    $('.search-history-dropdown.show').not(dropdown).removeClass('show');
+    $.ajax({
+      url: '/api/history',
+      type: 'GET',
+      data: {},
+      success: function (res) {
+        var items = (res.success && res.data && res.data.suggestions) ? res.data.suggestions : [];
+        _renderSuggestions(dropdown, items, 'Recent Searches');
+      },
+      error: function () {
+        dropdown.empty().append(
+          '<div class="dropdown-item text-muted disabled">Failed to load history</div>'
+        );
+        dropdown.addClass('show');
+      }
+    });
+  }
+
   /**
    * Clock button: shows ALL recent searches (no prefix filter).
    */
@@ -72,25 +92,19 @@ $(document).ready(function () {
       return;
     }
 
-    // Hide any other open search history dropdowns
-    $('.search-history-dropdown.show').removeClass('show');
+    _loadRecentSearches(dropdown);
+  });
 
-    // Fetch the full retained search history (no prefix)
-    $.ajax({
-      url: '/api/history',
-      type: 'GET',
-      data: {},
-      success: function (res) {
-        var items = (res.success && res.data && res.data.suggestions) ? res.data.suggestions : [];
-        _renderSuggestions(dropdown, items, 'Recent Searches');
-      },
-      error: function () {
-        dropdown.empty().append(
-          '<div class="dropdown-item text-muted disabled">Failed to load history</div>'
-        );
-        dropdown.addClass('show');
-      }
-    });
+  /** ArrowDown on the large landing search opens the complete search history. */
+  $(document).on('keydown', '#main-search-input', function (e) {
+    if (e.key !== 'ArrowDown') return;
+
+    var input = $(this);
+    var dropdown = input.closest('.position-relative').find('.search-history-dropdown');
+    if (dropdown.hasClass('show')) return;
+
+    e.preventDefault();
+    _loadRecentSearches(dropdown);
   });
 
   /**

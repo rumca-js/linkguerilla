@@ -41,6 +41,7 @@ BOOLEAN_CONFIG_FIELDS = [
     "accept_same_hashes",
     "auto_store_thumbnails",
     "enable_background_jobs",
+    "enable_gateways",
     "enable_social_data",
     "enable_crawling",
     "enable_keyword_support",

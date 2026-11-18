@@ -8,9 +8,10 @@ document.addEventListener("DOMContentLoaded", function () {
   const themeText = document.getElementById("theme-text");
   const htmlElement = document.documentElement;
 
-  // Read saved theme from localStorage or default to light
-  const savedTheme = localStorage.getItem("yafr-theme") || "light";
-  setTheme(savedTheme);
+  // The server renders the persisted configurationentry.display_style. Use that
+  // as the initial theme so a client-side toggle cannot override saved settings.
+  const configuredTheme = htmlElement.getAttribute("data-bs-theme") || "light";
+  setTheme(configuredTheme);
 
   if (themeToggleBtn) {
     themeToggleBtn.addEventListener("click", function () {
@@ -22,7 +23,6 @@ document.addEventListener("DOMContentLoaded", function () {
 
   function setTheme(theme) {
     htmlElement.setAttribute("data-bs-theme", theme);
-    localStorage.setItem("yafr-theme", theme);
 
     if (themeIcon && themeText) {
       if (theme === "dark") {

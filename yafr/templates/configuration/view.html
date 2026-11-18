@@ -43,7 +43,10 @@
         <div class="d-flex align-items-center gap-2">
           <i class="bi bi-gear text-primary fs-3"></i>
           <div>
-            <h4 class="mb-0 fw-bold">Configuration</h4>
+            <div class="d-flex align-items-center gap-2">
+              <h4 class="mb-0 fw-bold">Configuration</h4>
+              <span class="badge bg-primary rounded-pill font-monospace">v{{ app_version }}</span>
+            </div>
             <div class="text-muted small">Application display settings, quotas, and crawling preferences stored in SQLite</div>
           </div>
         </div>
@@ -466,6 +469,15 @@
                 <div class="row g-3 mb-4">
                   <div class="col-12 col-md-6">
                     <div class="form-check form-switch card p-3 border shadow-sm">
+                      <input class="form-check-input ms-0 me-3" type="checkbox" role="switch" id="enable_gateways" name="enable_gateways" {% if config.enable_gateways %}checked{% endif %}>
+                      <label class="form-check-label fw-semibold" for="enable_gateways">
+                        Enable Gateways
+                        <div class="text-muted small fw-normal">Show the gateway directory on the entries page and seed default gateways when background jobs start</div>
+                      </label>
+                    </div>
+                  </div>
+                  <div class="col-12 col-md-6">
+                    <div class="form-check form-switch card p-3 border shadow-sm">
                       <input class="form-check-input ms-0 me-3" type="checkbox" role="switch" id="enable_background_jobs" name="enable_background_jobs" {% if config.enable_background_jobs %}checked{% endif %}>
                       <label class="form-check-label fw-semibold" for="enable_background_jobs">
                         Enable Background Jobs
@@ -653,13 +665,6 @@
                     <label for="instance_description" class="form-label fw-semibold">Instance Description</label>
                     <input type="text" class="form-control shadow-sm" id="instance_description" name="instance_description" value="{{ config.instance_description or app_tagline }}">
                     <div class="form-text">Short summary or subtitle of this reader deployment.</div>
-                  </div>
-
-                  <div class="col-12 col-md-6">
-                    <label class="form-label fw-semibold">Application Version</label>
-                    <div class="form-control-plaintext">
-                      <span class="badge bg-primary rounded-pill font-monospace">v{{ app_version }}</span>
-                    </div>
                   </div>
 
                   <div class="col-12 col-md-6">
