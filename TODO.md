@@ -21,7 +21,7 @@
  - [x] provide ability to block entries (blockentries and blockentrylist tables supported via repositories, parsing, and splitting)
  - [x] provide ability to add many sources
 - [x] `UrlPreview` (`/preview`) to Preview link meta obtained dynamically (for link) — accessible via Quick Add modal (👁 Preview button, URL-synced) and EntryDetailView (Inspect URL button)
-- [ ] **Entry Rules test **: Implement `EntryRulesScreen` (`/rules`) for URL regex rules (block, trust, auto-tag), Test Link functionality (interactive evaluation of links against rules and block entries),
+- [x] **Entry Rules test **: Implement `EntryRulesScreen` (`/rules`) for URL regex rules (block, trust, auto-tag), Test Link functionality (interactive evaluation of links against rules and block entries),
 - [ ] **Data Import & Export**: Implement OPML import/export for sources and JSON/link lists import/export for database entries.
 - [ ] **Remote Database Download**: Provide functionality to download and replace the active SQLite database from a remote URL.
 - [ ] **UI Polish & Bug Fixes**: Address initial search filter layout and clarify worker/online status indicators (from `BUGS.md`).

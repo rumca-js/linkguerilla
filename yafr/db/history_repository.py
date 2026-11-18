@@ -91,6 +91,17 @@ class HistoryRepository(BaseRepository[SearchHistory]):
         self.session.commit()
         return result.rowcount or 0
 
+    def delete_search(self, search_query: str) -> int:
+        """Delete every stored occurrence of one exact search expression."""
+        cleaned = search_query.strip()
+        if not cleaned:
+            return 0
+        result = self.session.execute(
+            delete(SearchHistory).where(SearchHistory.search_query == cleaned)
+        )
+        self.session.commit()
+        return result.rowcount or 0
+
     # -------------------------------------------------------------------------
     # Entry Visit History
     # -------------------------------------------------------------------------

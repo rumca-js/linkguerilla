@@ -33,14 +33,20 @@ $(document).ready(function () {
       );
     } else {
       dropdown.append(
-        '<h6 class="dropdown-header"><i class="bi bi-clock-history me-1"></i>' + YafrUtils.escapeHtml(headerText) + '</h6>'
+        '<div class="d-flex align-items-center justify-content-between px-3 py-2">' +
+        '<h6 class="dropdown-header p-0 m-0"><i class="bi bi-clock-history me-1"></i>' + YafrUtils.escapeHtml(headerText) + '</h6>' +
+        '<button type="button" class="btn btn-link btn-sm p-0 search-history-clear">Clear all</button>' +
+        '</div>'
       );
       suggestions.forEach(function (query) {
         var escaped = YafrUtils.escapeHtml(query);
         dropdown.append(
-          '<button type="button" class="dropdown-item search-history-item" data-query="' + escaped + '">' +
+          '<div class="d-flex align-items-center search-history-row">' +
+          '<button type="button" class="dropdown-item search-history-item flex-grow-1 text-truncate" data-query="' + escaped + '">' +
           '<i class="bi bi-search me-2 text-secondary"></i>' + escaped +
-          '</button>'
+          '</button>' +
+          '<button type="button" class="btn btn-sm btn-link text-danger px-2 search-history-delete" data-query="' + escaped + '" title="Remove this search" aria-label="Remove this search">' +
+          '<i class="bi bi-x-lg"></i></button></div>'
         );
       });
     }
@@ -69,9 +75,9 @@ $(document).ready(function () {
     // Hide any other open search history dropdowns
     $('.search-history-dropdown.show').removeClass('show');
 
-    // Fetch ALL recent searches (no prefix)
+    // Fetch the full retained search history (no prefix)
     $.ajax({
-      url: '/api/history/autocomplete',
+      url: '/api/history',
       type: 'GET',
       data: {},
       success: function (res) {
@@ -147,6 +153,42 @@ $(document).ready(function () {
     input.val(query);
     dropdown.removeClass('show');
     form.submit();
+  });
+
+  /** Remove one exact query (all duplicate occurrences) from history. */
+  $(document).on('click', '.search-history-delete', function (e) {
+    e.preventDefault();
+    e.stopPropagation();
+    var dropdown = $(this).closest('.search-history-dropdown');
+    $.ajax({
+      url: '/api/history/search',
+      type: 'DELETE',
+      contentType: 'application/json',
+      data: JSON.stringify({ query: $(this).data('query') }),
+      success: function (res) {
+        if (res.success) {
+          dropdown.removeClass('show');
+          var target = dropdown.attr('id').replace('-history-dropdown', '-input');
+          $('[data-target="#' + target + '"]').trigger('click');
+        }
+      }
+    });
+  });
+
+  /** Clear all stored search history. */
+  $(document).on('click', '.search-history-clear', function (e) {
+    e.preventDefault();
+    e.stopPropagation();
+    var dropdown = $(this).closest('.search-history-dropdown');
+    $.ajax({
+      url: '/api/history',
+      type: 'DELETE',
+      success: function (res) {
+        if (res.success) {
+          _renderSuggestions(dropdown, [], 'Recent Searches');
+        }
+      }
+    });
   });
 
   /**
