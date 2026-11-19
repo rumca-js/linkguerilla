@@ -48,13 +48,13 @@ class GatewayRepository(BaseRepository[Gateway]):
     GATEWAYS_CHOICES = [[gateway_type, gateway_type] for gateway_type in GATEWAYS_TYPES]
 
     _SEED_DATA = {
-        TYPE_SEARCH_ENGINE: "google.com bing.com kagi.com yahoo.com yandex.com duckduckgo.com searxng.site 4get.ca search.brave.com startpage.com wolframalpha.com mwmbl.org whoogle.io search.marginalia.nu baidu.com mojeek.com morphic.sh shodan.io sogou.com stract.com wiby.me cse.google.com anoox.com greppr.org letsearch.ru presearch.io".split(),
+        TYPE_SEARCH_ENGINE: "google.com bing.com kagi.com yahoo.com yandex.com duckduckgo.com 4get.ca search.brave.com startpage.com wolframalpha.com mwmbl.org search.marginalia.nu baidu.com mojeek.com morphic.sh shodan.io sogou.com stract.com wiby.me cse.google.com anoox.com greppr.org letsearch.ru presearch.io".split(),
         TYPE_DIGITAL_LIBRARY: "wikipedia.org github.com archive.org archive.ph annas-archive.org".split(),
         TYPE_VIDEO_STREAMING: "youtube.com tiktok.com netflix.com disneyplus.com rumble.com odysee.com yewtu.be twitch.tv dailymotion.com vimeo.com".split(),
         TYPE_FILE_SHARING: ["drive.google.com", "icloud.com"],
         TYPE_BANKING: ["paypal.com", "wallet.google", "apple.com/pl/apple-pay"],
         TYPE_AUDIO_STREAMING: ["open.spotify.com", "music.youtube.com"],
-        TYPE_SOCIAL_MEDIA: "meta.com reddit.com facebook.com stackoverflow.com linkedin.com discord.com messanger.com whatsapp.com instagram.com quora.com wechat.com hn.algolia.com news.ycombinator.com".split(),
+        TYPE_SOCIAL_MEDIA: "meta.com reddit.com facebook.com linkedin.com discord.com messanger.com whatsapp.com instagram.com quora.com wechat.com hn.algolia.com news.ycombinator.com".split(),
         TYPE_AI_BOT: "chatgpt.com copilot.microsoft.com gemini.google.com chat.deepseek.com perplexity.ai claude.ai x.ai".split(),
         TYPE_MARKETPLACE: [
             "amazon.com",
@@ -74,7 +74,7 @@ class GatewayRepository(BaseRepository[Gateway]):
             "gmail.com",
             "maps.google.com",
             "chrome.google.com",
-            "office.com/",
+            "office.com",
             "apple.com",
             "microsoft.com",
             "microsoft.com/microsoft-teams",
