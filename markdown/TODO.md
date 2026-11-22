@@ -1,5 +1,9 @@
 # TODO
 
+- [ ] **Data Import & Export**: Implement OPML import/export for sources and JSON / plain link lists import/export for database entries.
+- [ ] **Entry List Batch UI Operations**: Add multi-select checkboxes and batch actions toolbar (bulk delete, batch tagging) to the entry list interface.
+- [ ] **Containerization**: Provide `Dockerfile` and `docker-compose.yml` for containerized application and worker deployment.
+- [ ] **Worker Handling on Database Replacement**: Define and implement restart/reconnect mechanism for background worker threads or processes when the active database file is replaced.
 - [x] **Test Harness Verification**: Standard library `unittest` is used via `make test` / `python -m unittest discover tests` (unused `conftest.py` removed; `ARCHITECTURE.md` and `FILES.md` updated).
 - [x] **Source Detail Fetch Action**: Source detail fetch/update enqueues background job `JOB_PROCESS_SOURCE = "process-source"`.
 - [x] **Entry List Screen**: Comprehensive list view of entries supporting multiple display layouts, filtering, and pagination.
@@ -29,7 +33,3 @@
 - [x] **System Operations Table (Worker Heartbeat)**: Implemented `SystemOperationRepository` and `systemoperation` table to track background worker heartbeats, liveness, and thread status via `/api/status/worker`.
 - [x] **Page Properties / Dynamic URL Inspection**: Implemented dedicated `UrlPreview` (`/preview`) view and `PreviewService` inspecting live HTTP status codes, metadata, OpenGraph tags, player embeds, and feed entries.
 - [x] **Source List Sorting by Errors**: Implemented "by Errors" sort option in source list search widget and `SourceSearchQueryBuilder` ordering by `consecutive_errors DESC nullslast`.
-- [ ] **Data Import & Export**: Implement OPML import/export for sources and JSON / plain link lists import/export for database entries.
-- [ ] **Entry List Batch UI Operations**: Add multi-select checkboxes and batch actions toolbar (bulk delete, batch tagging) to the entry list interface.
-- [ ] **Containerization**: Provide `Dockerfile` and `docker-compose.yml` for containerized application and worker deployment.
-- [ ] **Worker Handling on Database Replacement**: Define and implement restart/reconnect mechanism for background worker threads or processes when the active database file is replaced.
