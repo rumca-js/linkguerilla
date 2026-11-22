@@ -258,7 +258,13 @@ stateDiagram-v2
 1. **BackgroundJob Execution**:
    - Reads directly from the local SQLite `backgroundjob` table.
    - Recognizes job constants:
-     - `JOB_PROCESS_SOURCE`, `JOB_LINK_UPDATE_DATA`, `JOB_LINK_RESET_DATA`, `JOB_LINK_DOWNLOAD_SOCIAL`, `JOB_RUN_RULE`, `JOB_CLEANUP`, `JOB_TRUNCATE_TABLE`.
+     - `JOB_PROCESS_SOURCE`, `JOB_LINK_UPDATE_DATA`, `JOB_LINK_RESET_DATA`, `JOB_LINK_DOWNLOAD_SOCIAL`, `JOB_RUN_RULE`, `JOB_CLEANUP`, `JOB_TRUNCATE_TABLE`, `JOB_IMPORT_FROM_FILES`.
+   - **`JOB_IMPORT_FROM_FILES = "import-from-files"` Execution**:
+     - Dispatched via `ImportJobHandler` registered in `JobRegistry`.
+     - Validates and scans target host path (file or directory).
+     - Resolves target data model (`linkdatamodel` or `sourcedatamodel`) via explicit configuration or JSON structure inspection.
+     - Parses JSON entries, skips duplicates matching existing records, and commits inserts in batches to prevent SQLite transaction contention.
+     - Archives completed run to `backgroundjobhistory` with duration and statistics (`imported`, `skipped`, `failed`), and logs errors to `applogging`.
    - **`JOB_LINK_UPDATE_DATA = "link-update-data"` Execution**:
      - Obtains URL handler like in `webtools_service.py` (`BaseUrl` or `RemoteUrl` based on active configuration).
      - Executes network request and invokes BaseUrl/RemoteUrl metadata extractors directly (get_title, get_description, date_published, author, etc.). No fallback to raw response or BeautifulSoup HTML parsing; either BaseUrl/RemoteUrl works, or not.

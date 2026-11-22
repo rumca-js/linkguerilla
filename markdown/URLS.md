@@ -34,6 +34,7 @@ This document details the complete routing matrix for YAFR, encompassing both **
 | `/configuration` | `GET`, `POST` | **ConfigurationView** | Allows user to modify display styles (`style-light`, `style-dark`), display types (`standard`, `gallery`, etc.), alphas, and quotas. | **Yes** |
 | `/about` | `GET` | **AboutScreen** | Displays application version, project links, and system environment info. | **Yes** |
 | `/preview` | `GET` | **UrlPreview** | Dedicated link preview screen displaying dynamic metadata obtained via `webtools_service.py` (title, description, author, thumbnail, status code, embed player, feed entries, and content links) and indicating whether the URL is blocked by an entry rule or block entry. | **Yes** (embeds/metadata require internet) |
+| `/import` | `GET` | **ImportView** | Displays form to select host filesystem files or directories, configure target model (auto-detect, links, sources), select duplicate skip policy, and enqueue background import jobs. | **Yes** |
 
 ---
 
@@ -1217,6 +1218,71 @@ Following the project requirement to **"prefer having small server functions tha
       "deleted_count": 4,
       "level": 40
     }
+  }
+  ```
+- **Offline Capable**: Yes.
+
+---
+
+### 2.10 Import API (`/api/import`)
+
+#### `POST /api/import/validate-path`
+- **Purpose**: Checks whether a specified host filesystem file or directory path exists, is readable, and detects available data files.
+- **Request Parameters / Body**:
+  - `path` (string, required): Absolute or relative filesystem path on host machine.
+- **Request Body Example**:
+  ```json
+  {
+    "path": "/home/hunter/archive/data"
+  }
+  ```
+- **Response**:
+  ```json
+  {
+    "ok": true,
+    "path": "/home/hunter/archive/data",
+    "is_dir": true,
+    "file_count": 8,
+    "detected_type": "json"
+  }
+  ```
+- **Error Response (400)**:
+  ```json
+  {
+    "ok": false,
+    "error": "Path does not exist on host filesystem"
+  }
+  ```
+- **Offline Capable**: Yes.
+
+#### `POST /api/import/enqueue`
+- **Purpose**: Enqueues an asynchronous `import-from-files` background job in `backgroundjob` to process selected files or directory.
+- **Request Parameters / Body**:
+  - `path` (string, required): Validated host file or directory path.
+  - `target` (string, optional, default `"auto"`): Target model (`"auto"`, `"links"`, or `"sources"`).
+  - `conflict_strategy` (string, optional, default `"skip"`): Conflict policy for existing items (`"skip"`).
+- **Request Body Example**:
+  ```json
+  {
+    "path": "/home/hunter/archive/links.json",
+    "target": "links",
+    "conflict_strategy": "skip"
+  }
+  ```
+- **Response**:
+  ```json
+  {
+    "ok": true,
+    "job_id": 42,
+    "job_type": "import-from-files",
+    "message": "Import job enqueued successfully"
+  }
+  ```
+- **Error Response (400)**:
+  ```json
+  {
+    "ok": false,
+    "error": "Invalid target model or path does not exist"
   }
   ```
 - **Offline Capable**: Yes.

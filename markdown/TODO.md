@@ -1,6 +1,10 @@
 # TODO
 
-- [ ] **Data Import & Export**: Implement OPML import/export for sources and JSON / plain link lists import/export for database entries.
+- [ ] **Data Import (UI & Background Worker)**:
+  - Add `ImportView` (`/import`) with host filesystem file/directory path selector, target model selector (`auto`, `links`, `sources`), and duplicate skip policy.
+  - Implement `POST /api/import/validate-path` and `POST /api/import/enqueue` endpoints to validate host path and enqueue `JOB_IMPORT_FROM_FILES = "import-from-files"`.
+  - Implement extensible `ImportJobHandler` in `yafr/workers/jobs/import_jobs.py` (JSON import into `linkdatamodel` or `sourcedatamodel` with duplicate skip policy).
+- [ ] **Data Export**: Implement OPML export for sources and JSON / plain link lists export for database entries.
 - [ ] **Entry List Batch UI Operations**: Add multi-select checkboxes and batch actions toolbar (bulk delete, batch tagging) to the entry list interface.
 - [ ] **Containerization**: Provide `Dockerfile` and `docker-compose.yml` for containerized application and worker deployment.
 - [ ] **Worker Handling on Database Replacement**: Define and implement restart/reconnect mechanism for background worker threads or processes when the active database file is replaced.

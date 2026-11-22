@@ -78,6 +78,7 @@ yafr_next/
 │   │   └── jobs/                             # Background job execution modules
 │   │       ├── __init__.py                   # Package exports for job registry
 │   │       ├── base.py                       # Abstract base class for background jobs
+│   │       ├── import_jobs.py                # Host filesystem file & directory import jobs
 │   │       ├── link_jobs.py                  # Link update, visit check, and crawler jobs
 │   │       ├── registry.py                   # Registry mapping job names to worker handlers
 │   │       ├── source_jobs.py                # Source refresh, RSS polling, and IMAP jobs
@@ -92,6 +93,7 @@ yafr_next/
 │   │   ├── routes_database.py                # Views: DatabaseView (stats, clear actions, replace)
 │   │   ├── routes_entries.py                 # Views: EntriesListView, DetailView, EditScreen
 │   │   ├── routes_gateways.py                # Views: GatewaysEditView (manage gateway directory)
+│   │   ├── routes_import.py                  # Views: ImportView (host file/directory import)
 │   │   ├── routes_jobs.py                    # Views: JobsView (list, filter, reorder)
 │   │   ├── routes_logs.py                    # Views: LogsView (AppLogging table viewer)
 │   │   ├── routes_preview.py                 # Views: UrlPreview screen and metadata inspection
@@ -104,6 +106,7 @@ yafr_next/
 │   │       ├── api_database.py               # JSON endpoints: DB statistics, truncate, schema diff
 │   │       ├── api_entries.py                # JSON endpoints: vote, active/dead, bookmark, tags
 │   │       ├── api_history.py                # JSON endpoints: autocomplete search, clear visits
+│   │       ├── api_import.py                 # JSON endpoints: path validation and enqueue job
 │   │       ├── api_jobs.py                   # JSON endpoints: pause, resume, cancel, trigger
 │   │       ├── api_logs.py                   # JSON endpoints: log filtering, log level updates
 │   │       ├── api_preview.py                # JSON endpoints: dynamic URL preview and embed inspect
@@ -147,6 +150,8 @@ yafr_next/
 │   │   │   └── list.html                     # EntryRulesScreen (regex URL patterns, auto-tagging)
 │   │   ├── database/
 │   │   │   └── view.html                     # DatabaseView (table rows, clear caches, replace DB)
+│   │   ├── import/
+│   │   │   └── view.html                     # ImportView (path input, model select, enqueue job)
 │   │   ├── status/
 │   │   │   └── view.html                     # StatusView (worker loop & network health)
 │   │   ├── configuration/
@@ -175,6 +180,7 @@ yafr_next/
 │       │   ├── entries.js                    # Multi-select, voting, bookmark, visit alpha updates
 │       │   ├── sources.js                    # Pull-to-refresh, refresh progress polling
 │       │   ├── preview.js                    # URL/Video preview modal lifecycle & player
+│       │   ├── import.js                     # Import form path validation & job enqueueing
 │       │   └── jobs.js                       # Job pause/resume/delete AJAX interactions
 │       └── fonts/
 │           ├── bootstrap-icons.woff          # Icon font (woff)
