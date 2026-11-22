@@ -37,3 +37,15 @@ Run the application locally using the standard Makefile command:
 ```bash
 make run
 ```
+
+---
+
+## Documentation
+
+Comprehensive project documentation is organized in the [`markdown/`](markdown/) directory:
+- [markdown/PROJECT.md](markdown/PROJECT.md) — Functional specifications, data model, coding conventions
+- [markdown/ARCHITECTURE.md](markdown/ARCHITECTURE.md) — System architecture, subsystem breakdown, workflows
+- [markdown/FILES.md](markdown/FILES.md) — Directory layout and file responsibilities
+- [markdown/URLS.md](markdown/URLS.md) — Complete routing matrix for HTML views and JSON APIs
+- [markdown/TODO.md](markdown/TODO.md) — Roadmap and pending tasks
+- [markdown/BUGS.md](markdown/BUGS.md) — Known bugs and resolved issue tracking

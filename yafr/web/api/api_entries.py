@@ -564,7 +564,7 @@ def batch_add():
             success=False, error="Empty or invalid links list", status_code=400
         )
 
-    # Input limit: max 200 links per field/batch (as defined in PROJECT.md)
+    # Input limit: max 200 links per field/batch (as defined in markdown/PROJECT.md)
     candidate_links = raw_links[:200]
 
     session = get_session()

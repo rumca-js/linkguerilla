@@ -56,7 +56,7 @@ body {
   box-shadow: 0 0 0 0.25rem rgba(13, 110, 253, 0.25) !important;
 }
 
-/* Alpha styling for visited and dead entries as specified in PROJECT.md */
+/* Alpha styling for visited and dead entries as specified in markdown/PROJECT.md */
 .entry-visited {
   opacity: var(--yafr-visit-alpha);
 }

@@ -23,12 +23,12 @@ It should listen to connections from LAN
  - Tests can be started with 'make test'
 
 # Files
-Files describing project:
- - ARCHITECTURE.md
- - FILES.md
- - URLS.md
- - BUGS.md - if any bug is define should be solved
- - TODO.md - identified what is left to do
+Files describing project (located in `markdown/`):
+ - markdown/ARCHITECTURE.md
+ - markdown/FILES.md
+ - markdown/URLS.md
+ - markdown/BUGS.md - if any bug is define should be solved
+ - markdown/TODO.md - identified what is left to do
 
 # Data
  - webtoolkit for network communication https://github.com/rumca-js/webtoolkit

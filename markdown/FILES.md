@@ -8,14 +8,20 @@ This document defines the complete directory tree, file inventory, and module re
 
 ```text
 yafr_next/
-├── PROJECT.md                                # Project specification & functional requirements
-├── ARCHITECTURE.md                           # System architecture, technology choices & subsystems
-├── FILES.md                                  # Directory tree & file inventory (this document)
-├── URLS.md                                   # Route & endpoint matrix (HTML views & JSON APIs)
+├── markdown/                                 # Project documentation & architectural specs
+│   ├── ARCHITECTURE.md                       # System architecture, technology choices & subsystems
+│   ├── BUGS.md                               # Known bugs and issues list
+│   ├── FILES.md                              # Directory tree & file inventory (this document)
+│   ├── PROJECT.md                            # Project specification & functional requirements
+│   ├── TODO.md                               # Identified work left to do
+│   └── URLS.md                               # Route & endpoint matrix (HTML views & JSON APIs)
+├── README.md                                 # Project overview & documentation index
+├── GEMINI.md                                 # Coding conventions & workflow instructions
 ├── pyproject.toml                            # Poetry dependencies, build settings & metadata
 ├── poetry.lock                               # Locked dependency versions
 ├── Makefile                                  # Command runner (make run, install, test, format, clean)
 ├── run.py                                    # Application entrypoint & CLI runner (--db, --host, --port)
+├── process_jobs.py                           # Standalone background worker process CLI runner
 ├── data/                                     # SQLite Database Storage
 │   └── table.db                              # Test / development SQLite database containing pre-populated data
 │
@@ -23,68 +29,88 @@ yafr_next/
 │   ├── __init__.py                           # App factory & version metadata
 │   ├── app.py                                # Flask application initialization & error handlers
 │   ├── config.py                             # Configuration loader (defaults & SQLite sync)
+│   ├── webtoolkit_wrapper.py                 # Wrapper for webtoolkit network operations
 │   │
 │   ├── db/                                   # Data Access & Repository Layer
 │   │   ├── __init__.py                       # Package exports for repositories
 │   │   ├── session.py                        # SQLite engine factory, sessionmaker & WAL pragma
 │   │   ├── base_repository.py                # BaseRepository with generic CRUD & FIFO limits
+│   │   ├── block_repository.py               # Repository for BlockEntry, BlockList, and block evaluation
+│   │   ├── config_repository.py              # Repository for ConfigurationEntry
+│   │   ├── credentials_repository.py         # Repository for CredentialsTable and IMAP account data
 │   │   ├── entry_repository.py               # Repository for LinkDataModel & associated tags
-│   │   ├── source_repository.py              # Repository for SourcesTable & SourceOperationalData
-│   │   ├── job_repository.py                 # Repository for BackgroundJob & History
+│   │   ├── gateway_repository.py             # Repository for Gateway model, seed data, and custom gateways
 │   │   ├── history_repository.py             # Repository for SearchHistory & EntryVisitHistory
+│   │   ├── job_repository.py                 # Repository for BackgroundJob & History
+│   │   ├── logging_repository.py             # Repository for AppLogging with severity levels
 │   │   ├── rules_repository.py               # Repository for EntryRules & regex rule matching
 │   │   ├── search_view_repository.py         # Repository for custom SearchView records
-│   │   ├── config_repository.py              # Repository for ConfigurationEntry
-│   │   └── logging_repository.py             # Repository for AppLogging with severity levels
+│   │   ├── source_repository.py              # Repository for SourcesTable & SourceOperationalData
+│   │   └── system_operation_repository.py    # Repository for tracking system-level operations
 │   │
 │   ├── search/                               # Query Parsing & SQLite Translation
 │   │   ├── __init__.py                       # Search module exports
 │   │   ├── parser.py                         # Search expression parser (operators: '=', '==')
 │   │   ├── query_builder.py                  # Translates AST into SQLAlchemy expressions
+│   │   ├── source_query_builder.py           # Translates source search expressions into SQLAlchemy queries
 │   │   └── filters.py                        # Predefined search filters (Visited, Read Later, etc.)
 │   │
 │   ├── services/                             # Business Logic & Domain Services
 │   │   ├── __init__.py                       # Service layer exports
-│   │   ├── entry_service.py                  # Entry business logic, voting, tags, status updates
-│   │   ├── source_service.py                 # Source management, fetch triggering, hash checks
-│   │   ├── job_service.py                    # Job creation, pausing, resumption, prioritization
-│   │   ├── rule_service.py                   # Rule evaluation engine (regex URLs, auto-tagging)
-│   │   ├── preview_service.py                # URL preview metadata & yt-dlp media extraction
-│   │   ├── history_service.py                # Search autocomplete, visit tracking & transitions
-│   │   ├── search_view_service.py            # SearchView business logic, validation & CRUD
+│   │   ├── config_service.py                 # Configuration management and feature flag toggles
+│   │   ├── credentials_service.py            # Credential validation and management
 │   │   ├── database_service.py               # DB statistics, table truncating & remote download
-│   │   └── logging_service.py                # Application logging helper & log pruning
+│   │   ├── entry_builder.py                  # Entry construction and validation helper
+│   │   ├── entry_service.py                  # Entry business logic, voting, tags, status updates
+│   │   ├── history_service.py                # Search autocomplete, visit tracking & transitions
+│   │   ├── job_service.py                    # Job creation, pausing, resumption, prioritization
+│   │   ├── logging_service.py                # Application logging helper & log pruning
+│   │   ├── preview_service.py                # URL preview metadata & yt-dlp media extraction
+│   │   ├── rule_service.py                   # Rule evaluation engine (regex URLs, auto-tagging)
+│   │   ├── schema_service.py                 # Schema diffing and database table introspection
+│   │   ├── source_service.py                 # Source management, fetch triggering, hash checks
+│   │   └── webtools_service.py               # URL inspection, metadata extraction, and WebToolsWrapper
 │   │
 │   ├── workers/                              # Asynchronous Background Processing
 │   │   ├── __init__.py                       # Worker exports
-│   │   ├── worker_manager.py                 # Daemon thread lifecycle controller (start/stop)
 │   │   ├── job_executor.py                   # BackgroundJob task dispatcher & execution runner
-│   │   ├── source_refresher.py               # SourceRefreshWorker (polling, hashes & interval)
-│   │   └── email_reader_adapter.py           # IMAP adapter patching webtoolkit import path
+│   │   ├── link_jobs.py                      # Link-related job handlers
+│   │   └── jobs/                             # Background job execution modules
+│   │       ├── __init__.py                   # Package exports for job registry
+│   │       ├── base.py                       # Abstract base class for background jobs
+│   │       ├── link_jobs.py                  # Link update, visit check, and crawler jobs
+│   │       ├── registry.py                   # Registry mapping job names to worker handlers
+│   │       ├── source_jobs.py                # Source refresh, RSS polling, and IMAP jobs
+│   │       └── system_jobs.py                # System maintenance, vacuum, and cleanup jobs
 │   │
 │   ├── web/                                  # Presentation Layer (Views & Blueprints)
 │   │   ├── __init__.py                       # Blueprint registration helper
-│   │   ├── context_processors.py             # Global Jinja context (active theme, network state)
-│   │   ├── routes_entries.py                 # Views: EntriesListView, DetailView, EditScreen
-│   │   ├── routes_sources.py                 # Views: SourcesListView, DetailScreen, EditScreens
-│   │   ├── routes_jobs.py                    # Views: JobsView (list, filter, reorder)
-│   │   ├── routes_rules.py                   # Views: EntryRulesScreen (regex triggers, auto-tags)
-│   │   ├── routes_database.py                # Views: DatabaseView (stats, clear actions, replace)
-│   │   ├── routes_status.py                  # Views: StatusView (worker status & network check)
+│   │   ├── shared.py                         # Shared web utilities, helpers, and request guards
+│   │   ├── routes_about.py                   # Views: AboutScreen
 │   │   ├── routes_config.py                  # Views: ConfigurationView (styles, types, alphas)
 │   │   ├── routes_credentials.py             # Views: CredentialsScreen (IMAP credentials)
+│   │   ├── routes_database.py                # Views: DatabaseView (stats, clear actions, replace)
+│   │   ├── routes_entries.py                 # Views: EntriesListView, DetailView, EditScreen
+│   │   ├── routes_gateways.py                # Views: GatewaysEditView (manage gateway directory)
+│   │   ├── routes_jobs.py                    # Views: JobsView (list, filter, reorder)
 │   │   ├── routes_logs.py                    # Views: LogsView (AppLogging table viewer)
-│   │   ├── routes_about.py                   # Views: AboutScreen
+│   │   ├── routes_preview.py                 # Views: UrlPreview screen and metadata inspection
+│   │   ├── routes_rules.py                   # Views: EntryRulesScreen (regex triggers, auto-tags)
+│   │   ├── routes_sources.py                 # Views: SourcesListView, DetailScreen, EditScreens
 │   │   │
 │   │   └── api/                              # Lightweight REST / JSON Endpoints
 │   │       ├── __init__.py                   # API blueprint export
-│   │       ├── api_entries.py                # JSON endpoints: vote, active/dead, bookmark, tags
-│   │       ├── api_sources.py                # JSON endpoints: disable, enable, delete, refresh
-│   │       ├── api_jobs.py                   # JSON endpoints: pause, resume, cancel, trigger
-│   │       ├── api_history.py                # JSON endpoints: autocomplete search, clear visits
-│   │       ├── api_status.py                 # JSON endpoints: worker heartbeat, progress info
 │   │       ├── api_config.py                 # JSON endpoints: quick theme & display style toggle
-│   │       └── api_search_views.py           # JSON endpoints: CRUD & default toggle for SearchViews
+│   │       ├── api_database.py               # JSON endpoints: DB statistics, truncate, schema diff
+│   │       ├── api_entries.py                # JSON endpoints: vote, active/dead, bookmark, tags
+│   │       ├── api_history.py                # JSON endpoints: autocomplete search, clear visits
+│   │       ├── api_jobs.py                   # JSON endpoints: pause, resume, cancel, trigger
+│   │       ├── api_logs.py                   # JSON endpoints: log filtering, log level updates
+│   │       ├── api_preview.py                # JSON endpoints: dynamic URL preview and embed inspect
+│   │       ├── api_rules.py                  # JSON endpoints: rule testing and validation
+│   │       ├── api_search_views.py           # JSON endpoints: CRUD & default toggle for SearchViews
+│   │       ├── api_sources.py                # JSON endpoints: disable, enable, delete, refresh
+│   │       └── api_status.py                 # JSON endpoints: worker heartbeat, progress info
 │   │
 │   ├── templates/                            # Jinja2 HTML Templates
 │   │   ├── base.html                         # Base HTML skeleton, theme switcher, modal shells
@@ -167,6 +193,21 @@ yafr_next/
 
 ## 2. Detailed File Specifications & Responsibilities
 
+### 2.0 Documentation & Governance (`markdown/`)
+
+- `markdown/PROJECT.md`
+  - **Purpose**: Project specifications, coding conventions, core tenets, and SQLite data model definitions.
+- `markdown/ARCHITECTURE.md`
+  - **Purpose**: High-level system architecture, technology choices, subsystem interactions, and background worker loop details.
+- `markdown/FILES.md`
+  - **Purpose**: Definitive project directory tree, file inventory, and module responsibilities.
+- `markdown/URLS.md`
+  - **Purpose**: Comprehensive routing matrix and specification for HTML views and JSON API endpoints.
+- `markdown/TODO.md`
+  - **Purpose**: Development roadmap, resolved tasks, and pending action items.
+- `markdown/BUGS.md`
+  - **Purpose**: Bug tracking, known edge-cases, and regression logs.
+
 ### 2.1 Core Application & Entrypoints
 
 - `data/table.db`
@@ -237,6 +278,26 @@ yafr_next/
   - **Responsibilities**: Writing application log events (`info_text`, `detail_text`, `level`, `date`), querying logs with level filters, pruning old logs.
   - **Key Classes**: `LoggingRepository`.
 
+- `yafr/db/block_repository.py`
+  - **Purpose**: Data access for block lists and blocked URLs (`BlockEntry`, `BlockList`).
+  - **Responsibilities**: CRUD operations for blocked domains/URLs and external block lists, URL pattern matching.
+  - **Key Classes**: `BlockRepository`.
+
+- `yafr/db/credentials_repository.py`
+  - **Purpose**: Data access for `CredentialsTable`.
+  - **Responsibilities**: CRUD operations for stored IMAP account credentials and connection profiles.
+  - **Key Classes**: `CredentialsRepository`.
+
+- `yafr/db/gateway_repository.py`
+  - **Purpose**: Data access for `Gateway` models and predefined gateways.
+  - **Responsibilities**: Manages search/media gateways, provides built-in default gateways seed data, and custom gateway management.
+  - **Key Classes**: `GatewayRepository`.
+
+- `yafr/db/system_operation_repository.py`
+  - **Purpose**: Data access for system-level operations and operational metadata.
+  - **Responsibilities**: Tracking system maintenance operations and status flags.
+  - **Key Classes**: `SystemOperationRepository`.
+
 ---
 
 ### 2.3 Search Engine & Query Translation (`yafr/search/`)
@@ -250,6 +311,11 @@ yafr_next/
   - **Purpose**: Translates `ParsedQuery` AST into SQLAlchemy filter expressions.
   - **Responsibilities**: Emits indexed `LIKE` clauses for `=`, exact equality for `==`, full-text composite clauses for free-text, and joins for tags/social data.
   - **Key Classes**: `SearchQueryBuilder`.
+
+- `yafr/search/source_query_builder.py`
+  - **Purpose**: Translates source search expressions into SQLAlchemy queries.
+  - **Responsibilities**: Builds filter queries for sources list by title, URL, type, and status.
+  - **Key Classes**: `SourceQueryBuilder`.
 
 - `yafr/search/filters.py`
   - **Purpose**: Encapsulates predefined system search filters.
@@ -295,6 +361,31 @@ yafr_next/
   - **Responsibilities**: Calculates table row counts, triggers cache truncations (search history, visits, social data), and safely replaces SQLite file from URL.
   - **Key Classes**: `DatabaseService`.
 
+- `yafr/services/config_service.py`
+  - **Purpose**: Configuration management and feature flag administration.
+  - **Responsibilities**: Managing display themes, UI presets, alphas, and feature flags.
+  - **Key Classes**: `ConfigService`.
+
+- `yafr/services/credentials_service.py`
+  - **Purpose**: IMAP credential validation and management.
+  - **Responsibilities**: Verifying IMAP credentials and testing mail connections.
+  - **Key Classes**: `CredentialsService`.
+
+- `yafr/services/entry_builder.py`
+  - **Purpose**: Entry validation and construction helper.
+  - **Responsibilities**: Validating and normalizing URLs, tags, and titles for newly added entries.
+  - **Key Classes**: `EntryBuilder`.
+
+- `yafr/services/schema_service.py`
+  - **Purpose**: Database schema introspection and migration comparison.
+  - **Responsibilities**: Comparing live SQLite database schema against target models and producing schema diffs.
+  - **Key Classes**: `SchemaService`.
+
+- `yafr/services/webtools_service.py`
+  - **Purpose**: Network URL inspection and metadata extraction wrapper.
+  - **Responsibilities**: Fetching page titles, OpenGraph metadata, YouTube/media embeds, and feed discovery via `webtoolkit`.
+  - **Key Classes**: `WebToolsService`.
+
 ---
 
 ### 2.5 Background Workers (`yafr/workers/`)
@@ -330,6 +421,17 @@ yafr_next/
 - `yafr/web/routes_entries.py`
   - **Purpose**: View controller for entry browsing.
   - **Responsibilities**: Renders `EntriesListView` (empty centered search or top bar), `EntryDetailView`, and `EntryEditScreen`.
+
+- `yafr/web/routes_gateways.py`
+  - **Purpose**: View controller for gateway management (`GatewaysEditView`).
+  - **Responsibilities**: Lists gateways, adds custom gateways, deletes gateways, and resets to defaults.
+
+- `yafr/web/routes_preview.py`
+  - **Purpose**: View controller for link preview screen (`UrlPreview`).
+  - **Responsibilities**: Inspects metadata and media embeds for arbitrary URLs.
+
+- `yafr/web/shared.py`
+  - **Purpose**: Shared web layer helper functions, request decorators, and error formatters.
 
 - `yafr/web/routes_sources.py`
   - **Purpose**: View controller for sources.
