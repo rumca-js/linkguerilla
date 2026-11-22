@@ -1,35 +1,35 @@
 # TODO
 
- - [x] running pytest seems to be failing. is ARCHITECTURE.md wrong that we are using pytest? (Resolved: standard library unittest is used via `make test` / `python -m unittest discover tests`; ARCHITECTURE.md and FILES.md updated, unused conftest.py removed)
- - [x] source detail fetch update should create a job process-source
- - [x] entry list screen
- - [x] sources list screen
- - [x] database screen
- - [x] configuration screen
- - [x] **Configuration constants from linkarchivetools**: `yafr/web/shared.py` uses DISPLAY_TYPE and DISPLAY_STYLE definitions from `linkarchivetools.model.configurationentry` (`ConfigurationEntryService`).
- - [x] **Compact vs Links-Only Layouts**: Compact layout displays high-density tabular view with metadata, icons, and action buttons; Links-only layout displays strictly one link per line without additional data.
- - [x] **Copy Links to Clipboard in Entry List**: Added button in `yafr/templates/entries/list.html` to copy entry links to clipboard with visual feedback.
- - [x] jobs screen
- - [x] logs screen (includes Clear All, clear logs of particular level, and row checkboxes with batch delete; master checkbox #select-all-logs toggle fix)
- - [x] **AppLoggingHandler & NOTIFICATION log level**: Introduce NOTIFICATION (25) severity level, AppLoggingHandler routing NOTIFICATION/WARNING/ERROR/CRITICAL to applogging table, and UI level filter.
- - [x] search views - ability to add / edit search views (SearchView editor in Configuration: name, default, priority, filter_statement, order_by)
- - [x] **Entry Detail & Edit Screens**: Implement `EntryDetailView` (`/entries/<id>`) with media preview, voting, tags editing, read-later toggle, status controls, and `EntryEditScreen` (`/entries/new`, `/entries/<id>/edit`).
- - [x] link source process job
- - [x] **Link Update Data Background Job**: `JOB_LINK_UPDATE_DATA = "link-update-data"` enqueued when links are added by user, worker thread fetches BaseUrl/RemoteUrl title and description and updates entry metadata.
- - [x] **WebTools Direct Parsing (No BeautifulSoup / Response Fallback)**: Either BaseUrl/RemoteUrl works, or not. Webtoolkit provides direct parsing of titles, descriptions, date_published, author, album, language, thumbnail, etc. Fallback on response and BeautifulSoup removed from WebToolsWrapper and link-update-data job. PROJECT.md and ARCHITECTURE.md updated.
- - [x] link update job updates title, description, date_published, author, album, language, thumbnail, and dead link status.
- - [x] provide ability to block entries (blockentries and blockentrylist tables supported via repositories, parsing, and splitting)
- - [x] provide ability to add many sources
-- [x] `UrlPreview` (`/preview`) to Preview link meta obtained dynamically (for link) — accessible via Quick Add modal (👁 Preview button, URL-synced) and EntryDetailView (Inspect URL button)
-- [x] **Entry Rules test **: Implement `EntryRulesScreen` (`/rules`) for URL regex rules (block, trust, auto-tag), Test Link functionality (interactive evaluation of links against rules and block entries),
-- [ ] **Data Import & Export**: Implement OPML import/export for sources and JSON/link lists import/export for database entries.
-- [ ] **Remote Database Download**: Provide functionality to download and replace the active SQLite database from a remote URL.
-- [ ] **UI Polish & Bug Fixes**: Address initial search filter layout and clarify worker/online status indicators (from `BUGS.md`).
- - link validation / sanitization - is it fully implemented?
- - link batch operations (delete?)
- - provide docker compose script and Dockerfile
- - On hold - introduce system operations table to mark that threads are working
- - if database file is replaced, how thread should be restarted?
- - page properties tool
- - source list: order by errors
-
+- [x] **Test Harness Verification**: Standard library `unittest` is used via `make test` / `python -m unittest discover tests` (unused `conftest.py` removed; `ARCHITECTURE.md` and `FILES.md` updated).
+- [x] **Source Detail Fetch Action**: Source detail fetch/update enqueues background job `JOB_PROCESS_SOURCE = "process-source"`.
+- [x] **Entry List Screen**: Comprehensive list view of entries supporting multiple display layouts, filtering, and pagination.
+- [x] **Sources List Screen**: Management interface for RSS/Atom and Email sources with status indicators and search.
+- [x] **Database Administration Screen**: SQLite database statistics, table row counts, cache clearing, and table schema maintenance.
+- [x] **Configuration Screen**: Application configuration editor for link policies, display styles, crawling limits, and feature toggles.
+- [x] **Configuration Constants from linkarchivetools**: `yafr/web/shared.py` uses `DISPLAY_TYPE` and `DISPLAY_STYLE` definitions from `linkarchivetools.model.configurationentry` (`ConfigurationEntryService`).
+- [x] **Compact vs Links-Only Layouts**: Compact layout displays high-density tabular view with metadata, icons, and action buttons; Links-only layout displays strictly one link per line without additional data.
+- [x] **Copy Links to Clipboard in Entry List**: Added button in `yafr/templates/entries/list.html` to copy entry links to clipboard with visual feedback.
+- [x] **Jobs Screen**: Interface for monitoring, filtering, pausing, resuming, and clearing queued and executing background jobs.
+- [x] **Logs Screen**: Interface for viewing application logs with level filtering, Clear All, clear by severity, and row-level batch deletion.
+- [x] **AppLoggingHandler & NOTIFICATION Log Level**: Introduced `NOTIFICATION` (25) severity level, `AppLoggingHandler` routing `NOTIFICATION`/`WARNING`/`ERROR`/`CRITICAL` to `applogging` table, and UI level filter.
+- [x] **Search Views Management**: Interface in Configuration to add, edit, and order custom search views (`SearchView`: name, default, priority, filter_statement, order_by).
+- [x] **Entry Detail & Edit Screens**: Implemented `EntryDetailView` (`/entries/<id>`) with media preview, voting, tags editing, read-later toggle, status controls, and `EntryEditScreen` (`/entries/new`, `/entries/<id>/edit`).
+- [x] **Link Source Process Job**: Background worker handler for fetching and parsing RSS feeds, extracting entries, and updating operational metadata.
+- [x] **Link Update Data Background Job**: `JOB_LINK_UPDATE_DATA = "link-update-data"` enqueued when links are added by user; worker thread fetches `BaseUrl`/`RemoteUrl` title and description and updates entry metadata.
+- [x] **WebTools Direct Parsing (No BeautifulSoup / Response Fallback)**: Direct parsing of titles, descriptions, `date_published`, author, album, language, thumbnail, etc., via `webtoolkit`. Fallback on raw response and BeautifulSoup removed.
+- [x] **Link Metadata & Dead Link Detection**: Link update job updates title, description, `date_published`, author, album, language, thumbnail, and dead link status (`status_code >= 400`).
+- [x] **Block Entries & Block Lists**: Repositories, views, and import/splitting logic for `blockentries` and `blockentrylist` tables.
+- [x] **Batch Add Sources**: Batch ingestion interface to submit multiple RSS/Atom feed sources simultaneously.
+- [x] **URL Preview Screen (`/preview`)**: Dynamic preview screen to inspect link metadata via `WebToolsService` / `PreviewService`, evaluate blocking rules, view media embeds, and extract feed entries.
+- [x] **Entry Rules & Interactive Rule Testing**: Implemented `EntryRulesScreen` (`/rules`) for URL regex rules (block, trust, auto-tag) and interactive link testing against rules and block entries.
+- [x] **Remote Database Download**: Download, validate, and atomically replace the active SQLite database from a remote URL via `DatabaseService.replace_database_from_url` and `POST /api/database/replace-from-url`.
+- [x] **UI Polish & Status Indicators**: Addressed search filter/order combobox layout in search widgets and implemented background worker status badge (`#worker-badge` polling `/api/status/worker`) and online indication.
+- [x] **Link Validation & Sanitization**: Fully implemented via `EntryBuilder.sanitize_url` and `POST /api/entries/validate-link` (URL scheme normalization, non-WWW stripping, HTTPS upgrades, configuration policy checks, and interactive user suggestions in Quick Add modal).
+- [x] **Link Batch API Operations**: Implemented backend batch deletion (`POST /api/entries/batch-delete`) and batch insertion (`POST /api/entries/batch-add`) for up to 200 links.
+- [x] **System Operations Table (Worker Heartbeat)**: Implemented `SystemOperationRepository` and `systemoperation` table to track background worker heartbeats, liveness, and thread status via `/api/status/worker`.
+- [x] **Page Properties / Dynamic URL Inspection**: Implemented dedicated `UrlPreview` (`/preview`) view and `PreviewService` inspecting live HTTP status codes, metadata, OpenGraph tags, player embeds, and feed entries.
+- [x] **Source List Sorting by Errors**: Implemented "by Errors" sort option in source list search widget and `SourceSearchQueryBuilder` ordering by `consecutive_errors DESC nullslast`.
+- [ ] **Data Import & Export**: Implement OPML import/export for sources and JSON / plain link lists import/export for database entries.
+- [ ] **Entry List Batch UI Operations**: Add multi-select checkboxes and batch actions toolbar (bulk delete, batch tagging) to the entry list interface.
+- [ ] **Containerization**: Provide `Dockerfile` and `docker-compose.yml` for containerized application and worker deployment.
+- [ ] **Worker Handling on Database Replacement**: Define and implement restart/reconnect mechanism for background worker threads or processes when the active database file is replaced.
