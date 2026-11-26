@@ -10,7 +10,7 @@ from typing import Any, Dict, Optional
 from sqlalchemy.orm import Session
 
 from linkarchivetools.model.definitions import BackgroundJob, LinkDataModel
-from webtoolkit import UrlLocation
+from webtoolkit import SocialData, UrlLocation
 
 from yafr.db.entry_repository import EntryRepository
 from yafr.services.job_service import (
@@ -340,21 +340,54 @@ class LinkDownloadSocialJobHandler(BaseJobHandler):
             }
 
         try:
+            from unittest.mock import Mock
+
             web_client = WebToolsWrapper(url=entry.link, session=session, timeout_s=15)
-            social_data = (
-                web_client.get_social_properties()
-                if hasattr(web_client, "get_social_properties")
-                else {}
-            ) or {}
+            social_data = None
+            if hasattr(web_client, "get_social_properties"):
+                try:
+                    res = web_client.get_social_properties()
+                    if not isinstance(res, Mock):
+                        social_data = res
+                except Exception as exc:
+                    logger.debug("web_client.get_social_properties() failed: %s", exc)
 
-            if social_data:
-                # Upsert social data into the socialdata table
-                social_record = entry_repo.get_social_data(entry.id)
-                if social_record is None:
-                    from linkarchivetools.model.definitions import SocialData
+            # Check for warnings/errors reported in social_data (either SocialData instance or dict)
+            errors = None
+            if hasattr(social_data, "errors") and isinstance(social_data.errors, list):
+                errors = social_data.errors
+            elif isinstance(social_data, dict) and isinstance(
+                social_data.get("errors"), list
+            ):
+                errors = social_data.get("errors")
 
-                    social_record = SocialData(entry_id=entry.id)
-                    session.add(social_record)
+            if errors:
+                logger.warning(
+                    "Social data warnings/errors for entry #%s (%s): %s",
+                    entry.id,
+                    entry.link,
+                    errors,
+                )
+
+            # Determine whether metrics are populated and extract dict representation
+            has_metrics = False
+            social_dict: Dict[str, Any] = {}
+            if social_data is not None and not isinstance(social_data, Mock):
+                if isinstance(social_data, SocialData):
+                    has_metrics = len(social_data) > 0
+                    social_dict = social_data.to_dict()
+                elif hasattr(social_data, "to_dict") and callable(social_data.to_dict):
+                    has_metrics = (
+                        len(social_data) > 0
+                        if hasattr(social_data, "__len__")
+                        else True
+                    )
+                    social_dict = social_data.to_dict()
+                elif isinstance(social_data, dict):
+                    has_metrics = len(social_data) > 0
+                    social_dict = social_data
+
+            if has_metrics and social_dict:
 
                 def _to_int(val: Any) -> Optional[int]:
                     try:
@@ -368,37 +401,59 @@ class LinkDownloadSocialJobHandler(BaseJobHandler):
                     except (ValueError, TypeError):
                         return None
 
-                thumbs_up = _to_int(social_data.get("thumbs_up"))
-                thumbs_down = _to_int(social_data.get("thumbs_down"))
-                view_count = _to_int(social_data.get("view_count"))
-                rating = _to_float(social_data.get("rating"))
-                upvote_ratio = _to_float(social_data.get("upvote_ratio"))
-                upvote_diff = _to_int(social_data.get("upvote_diff"))
-                upvote_view_ratio = _to_float(social_data.get("upvote_view_ratio"))
-                stars = _to_float(social_data.get("stars"))
-                followers_count = _to_int(social_data.get("followers_count"))
+                thumbs_up = _to_int(social_dict.get("thumbs_up"))
+                thumbs_down = _to_int(social_dict.get("thumbs_down"))
+                view_count = _to_int(social_dict.get("view_count"))
+                rating = _to_float(social_dict.get("rating"))
+                upvote_ratio = _to_float(social_dict.get("upvote_ratio"))
+                upvote_diff = _to_int(social_dict.get("upvote_diff"))
+                upvote_view_ratio = _to_float(social_dict.get("upvote_view_ratio"))
+                stars = _to_float(social_dict.get("stars"))
+                followers_count = _to_int(social_dict.get("followers_count"))
 
-                if thumbs_up is not None:
-                    social_record.thumbs_up = thumbs_up
-                if thumbs_down is not None:
-                    social_record.thumbs_down = thumbs_down
-                if view_count is not None:
-                    social_record.view_count = view_count
-                if rating is not None:
-                    social_record.rating = rating
-                if upvote_ratio is not None:
-                    social_record.upvote_ratio = upvote_ratio
-                if upvote_diff is not None:
-                    social_record.upvote_diff = upvote_diff
-                if upvote_view_ratio is not None:
-                    social_record.upvote_view_ratio = upvote_view_ratio
-                if stars is not None:
-                    social_record.stars = stars
-                if followers_count is not None:
-                    social_record.followers_count = followers_count
+                metrics = [
+                    thumbs_up,
+                    thumbs_down,
+                    view_count,
+                    rating,
+                    upvote_ratio,
+                    upvote_diff,
+                    upvote_view_ratio,
+                    stars,
+                    followers_count,
+                ]
 
-                social_record.date_updated = datetime.now(timezone.utc)
-                session.commit()
+                if any(m is not None for m in metrics):
+                    social_record = entry_repo.get_social_data(entry.id)
+                    if social_record is None:
+                        from linkarchivetools.model.definitions import (
+                            SocialData as DBSocialData,
+                        )
+
+                        social_record = DBSocialData(entry_id=entry.id)
+                        session.add(social_record)
+
+                    if thumbs_up is not None:
+                        social_record.thumbs_up = thumbs_up
+                    if thumbs_down is not None:
+                        social_record.thumbs_down = thumbs_down
+                    if view_count is not None:
+                        social_record.view_count = view_count
+                    if rating is not None:
+                        social_record.rating = rating
+                    if upvote_ratio is not None:
+                        social_record.upvote_ratio = upvote_ratio
+                    if upvote_diff is not None:
+                        social_record.upvote_diff = upvote_diff
+                    if upvote_view_ratio is not None:
+                        social_record.upvote_view_ratio = upvote_view_ratio
+                    if stars is not None:
+                        social_record.stars = stars
+                    if followers_count is not None:
+                        social_record.followers_count = followers_count
+
+                    social_record.date_updated = datetime.now(timezone.utc)
+                    session.commit()
 
             return {
                 "success": True,

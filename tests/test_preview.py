@@ -218,3 +218,38 @@ class TestPreviewService(unittest.TestCase):
         self.assertTrue(json_data["success"])
         self.assertEqual(json_data["title"], "API Inspect Title")
         self.assertEqual(len(json_data["content_links"]), 1)
+
+    @patch("yafr.services.preview_service.WebToolsWrapper")
+    def test_api_preview_with_social_properties(self, mock_wrapper_cls):
+        """POST /api/preview/inspect includes social properties dictionary in JSON output."""
+        mock_wrapper = MagicMock()
+        mock_wrapper.get_title.return_value = "Social Preview Title"
+        mock_wrapper.get_description.return_value = "Social summary"
+        mock_wrapper.get_author.return_value = "Social Author"
+        mock_wrapper.get_language.return_value = "en"
+        mock_wrapper.get_album.return_value = None
+        mock_wrapper.get_thumbnail.return_value = None
+        mock_wrapper.get_status_code.return_value = 200
+        mock_wrapper.is_valid.return_value = True
+        mock_wrapper.get_canonical_url.return_value = "https://example.com/social-page"
+        mock_wrapper.get_social_properties.return_value = {
+            "thumbs_up": 888,
+            "view_count": 12345,
+            "rating": 4.7,
+        }
+        mock_wrapper.get_date_published.return_value = None
+        mock_wrapper.get_entries.return_value = []
+        mock_wrapper.get_content_links.return_value = []
+        mock_wrapper_cls.return_value = mock_wrapper
+
+        res = self.client.post(
+            "/api/preview/inspect",
+            json={"url": "https://example.com/social-page"},
+        )
+        self.assertEqual(res.status_code, 200)
+        data = res.get_json()
+        self.assertTrue(data["success"])
+        self.assertIn("social", data)
+        self.assertEqual(data["social"]["thumbs_up"], 888)
+        self.assertEqual(data["social"]["view_count"], 12345)
+        self.assertEqual(data["social"]["rating"], 4.7)

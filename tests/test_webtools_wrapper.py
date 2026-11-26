@@ -917,6 +917,60 @@ class TestWebToolsStatusApi(unittest.TestCase):
                 ["https://example.com/out1"],
             )
 
+    def test_get_social_properties_with_social_data_object(self):
+        """
+        WebToolsWrapper handles webtoolkit.SocialData instances correctly:
+        - get_social_properties returns dict representation via .to_dict()
+        """
+        from webtoolkit import SocialData
+
+        wrapper = WebToolsWrapper(url="https://example.com/video", session=self.session)
+        mock_handler = MagicMock()
+        social_obj = SocialData(
+            thumbs_up=500,
+            view_count=10000,
+            rating=4.8,
+            stars=4.9,
+            followers_count=2500,
+        )
+        mock_handler.get_social_properties.return_value = social_obj
+        wrapper.url_handler = mock_handler
+        wrapper._response = MagicMock(is_valid=lambda: True)
+
+        props = wrapper.get_social_properties()
+        self.assertIsInstance(props, dict)
+        self.assertEqual(props["thumbs_up"], 500)
+        self.assertEqual(props["view_count"], 10000)
+        self.assertEqual(props["rating"], 4.8)
+
+    def test_get_social_properties_from_dict_passthrough(self):
+        """
+        When handler returns a dict, get_social_properties returns the dict unmodified.
+        """
+        wrapper = WebToolsWrapper(url="https://example.com/item", session=self.session)
+        mock_handler = MagicMock(spec=["get_social_properties"])
+        mock_handler.get_social_properties.return_value = {
+            "thumbs_up": 42,
+            "stars": 5.0,
+        }
+        wrapper.url_handler = mock_handler
+        wrapper._response = MagicMock(is_valid=lambda: True)
+
+        props = wrapper.get_social_properties()
+        self.assertEqual(props, {"thumbs_up": 42, "stars": 5.0})
+
+    def test_get_social_properties_exception_handling(self):
+        """
+        When handler raises an exception, get_social_properties returns an empty dict.
+        """
+        wrapper = WebToolsWrapper(url="https://example.com/err", session=self.session)
+        mock_handler = MagicMock()
+        mock_handler.get_social_properties.side_effect = RuntimeError("network error")
+        wrapper.url_handler = mock_handler
+        wrapper._response = MagicMock(is_valid=lambda: True)
+
+        self.assertEqual(wrapper.get_social_properties(), {})
+
 
 if __name__ == "__main__":
     unittest.main()

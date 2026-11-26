@@ -335,6 +335,116 @@ class TestJobExecutor(unittest.TestCase):
         self.assertEqual(social.followers_count, 1000)
         self.assertIsNotNone(social.date_updated)
 
+    def test_job_download_social_with_social_data_object(self):
+        """JOB_LINK_DOWNLOAD_SOCIAL correctly parses and saves webtoolkit.SocialData objects."""
+        from webtoolkit import SocialData
+
+        entry = self.entry_repo.add_entry(
+            link="https://example.com/social-dataclass",
+            title="Social Data Test",
+        )
+        entry_id = entry.id
+        self.job_repo.enqueue_job(
+            job=JOB_LINK_DOWNLOAD_SOCIAL,
+            subject=str(entry_id),
+            priority=1,
+            enabled=True,
+        )
+
+        executor = JobExecutor(session=self.session, auto_refresh_sources=False)
+
+        with patch("yafr.workers.jobs.link_jobs.WebToolsWrapper") as mock_webtools_cls:
+            mock_client = MagicMock()
+            mock_client.get_social_properties.return_value = SocialData(
+                thumbs_up=250,
+                view_count=50000,
+                rating=4.9,
+                stars=5.0,
+                followers_count=12000,
+            )
+            mock_webtools_cls.return_value = mock_client
+
+            result = executor.process_one(session=self.session)
+
+        self.assertIsNotNone(result)
+        self.assertTrue(result["success"])
+
+        social = self.entry_repo.get_social_data(entry_id)
+        self.assertIsNotNone(social)
+        self.assertEqual(social.thumbs_up, 250)
+        self.assertEqual(social.view_count, 50000)
+        self.assertEqual(social.rating, 4.9)
+        self.assertEqual(social.followers_count, 12000)
+        self.assertIsNotNone(social.date_updated)
+
+    def test_job_download_social_with_empty_metrics_does_not_create_record(self):
+        """JOB_LINK_DOWNLOAD_SOCIAL does not create a DB record if no metrics are populated."""
+        from webtoolkit import SocialData
+
+        entry = self.entry_repo.add_entry(
+            link="https://example.com/no-social-metrics",
+            title="No Metrics Test",
+        )
+        entry_id = entry.id
+        self.job_repo.enqueue_job(
+            job=JOB_LINK_DOWNLOAD_SOCIAL,
+            subject=str(entry_id),
+            priority=1,
+            enabled=True,
+        )
+
+        executor = JobExecutor(session=self.session, auto_refresh_sources=False)
+
+        with patch("yafr.workers.jobs.link_jobs.WebToolsWrapper") as mock_webtools_cls:
+            mock_client = MagicMock()
+            mock_client.get_social_properties.return_value = SocialData()
+            mock_webtools_cls.return_value = mock_client
+
+            result = executor.process_one(session=self.session)
+
+        self.assertIsNotNone(result)
+        self.assertTrue(result["success"])
+
+        social = self.entry_repo.get_social_data(entry_id)
+        self.assertIsNone(social)
+
+    def test_job_download_social_with_errors_logs_warning_and_succeeds(self):
+        """JOB_LINK_DOWNLOAD_SOCIAL logs a warning if errors exist and saves available metrics."""
+        from webtoolkit import SocialData
+
+        entry = self.entry_repo.add_entry(
+            link="https://example.com/partial-social-err",
+            title="Partial Err Test",
+        )
+        entry_id = entry.id
+        self.job_repo.enqueue_job(
+            job=JOB_LINK_DOWNLOAD_SOCIAL,
+            subject=str(entry_id),
+            priority=1,
+            enabled=True,
+        )
+
+        executor = JobExecutor(session=self.session, auto_refresh_sources=False)
+
+        with patch("yafr.workers.jobs.link_jobs.WebToolsWrapper") as mock_webtools_cls:
+            mock_client = MagicMock()
+            mock_client.get_social_properties.return_value = SocialData(
+                thumbs_up=45,
+                errors=["Twitter API rate limited"],
+            )
+            mock_webtools_cls.return_value = mock_client
+
+            with self.assertLogs("yafr.workers.jobs.link_jobs", level="WARNING") as cm:
+                result = executor.process_one(session=self.session)
+
+        self.assertIsNotNone(result)
+        self.assertTrue(result["success"])
+        self.assertTrue(any("Twitter API rate limited" in msg for msg in cm.output))
+
+        social = self.entry_repo.get_social_data(entry_id)
+        self.assertIsNotNone(social)
+        self.assertEqual(social.thumbs_up, 45)
+
     def test_enqueue_outdated_jobs(self):
         """enqueue_outdated_jobs enqueues process-source jobs for outdated sources."""
         source = self.source_repo.add_source(

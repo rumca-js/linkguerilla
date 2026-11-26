@@ -1,84 +1,88 @@
-# Feature Specification: Data Import UI and Background Job Processing
+# Feature Specification: WebToolsWrapper SocialData Integration
 
 ## 1. Problem Statement & Scope
-- Problem: YAFR users currently have no web interface to bulk import link entries or feed/email sources from existing local archives or datasets on the host machine. Importing requires manual CLI invocation or manual link-by-link entry creation.
+- Problem: webtoolkit dependency was updated (v0.1.88+) such that RemoteUrl and BaseUrl social inspection methods (get_social_data and get_social_properties) return a SocialData dataclass instance instead of a Python dictionary. WebToolsWrapper currently enforces isinstance(props, dict), causing get_social_properties() to return an empty dictionary. Consequently, background social data downloads (JOB_LINK_DOWNLOAD_SOCIAL) and URL preview requests fail to extract and persist engagement metrics.
 - In Scope:
-  - ImportView UI at `/import` with navigation link in the top navigation bar.
-  - Server-side host filesystem path input for selecting files or directories.
-  - Target model selection: Auto-detect (default), Links (`linkdatamodel`), or Sources (`sourcedatamodel`).
-  - Extensible import architecture starting with JSON file/directory parsing, designed to easily incorporate OPML and plain text link lists.
-  - Conflict resolution policy: Skip existing records (prevent duplicate URLs or overwriting existing curated metadata).
-  - Background task enqueueing via `POST /api/import/enqueue` creating a `JOB_IMPORT_FROM_FILES = "import-from-files"` job in SQLite `backgroundjob`.
-  - Background worker handler (`ImportJobHandler`) executing the import job asynchronously, updating job progress/results, recording in `backgroundjobhistory`, and logging issues to `applogging`.
-  - Frontend async job status feedback and direct link to `/jobs` view.
+  - Implement WebToolsWrapper.get_social_data() returning Optional[webtoolkit.SocialData].
+  - Update WebToolsWrapper.get_social_properties() to return a dictionary via props.to_dict() when receiving a SocialData instance, while preserving raw dictionary passthrough for legacy handlers and mocks.
+  - Update LinkDownloadSocialJobHandler in yafr/workers/jobs/link_jobs.py to query get_social_data(), persist populated metrics when len(social_data) > 0 into the socialdata table, and log warnings when social_data.errors is populated.
+  - Verify PreviewService maintains seamless JSON serialization with dictionary output from get_social_properties().
+  - Update and expand unit test suites in tests/test_webtools_wrapper.py and tests/test_workers.py to cover SocialData objects, dictionary fallbacks, metric persistence, and error handling.
 - Out of Scope:
-  - Browser allows only to upload small files (showed, when import directory is empty, allows to select files from import if not
-  - OPML and plain link list parsers (deferred to follow-up tickets; architecture must support them via pluggable handlers).
-  - Export functionality not handled by this user story
+  - Database schema migrations or alterations to SQLite tables (socialdata table remains as defined in linkarchivetools).
+  - Modifying webtoolkit internal implementation or classes.
+  - Linking webtoolkit as a local path dependency in pyproject.toml (standard package dependency is maintained).
 
 ## 2. User Stories & Acceptance Criteria
-- US-1: As an archivist or administrator, I want to navigate to an Import screen from the navbar so that I can configure and initiate bulk imports of saved links and sources.
-  - [ ] A dedicated "Import" link is visible in the top navbar and highlights when `/import` is active.
-  - [ ] The Import screen renders a form with host filesystem path input, target model selector (Auto-detect, Links, Sources), conflict policy (Skip existing), and a submission button.
-  - [ ] The Import form displays clear guidance on supported file formats (JSON) and path syntax.
+- US-1: As a background worker executing JOB_LINK_DOWNLOAD_SOCIAL, I want WebToolsWrapper to provide parsed social metrics from webtoolkit SocialData instances so that entry engagement statistics (views, ratings, thumbs, stars, followers) are persisted to the database.
+  - [ ] WebToolsWrapper.get_social_data() returns an Optional[SocialData] instance when querying RemoteUrl or BaseUrl handlers.
+  - [ ] LinkDownloadSocialJobHandler extracts metrics from SocialData and updates the corresponding record in the socialdata table.
+  - [ ] If len(social_data) == 0 (no metrics populated), the database record is not mutated unnecessarily.
+  - [ ] If social_data.errors is non-empty, warnings are logged to application logs without failing the background job.
 
-- US-2: As an administrator, I want the system to validate the server-side filesystem path before submitting so that I do not enqueue jobs for non-existent or unreadable paths.
-  - [ ] If the path does not exist on the host, the UI shows a descriptive error message without enqueueing a job.
-  - [ ] If the path exists but contains no matching files, an error or warning is returned.
-  - [ ] If the path is valid, the request enqueues a background job and displays a confirmation banner with the job ID and a link to the Jobs view.
+- US-2: As a downstream consumer such as PreviewService or existing UI routes, I want WebToolsWrapper.get_social_properties() to continue returning a standard Python dictionary so that JSON responses and templates operate without regressions.
+  - [ ] WebToolsWrapper.get_social_properties() returns props.to_dict() when the underlying handler returns a SocialData instance.
+  - [ ] If the underlying handler returns a dict directly, get_social_properties() passes it through unmodified.
+  - [ ] On handler exceptions or unhandled returns, an empty dict {} is returned safely.
 
-- US-3: As a user, I want large file or directory imports to run in the background so that the web interface remains fast and responsive.
-  - [ ] Triggering an import creates a BackgroundJob record with job="import-from-files" in the SQLite database.
-  - [ ] The background worker picks up the job and processes all files within the directory or target file without blocking web requests.
-  - [ ] Progress and error counts are maintained; upon completion, the job is archived to `backgroundjobhistory` with total imported and skipped record counts.
-  - [ ] If existing entries or sources with identical URLs are encountered, they are skipped without failing the entire batch.
+- US-3: As a developer maintaining the codebase, I want test suites to validate both SocialData objects and legacy dictionary fallbacks so that changes to webtoolkit or mocking conventions do not break social data handling.
+  - [ ] Unit tests verify WebToolsWrapper.get_social_data() handling with SocialData instances.
+  - [ ] Unit tests verify WebToolsWrapper.get_social_data() auto-conversion from dictionary using SocialData.from_dict().
+  - [ ] Unit tests verify WebToolsWrapper.get_social_properties() returning dict representations of SocialData.
+  - [ ] Unit tests verify LinkDownloadSocialJobHandler persistence logic and error logging when receiving SocialData.
 
 ## 3. Data & Schema Changes
-- No schema alterations or database migrations required. Existing tables are leveraged:
-  - `backgroundjob`: stores pending and running jobs (job="import-from-files", subject=path, args=json serialized options).
-  - `backgroundjobhistory`: records completed/failed job outcome, execution time, and summary statistics.
-  - `linkdatamodel`: receives imported link entries.
-  - `sourcedatamodel`: receives imported feed/email sources.
-  - `applogging`: captures error and warning notifications.
+- Database schema changes: None.
+- Existing tables and models are preserved:
+  - socialdata table in SQLite via linkarchivetools.model.definitions.SocialData.
+  - Columns: id, entry_id, thumbs_up, thumbs_down, view_count, rating, upvote_ratio, upvote_diff, upvote_view_ratio, stars, followers_count, date_updated.
+- Model mapping:
+  - webtoolkit.SocialData dataclass metrics are cast via _to_int and _to_float before being assigned to linkarchivetools.model.definitions.SocialData attributes.
+  - sources and errors lists on webtoolkit.SocialData remain in-memory and are logged to application logs; they are not stored in database columns.
 
 ## 4. API & Endpoint Contracts
-- HTML View Route:
-  - GET /import: Renders ImportView (`yafr/templates/import/view.html`). Returns HTTP 200 with page context and active navigation state.
-- JSON API Endpoints:
-  - POST /api/import/validate-path:
-    - Request Body: JSON `{"path": "/absolute/path/to/data"}`
-    - Success (200 OK): `{"ok": true, "path": "/absolute/path/to/data", "is_dir": true, "file_count": 5, "detected_type": "json"}`
-    - Error (400 Bad Request): `{"ok": false, "error": "Path does not exist on host filesystem"}`
-  - POST /api/import/enqueue:
-    - Request Body: JSON `{"path": "/absolute/path/to/data", "target": "auto" or "links" or "sources", "conflict_strategy": "skip"}`
-    - Success (200 OK): `{"ok": true, "job_id": 42, "job_type": "import-from-files", "message": "Import job enqueued successfully"}`
-    - Error (400 Bad Request): `{"ok": false, "error": "Invalid target model or path"}`
-    - Error (500 Server Error): `{"ok": false, "error": "Database error while creating job"}`
+- External HTTP endpoints:
+  - No new routes or schema changes to existing REST endpoints.
+  - POST /api/preview/metadata continues returning JSON containing social dictionary:
+    - Status: 200 OK
+    - Payload property social: object containing social metric keys and values.
+  - POST /api/entries/<id>/update-social continues enqueueing JOB_LINK_DOWNLOAD_SOCIAL.
+- Internal service contracts:
+  - WebToolsWrapper.get_social_data() -> Optional[webtoolkit.SocialData]:
+    - Queries url_handler.get_social_data() or url_handler.get_social_properties().
+    - Returns webtoolkit.SocialData or None.
+  - WebToolsWrapper.get_social_properties() -> Dict[str, Any]:
+    - Returns dictionary representation of social metrics, or empty dict {}.
 
 ## 5. Architecture & Flow
-- Sequence:
-  1. User navigates to `/import` in the web browser.
-  2. User selects file from existing file from import folder (e.g. `./import/links.json` or `./import/link_dir`) and chooses target model. User can also select file to upload
-  3. Client-side JS (`import.js`) posts to `POST /api/import/enqueue`.
-  4. API route validates the path on the host filesystem and creates a `BackgroundJob` row via `JobService.create_job()`.
-  5. API responds with HTTP 200 and the created `job_id`.
-  6. The background worker loop (`JobExecutor`) polls `backgroundjob` ordered by priority.
-  7. `JobRegistry` routes `import-from-files` to `ImportJobHandler`.
-  8. `ImportJobHandler` loads the appropriate importer strategy (`JsonLinkImporter` or `JsonSourceImporter`).
-  9. Importer parses each file, checks for existing URLs in the database, inserts missing entries, and increments statistics (imported, skipped, failed).
-  10. Worker moves the job to `backgroundjobhistory` with full summary details and logs any parsing anomalies in `applogging`.
+- Flow for background social data ingestion:
+  - 1. Link creation or refresh enqueues JOB_LINK_DOWNLOAD_SOCIAL for entry_id.
+  - 2. Background worker executes LinkDownloadSocialJobHandler.
+  - 3. Handler initializes WebToolsWrapper for entry URL.
+  - 4. WebToolsWrapper instantiates RemoteUrl or BaseUrl handler.
+  - 5. Handler calls web_client.get_social_data().
+  - 6. WebToolsWrapper retrieves SocialData from handler.
+  - 7. If social_data.errors exists, handler logs a warning message.
+  - 8. If len(social_data) > 0, handler retrieves or creates socialdata record, updates metric values, sets date_updated, and commits transaction.
+  - 9. Background job completes successfully.
+- Flow for page preview:
+  - 1. User submits URL to preview endpoint.
+  - 2. PreviewService calls WebToolsWrapper.get_social_properties().
+  - 3. WebToolsWrapper converts SocialData to dict using props.to_dict().
+  - 4. PreviewService returns JSON response with serialized social data.
 
 ## 6. Edge Cases & Failure Modes
-- Path Does Not Exist: Caught at validation and API level before enqueuing. If path is removed before worker execution, worker records an error in `backgroundjob.errors`, logs to `applogging`, and fails the job cleanly.
-- Corrupted or Malformed JSON: Importer logs warning per malformed file/record and continues processing remaining valid entries rather than aborting the entire directory import.
-- Duplicate URL Collisions: Detected via query on normalized URL; existing entries are skipped to preserve existing ratings, tags, and metadata.
-- Large Directories (Thousands of Files): Importer processes files sequentially in chunks, committing transactions in batches (e.g. 100 entries per commit) to maintain low memory usage and avoid SQLite locking timeouts.
-- Symlinks and Recursive Directories: Importer ignores recursive directory symlinks to avoid infinite filesystem loops.
+- Handler returns None or raises exception: WebToolsWrapper catches errors, logs debug message, and returns None for get_social_data() and {} for get_social_properties().
+- Handler returns legacy dict: WebToolsWrapper.get_social_data() safely converts dict to SocialData via SocialData.from_dict(props); get_social_properties() returns the dict as-is.
+- Partial source failures: webtoolkit.SocialData can populate available metrics while appending failures to social_data.errors. The job persists valid metrics and logs error warnings without marking the job as failed.
+- Metric count is zero: When len(social_data) == 0, database records are not updated, avoiding empty timestamp updates.
+- Idempotency: Multiple job executions update the existing socialdata row for entry_id without creating duplicate entries.
 
 ## 7. Security & Observability
-- Path Traversal & Restricted Paths: Validation ensures only readable files/directories are processed. Restricted system directories (e.g. `/proc`, `/sys`, `/dev`) can be blocked.
 - Observability:
-  - Jobs appear immediately in `/jobs` list with pending state and priority.
-  - Real-time error badges in navbar increment if job encounters unrecoverable errors.
-  - Informative log entries created in `applogging` table with severity `NOTIFICATION` on completion and `WARNING`/`ERROR` on malformed inputs.
-  - Full execution outcome recorded in `backgroundjobhistory` with duration, total records processed, skipped, and inserted.
+  - Warnings logged via logger.warning when social_data.errors contains reported issues.
+  - Debug logs emitted for handler invocation failures without exposing credentials or internal tokens.
+  - Background job execution recorded in backgroundjobhistory table.
+- Security:
+  - All database interactions use parameterized SQLAlchemy ORM operations.
+  - Network timeouts (15s default) prevent hanging worker threads during remote social data retrieval.

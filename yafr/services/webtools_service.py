@@ -16,7 +16,7 @@ import warnings
 from bs4 import MarkupResemblesLocatorWarning
 from sqlalchemy.orm import Session
 import webtoolkit
-from webtoolkit import BaseUrl, RemoteUrl
+from webtoolkit import BaseUrl, RemoteUrl, SocialData
 
 # Suppress BeautifulSoup markup locator warning from brutefeedparser/webtoolkit
 warnings.filterwarnings("ignore", category=MarkupResemblesLocatorWarning)
@@ -547,14 +547,27 @@ class WebToolsWrapper:
 
     def get_social_properties(self) -> Dict[str, Any]:
         """
-        Retrieves social properties from handler if available.
+        Retrieves social properties as a dictionary from handler if available.
+        Maintains backwards compatibility by returning dict representation.
         """
         self.get_response()
-        if self.url_handler and hasattr(self.url_handler, "get_social_properties"):
+        if not self.url_handler:
+            return {}
+
+        handler_method = getattr(
+            self.url_handler,
+            "get_social_properties",
+            getattr(self.url_handler, "get_social_data", None),
+        )
+        if handler_method:
             try:
-                props = self.url_handler.get_social_properties()
+                props = handler_method()
                 if isinstance(props, dict):
                     return props
+                if isinstance(props, SocialData):
+                    return props.to_dict()
+                if hasattr(props, "to_dict") and callable(props.to_dict):
+                    return props.to_dict()
             except Exception as exc:
                 logger.debug("url_handler.get_social_properties() failed: %s", exc)
         return {}
